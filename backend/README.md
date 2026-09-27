@@ -59,6 +59,17 @@ Các endpoint dưới đây đều yêu cầu JWT của nhân viên trong header
 - `PATCH /categories/:categoryId`: cập nhật `name` hoặc `description`.
 - `DELETE /categories/:categoryId`: xóa danh mục; trả `409` nếu sản phẩm đang tham chiếu danh mục.
 
+## API sản phẩm và biến thể
+
+Các endpoint này cũng yêu cầu JWT nhân viên:
+
+- `GET /products` và `GET /products/:productId`: danh sách hoặc chi tiết sản phẩm.
+- `POST /products`: tạo sản phẩm với `name`, `categoryId` và các trường tùy chọn `description`, `brand`, `status`.
+- `PATCH /products/:productId` và `DELETE /products/:productId`: cập nhật hoặc xóa sản phẩm. Xóa bị từ chối nếu còn biến thể.
+- `GET /products/:productId/variants`: liệt kê biến thể.
+- `POST /products/:productId/variants`: thêm biến thể với `price` và tùy chọn `size`, `color`.
+- `PATCH /products/:productId/variants/:variantId` và `DELETE /products/:productId/variants/:variantId`: cập nhật hoặc xóa biến thể thuộc sản phẩm đó.
+
 ## Lệnh hữu ích
 
 - `npm run build`: biên dịch TypeScript vào `dist/`
