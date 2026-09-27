@@ -16,6 +16,7 @@ export type InventoryMovementKind =
   'opening' | 'import' | 'sale' | 'adjustment';
 
 @Entity({ name: 'inventory_movement' })
+@Check('CHK_inventory_movement_direction', "\"direction\" IN ('in', 'out')")
 @Check(
   'CHK_inventory_movement_kind',
   "\"movement_type\" IN ('opening', 'import', 'sale', 'adjustment')",
@@ -92,7 +93,11 @@ export class InventoryMovement {
 
   @ManyToOne(() => ImportDetail, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn([
-    { name: 'import_id', referencedColumnName: 'importId' },
+    {
+      name: 'import_id',
+      referencedColumnName: 'importId',
+      foreignKeyConstraintName: 'FK_inventory_movement_import_detail',
+    },
     { name: 'variant_id', referencedColumnName: 'variantId' },
   ])
   importDetail!: ImportDetail | null;

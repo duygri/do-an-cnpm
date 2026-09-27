@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -13,6 +14,7 @@ import { Supplier } from '../../suppliers/entities/supplier.entity';
 import { ImportDetail } from './import-detail.entity';
 
 @Entity({ name: 'stock_import' })
+@Check('CHK_stock_import_total_nonnegative', '"total_amount" >= 0')
 @Index('IDX_stock_import_supplier_id', ['supplierId'])
 @Index('IDX_stock_import_employee_id', ['employeeId'])
 export class StockImport {
