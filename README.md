@@ -6,7 +6,8 @@ Khung dự án website bán hàng dựa trên ERD do nhóm cung cấp.
 
 - `frontend/`: giao diện người dùng.
 - `backend/`: API dùng TypeScript + NestJS 11.
-- `database/`: migration và dữ liệu mẫu.
+- `database/`: dữ liệu mẫu dùng chung.
+- `backend/src/database/migrations/`: migration PostgreSQL do TypeORM quản lý.
 - `docs/erd/`: sơ đồ ERD và tài liệu dữ liệu.
 
 ## Tài liệu
@@ -16,4 +17,4 @@ Khung dự án website bán hàng dựa trên ERD do nhóm cung cấp.
 
 ## Trạng thái
 
-Backend đã có scaffold NestJS. Database và ORM sẽ được chốt trước khi xây các module sản phẩm, tồn kho và đơn hàng.
+Backend dùng NestJS, TypeScript, PostgreSQL và TypeORM. Migration đầu tiên tạo danh mục, sản phẩm và biến thể; xem [hướng dẫn cấu hình database](backend/README.md#database).
