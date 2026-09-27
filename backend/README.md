@@ -21,7 +21,7 @@ Sau khi đã cấu hình database, API chạy tại http://localhost:3000.
 
 1. Tạo database PostgreSQL tên `sales_system`.
 2. Sao chép `.env.example` thành `.env` và cập nhật `DATABASE_URL` bằng thông tin PostgreSQL local của bạn.
-3. Chạy migration đầu tiên để tạo `category`, `product` và `product_variant`:
+3. Chạy migration để tạo `category`, `product`, `product_variant` và `employee`:
 
 ```powershell
 npm run db:migrate
@@ -35,6 +35,30 @@ npm run db:migrations
 
 Ứng dụng không tự thay đổi schema khi khởi động (`synchronize: false`); mọi thay đổi cấu trúc phải đi qua migration.
 
+## Đăng nhập nhân viên
+
+1. Đặt `JWT_SECRET` thành chuỗi ngẫu nhiên riêng, tối thiểu 32 byte, trong `.env`.
+2. Chạy migration và tạo nhân viên quản trị đầu tiên:
+
+```powershell
+npm run db:migrate
+npm run db:create-admin
+```
+
+3. Đăng nhập bằng `POST /auth/employee/login` với JSON gồm `email` và `password`. API trả JWT Bearer có thời hạn 15 phút; gửi token ở `Authorization: Bearer <token>` khi gọi `GET /auth/employee/profile`.
+
+API không có đăng ký admin công khai. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được.
+
+## API danh mục
+
+Các endpoint dưới đây đều yêu cầu JWT của nhân viên trong header `Authorization: Bearer <token>`:
+
+- `GET /categories`: danh sách danh mục.
+- `GET /categories/:categoryId`: chi tiết danh mục.
+- `POST /categories`: tạo danh mục với `name` và tùy chọn `description`.
+- `PATCH /categories/:categoryId`: cập nhật `name` hoặc `description`.
+- `DELETE /categories/:categoryId`: xóa danh mục; trả `409` nếu sản phẩm đang tham chiếu danh mục.
+
 ## Lệnh hữu ích
 
 - `npm run build`: biên dịch TypeScript vào `dist/`
@@ -47,6 +71,8 @@ npm run db:migrations
 - `src/main.ts`: khởi động ứng dụng NestJS.
 - `src/app.module.ts`: cấu hình module gốc và kết nối PostgreSQL.
 - `src/catalog/entities/`: entity danh mục, sản phẩm và biến thể.
+- `src/employees/entities/`: entity nhân viên dùng cho đăng nhập.
+- `src/auth/`: đăng nhập JWT, xác minh bearer token và băm mật khẩu.
 - `src/database/data-source.ts`: cấu hình TypeORM CLI.
 - `src/database/migrations/`: migration schema.
 - `src/app.controller.ts` và `src/app.service.ts`: endpoint khởi tạo.

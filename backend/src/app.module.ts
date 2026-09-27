@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { CatalogModule } from './catalog/catalog.module';
       }),
     }),
     CatalogModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
