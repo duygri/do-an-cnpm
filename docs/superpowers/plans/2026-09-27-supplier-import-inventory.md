@@ -108,6 +108,6 @@
 - [x] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`.
 - [x] Run `git diff --check` and inspect the final diff, especially migration constraints and money arithmetic.
 - [x] Apply the new migration to the configured local PostgreSQL database with `npm run db:migrate`; confirm all migrations show applied with `npm run db:migrations`. Do not print or commit `.env` contents.
-- [ ] Commit the ERD, migration, APIs, and docs; push to the repository's `main` branch and confirm the remote commit hash.
+- [x] Commit the ERD, migration, APIs, and docs; push to the repository's `main` branch and confirm the remote commit hash.
 
 No tests are added or run in this plan.
