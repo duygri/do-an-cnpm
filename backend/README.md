@@ -21,7 +21,7 @@ Sau khi đã cấu hình database, API chạy tại http://localhost:3000.
 
 1. Tạo database PostgreSQL tên `sales_system`.
 2. Sao chép `.env.example` thành `.env` và cập nhật `DATABASE_URL` bằng thông tin PostgreSQL local của bạn.
-3. Chạy migration để tạo `category`, `product`, `product_variant` và `employee`:
+3. Chạy migration để tạo schema danh mục, sản phẩm, biến thể, nhân viên, nhà cung cấp, phiếu nhập và sổ biến động tồn kho:
 
 ```powershell
 npm run db:migrate
@@ -70,6 +70,42 @@ Các endpoint này cũng yêu cầu JWT nhân viên:
 - `POST /products/:productId/variants`: thêm biến thể với `price` và tùy chọn `size`, `color`.
 - `PATCH /products/:productId/variants/:variantId` và `DELETE /products/:productId/variants/:variantId`: cập nhật hoặc xóa biến thể thuộc sản phẩm đó.
 
+## API nhà cung cấp
+
+Các endpoint đều yêu cầu JWT nhân viên:
+
+- `GET /suppliers` và `GET /suppliers/:supplierId`: danh sách hoặc chi tiết.
+- `POST /suppliers`: tạo với `name` và tùy chọn `address`, `email`.
+- `PATCH /suppliers/:supplierId`: cập nhật một hoặc nhiều trường trên.
+- `DELETE /suppliers/:supplierId`: xóa nhà cung cấp; trả `409` nếu đã có phiếu nhập tham chiếu.
+
+## API phiếu nhập
+
+Các endpoint đều yêu cầu JWT nhân viên:
+
+- `GET /imports` và `GET /imports/:importId`: danh sách hoặc chi tiết phiếu nhập.
+- `POST /imports`: tạo phiếu với `supplierId`, tùy chọn `note`, và 1–100 dòng `details`. Mỗi dòng có `variantId`, `quantity` nguyên dương và `unitPrice` dạng chuỗi thập phân tối đa hai chữ số, ví dụ:
+
+```json
+{
+  "supplierId": 1,
+  "note": "Nhập hàng đầu tháng",
+  "details": [{ "variantId": 1, "quantity": 10, "unitPrice": "12500.00" }]
+}
+```
+
+API lấy `employeeId` từ JWT, tính subtotal/tổng tiền phía server, rồi lưu phiếu, chi tiết và biến động nhập kho trong cùng transaction. Không thể sửa/xóa phiếu nhập; muốn hiệu chỉnh tồn phải ghi biến động điều chỉnh.
+
+## API tồn kho
+
+Các endpoint đều yêu cầu JWT nhân viên. Số lượng được tính từ sổ `inventory_movement`, không lưu một số tồn có thể lệch khỏi lịch sử.
+
+- `POST /inventory/opening-balances`: tạo lô tồn đầu kỳ ban đầu với `rows` gồm `{ "variantId": 1, "quantity": 20 }`. Mỗi biến thể chỉ được đặt một lần và phải đặt trước biến động kho đầu tiên. Có thể đặt số lượng `0`; cả lô được lưu toàn bộ hoặc không lưu.
+- `POST /inventory/adjustments`: ghi điều chỉnh kiểm kê, ví dụ `{ "variantId": 1, "direction": "out", "quantity": 1, "note": "Chênh lệch kiểm kê" }`. Điều chỉnh xuất không được làm tồn âm.
+- `GET /inventory/variants/:variantId/balance?from=2026-09-01&to=2026-10-01`: trả `beginningBalance`, `inbound`, `outbound`, `endingBalance`. Ngày tính theo UTC; `from` được tính, `to` là mốc kết thúc không bao gồm.
+
+`endingBalance = beginningBalance + inbound - outbound`. Phiếu nhập tạo biến động nhập. Đơn chờ xử lý hoặc bị hủy không trừ tồn; phần API đơn hàng sau này sẽ ghi biến động xuất khi đơn thực sự được giao/xuất.
+
 ## Lệnh hữu ích
 
 - `npm run build`: biên dịch TypeScript vào `dist/`
@@ -82,6 +118,7 @@ Các endpoint này cũng yêu cầu JWT nhân viên:
 - `src/main.ts`: khởi động ứng dụng NestJS.
 - `src/app.module.ts`: cấu hình module gốc và kết nối PostgreSQL.
 - `src/catalog/entities/`: entity danh mục, sản phẩm và biến thể.
+- `src/suppliers/`, `src/imports/`, `src/inventory/`: quản lý nhà cung cấp, phiếu nhập và sổ tồn kho.
 - `src/employees/entities/`: entity nhân viên dùng cho đăng nhập.
 - `src/auth/`: đăng nhập JWT, xác minh bearer token và băm mật khẩu.
 - `src/database/data-source.ts`: cấu hình TypeORM CLI.
