@@ -5,8 +5,10 @@
 
 # Dependencies and build output
 node_modules/
+coverage/
 dist/
 build/
+*.tsbuildinfo
 bin/
 obj/
 target/
