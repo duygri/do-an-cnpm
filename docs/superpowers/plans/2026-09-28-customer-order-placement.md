@@ -97,12 +97,12 @@
 - Modify: `backend/README.md`
 - Modify: `docs/superpowers/specs/2026-09-27-supplier-import-inventory-design.md`
 
-- [ ] Add the three delivery snapshot columns to SALES_ORDER; show CUSTOMER as the actor on order sale/cancellation movements, employee actors on existing admin movements, and two distinct INVENTORY_MOVEMENT relationships to ORDER_DETAIL.
-- [ ] Update ERD constraints: sale is outbound at order placement, cancellation is compensating inbound, pending/cancelled orders both have ledger history; remove the previous sentence saying pending/cancelled orders do not create outbound movement.
-- [ ] Document each protected customer order route, request fields, default pagination and response envelope, order statuses, server-owned zero fees/discounts, and that live stock is not exposed.
-- [ ] Update README stock rules and feature sequencing to state that creation deducts stock atomically and pending cancellation restores it through an appended movement.
-- [ ] Mark the supplier/import spec's fulfillment-time deduction sentence as historical and superseded by `2026-09-28-customer-order-placement-design.md`; do not rewrite its earlier approved implementation scope.
-- [ ] Run `git diff --check` and visually inspect Mermaid schema/cardinalities and README examples.
+- [x] Add the three delivery snapshot columns to SALES_ORDER; show CUSTOMER as the actor on order sale/cancellation movements, employee actors on existing admin movements, and two distinct INVENTORY_MOVEMENT relationships to ORDER_DETAIL.
+- [x] Update ERD constraints: sale is outbound at order placement, cancellation is compensating inbound, pending/cancelled orders both have ledger history; remove the previous sentence saying pending/cancelled orders do not create outbound movement.
+- [x] Document each protected customer order route, request fields, default pagination and response envelope, order statuses, server-owned zero fees/discounts, and that live stock is not exposed.
+- [x] Update README stock rules and feature sequencing to state that creation deducts stock atomically and pending cancellation restores it through an appended movement.
+- [x] Mark the supplier/import spec's fulfillment-time deduction sentence as historical and superseded by `2026-09-28-customer-order-placement-design.md`; do not rewrite its earlier approved implementation scope.
+- [x] Run `git diff --check` and visually inspect Mermaid schema/cardinalities and README examples.
 
 ## Task 6: Verify schema and publish the completed feature
 
