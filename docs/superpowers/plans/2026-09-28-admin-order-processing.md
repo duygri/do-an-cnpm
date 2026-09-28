@@ -18,12 +18,12 @@
 - Modify: `backend/src/orders/orders.module.ts`
 - Create: `backend/src/database/migrations/1790710000000-create-order-packing.ts`
 
-- [ ] Add the `Packing` TypeORM entity mapped to the approved MVP fields: generated `packingId`, server `packingDate`, nullable `packingType` (`bag`/`box`), `status` (`packed`), nullable `note`, `employeeId`, and unique `orderId`; add restrictive Employee and SalesOrder relations without eager loading.
-- [ ] Add a non-eager one-to-one `SalesOrder.packing` relation and extend `SalesOrderStatus`/status check to `pending | packed | cancelled`.
-- [ ] Create a migration that adds `packed` to the existing sales-order status check, adds `(status, order_date)` index, creates `packing` with validated columns, checks, unique order index, and restrictive FKs.
-- [ ] Require `up` and `down` to run only inside an active transaction: check `queryRunner.isTransactionActive` before database work and do not set a per-migration `transaction` override because the repo's default TypeORM `all` mode rejects it. In `down`, acquire `ACCESS EXCLUSIVE` locks on `sales_order` then `packing` (the application lock order), then preflight packed orders and packing rows before any DDL; if either count is nonzero, throw a clear error and make no changes. Otherwise drop the new index/table and restore the original status check.
-- [ ] Register `Packing` with `TypeOrmModule.forFeature` and preserve the existing customer-order module wiring.
-- [ ] Review entity/migration parity and run `git diff --check`.
+- [x] Add the `Packing` TypeORM entity mapped to the approved MVP fields: generated `packingId`, server `packingDate`, nullable `packingType` (`bag`/`box`), `status` (`packed`), nullable `note`, `employeeId`, and unique `orderId`; add restrictive Employee and SalesOrder relations without eager loading.
+- [x] Add a non-eager one-to-one `SalesOrder.packing` relation and extend `SalesOrderStatus`/status check to `pending | packed | cancelled`.
+- [x] Create a migration that adds `packed` to the existing sales-order status check, adds `(status, order_date)` index, creates `packing` with validated columns, checks, unique order index, and restrictive FKs.
+- [x] Require `up` and `down` to run only inside an active transaction: check `queryRunner.isTransactionActive` before database work and do not set a per-migration `transaction` override because the repo's default TypeORM `all` mode rejects it. In `down`, acquire `ACCESS EXCLUSIVE` locks on `sales_order` then `packing` (the application lock order), then preflight packed orders and packing rows before any DDL; if either count is nonzero, throw a clear error and make no changes. Otherwise drop the new index/table and restore the original status check.
+- [x] Register `Packing` with `TypeOrmModule.forFeature` and preserve the existing customer-order module wiring.
+- [x] Review entity/migration parity and run `git diff --check`.
 
 ### Task 2: Implement employee order listing and detail
 
