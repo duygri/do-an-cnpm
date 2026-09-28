@@ -7,22 +7,28 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
 import { OrderDetail } from './order-detail.entity';
+import { Packing } from './packing.entity';
 
 export type SalesOrderPaymentStatus = 'unpaid';
-export type SalesOrderStatus = 'pending' | 'cancelled';
+export type SalesOrderStatus = 'pending' | 'packed' | 'cancelled';
 
 @Entity({ name: 'sales_order' })
 @Check('CHK_sales_order_discount_nonnegative', '"discount_amount" >= 0')
 @Check('CHK_sales_order_shipping_nonnegative', '"shipping_fee" >= 0')
 @Check('CHK_sales_order_total_nonnegative', '"total_amount" >= 0')
 @Check('CHK_sales_order_payment_status', '"payment_status" IN (\'unpaid\')')
-@Check('CHK_sales_order_status', "\"status\" IN ('pending', 'cancelled')")
+@Check(
+  'CHK_sales_order_status',
+  "\"status\" IN ('pending', 'packed', 'cancelled')",
+)
 @Index('IDX_sales_order_customer_id', ['customerId'])
 @Index('IDX_sales_order_order_date', ['orderDate'])
+@Index('IDX_sales_order_status_order_date', ['status', 'orderDate'])
 export class SalesOrder {
   @PrimaryGeneratedColumn({ name: 'order_id', type: 'integer' })
   orderId!: number;
@@ -95,4 +101,7 @@ export class SalesOrder {
 
   @OneToMany(() => OrderDetail, (detail) => detail.order, { cascade: false })
   details!: OrderDetail[];
+
+  @OneToOne(() => Packing, (packing) => packing.order, { cascade: false })
+  packing!: Packing | null;
 }

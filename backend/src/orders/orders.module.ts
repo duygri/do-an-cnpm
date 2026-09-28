@@ -6,6 +6,7 @@ import { ProductVariant } from '../catalog/entities/product-variant.entity';
 import { InventoryModule } from '../inventory/inventory.module';
 import { InventoryMovement } from '../inventory/entities/inventory-movement.entity';
 import { OrderDetail } from './entities/order-detail.entity';
+import { Packing } from './entities/packing.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
@@ -17,6 +18,7 @@ import { OrdersService } from './orders.service';
     TypeOrmModule.forFeature([
       SalesOrder,
       OrderDetail,
+      Packing,
       InventoryMovement,
       ProductVariant,
       Product,
