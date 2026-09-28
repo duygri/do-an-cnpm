@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { CustomerAuthenticatedRequest } from '../customers/customer-authenticated-request';
 import { CustomerJwtGuard } from '../customers/customer-jwt.guard';
+import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersDto } from './dto/get-orders.dto';
 import { OrdersService } from './orders.service';
 
@@ -18,6 +20,14 @@ import { OrdersService } from './orders.service';
 @UseGuards(CustomerJwtGuard)
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
+
+  @Post()
+  create(
+    @Req() request: CustomerAuthenticatedRequest,
+    @Body() input: CreateOrderDto,
+  ) {
+    return this.orders.createOrder(input, request.customer.customerId);
+  }
 
   @Get()
   list(
