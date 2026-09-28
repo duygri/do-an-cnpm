@@ -197,7 +197,10 @@ export class OrdersService {
     };
   }
 
-  async getOrder(customerId: number, orderIdInput: string): Promise<SalesOrder> {
+  async getOrder(
+    customerId: number,
+    orderIdInput: string,
+  ): Promise<SalesOrder> {
     const orderId = this.parseOrderId(orderIdInput);
     const order = await this.dataSource
       .getRepository(SalesOrder)
