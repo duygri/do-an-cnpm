@@ -9,9 +9,14 @@ import {
 
 export class CreateOrderPacking1790710000000 implements MigrationInterface {
   name = 'CreateOrderPacking1790710000000';
-  transaction = true;
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    if (!queryRunner.isTransactionActive) {
+      throw new Error(
+        'Cannot apply order packing migration without an active transaction.',
+      );
+    }
+
     await queryRunner.dropCheckConstraint(
       'sales_order',
       'CHK_sales_order_status',
