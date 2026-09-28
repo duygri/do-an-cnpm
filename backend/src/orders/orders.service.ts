@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -10,6 +11,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderDetail } from './entities/order-detail.entity';
 import { SalesOrder } from './entities/sales-order.entity';
+import { GetOrdersDto } from './dto/get-orders.dto';
 
 const UNIT_PRICE_PRECISION = 12;
 const SUBTOTAL_PRECISION = 22;
@@ -167,6 +169,134 @@ export class OrdersService {
 
       return savedOrder;
     });
+  }
+
+  async listOrders(
+    customerId: number,
+    pagination: GetOrdersDto,
+  ): Promise<{
+    items: SalesOrder[];
+    page: number;
+    limit: number;
+    total: number;
+  }> {
+    const [items, total] = await this.dataSource
+      .getRepository(SalesOrder)
+      .findAndCount({
+        where: { customerId },
+        order: { orderDate: 'DESC', orderId: 'DESC' },
+        skip: (pagination.page - 1) * pagination.limit,
+        take: pagination.limit,
+      });
+
+    return {
+      items,
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+    };
+  }
+
+  async getOrder(customerId: number, orderIdInput: string): Promise<SalesOrder> {
+    const orderId = this.parseOrderId(orderIdInput);
+    const order = await this.dataSource
+      .getRepository(SalesOrder)
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.details', 'detail')
+      .where('order.orderId = :orderId', { orderId })
+      .andWhere('order.customerId = :customerId', { customerId })
+      .orderBy('detail.variantId', 'ASC')
+      .getOne();
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    return order;
+  }
+
+  async cancelOrder(
+    customerId: number,
+    orderIdInput: string,
+  ): Promise<SalesOrder> {
+    const orderId = this.parseOrderId(orderIdInput);
+
+    return this.dataSource.transaction(async (manager): Promise<SalesOrder> => {
+      const orderRepository = manager.getRepository(SalesOrder);
+      const order = await orderRepository
+        .createQueryBuilder('order')
+        .where('order.orderId = :orderId', { orderId })
+        .andWhere('order.customerId = :customerId', { customerId })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!order) {
+        throw new NotFoundException('Order not found.');
+      }
+
+      if (order.status !== 'pending') {
+        throw new ConflictException('Only pending orders can be cancelled.');
+      }
+
+      const details = await manager
+        .getRepository(OrderDetail)
+        .createQueryBuilder('detail')
+        .where('detail.orderId = :orderId', { orderId })
+        .orderBy('detail.variantId', 'ASC')
+        .getMany();
+      const rows = details.map(({ variantId, quantity }) => ({
+        variantId,
+        quantity,
+      }));
+
+      await this.inventoryService.lockVariants(
+        manager,
+        rows.map(({ variantId }) => variantId),
+      );
+      await this.inventoryService.createSaleCancellationMovements(
+        manager,
+        order.orderId,
+        customerId,
+        new Date(),
+        rows,
+      );
+
+      order.status = 'cancelled';
+      await orderRepository.save(order);
+
+      const savedOrder = await orderRepository
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.details', 'detail')
+        .where('order.orderId = :orderId', { orderId })
+        .andWhere('order.customerId = :customerId', { customerId })
+        .orderBy('detail.variantId', 'ASC')
+        .getOne();
+
+      if (!savedOrder) {
+        throw new InternalServerErrorException(
+          'The order could not be loaded within the transaction.',
+        );
+      }
+
+      return savedOrder;
+    });
+  }
+
+  private parseOrderId(orderIdInput: string): number {
+    if (!/^\d+$/.test(orderIdInput)) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    const orderId = Number(orderIdInput);
+    if (
+      !Number.isSafeInteger(orderId) ||
+      orderId < 1 ||
+      orderId > 2_147_483_647
+    ) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    return orderId;
   }
 
   private parseUnitPrice(price: string, variantId: number): bigint {
