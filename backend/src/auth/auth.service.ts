@@ -45,6 +45,7 @@ export class AuthService {
     return {
       access_token: await this.jwt.signAsync({
         sub: String(employee.employeeId),
+        actorType: 'employee',
       }),
       token_type: 'Bearer',
       expires_in: TOKEN_LIFETIME_SECONDS,

@@ -7,6 +7,8 @@ import { ProductVariantsController } from './product-variants.controller';
 import { ProductVariantsService } from './product-variants.service';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
+import { StorefrontController } from './storefront.controller';
+import { StorefrontService } from './storefront.service';
 import { Category } from './entities/category.entity';
 import { Product } from './entities/product.entity';
 import { ProductVariant } from './entities/product-variant.entity';
@@ -20,7 +22,13 @@ import { ProductVariant } from './entities/product-variant.entity';
     CategoriesController,
     ProductsController,
     ProductVariantsController,
+    StorefrontController,
   ],
-  providers: [CategoriesService, ProductsService, ProductVariantsService],
+  providers: [
+    CategoriesService,
+    ProductsService,
+    ProductVariantsService,
+    StorefrontService,
+  ],
 })
 export class CatalogModule {}

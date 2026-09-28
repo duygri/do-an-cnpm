@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CustomersModule } from './customers/customers.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ImportsModule } from './imports/imports.module';
@@ -26,6 +27,7 @@ import { SuppliersModule } from './suppliers/suppliers.module';
     }),
     CatalogModule,
     AuthModule,
+    CustomersModule,
     SuppliersModule,
     InventoryModule,
     ImportsModule,

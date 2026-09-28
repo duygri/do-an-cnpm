@@ -7,4 +7,5 @@ export interface EmployeeProfile {
 
 export interface AccessTokenPayload {
   sub: string;
+  actorType?: 'employee' | 'customer';
 }

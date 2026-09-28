@@ -18,4 +18,4 @@ Khung dự án website bán hàng dựa trên ERD do nhóm cung cấp.
 
 ## Trạng thái
 
-Backend dùng NestJS, TypeScript, PostgreSQL và TypeORM. Đã có migration catalog/nhân viên/nhập hàng, đăng nhập JWT, CRUD danh mục/sản phẩm/biến thể/nhà cung cấp, phiếu nhập và sổ tồn kho có bảo vệ token. Xem [hướng dẫn backend](backend/README.md).
+Backend dùng NestJS, TypeScript, PostgreSQL và TypeORM. Đã có migration catalog/nhân viên/khách hàng/nhập hàng, đăng nhập JWT phân biệt nhân viên và khách, CRUD danh mục/sản phẩm/biến thể/nhà cung cấp, storefront công khai, phiếu nhập và sổ tồn kho có bảo vệ token. Xem [hướng dẫn backend](backend/README.md).

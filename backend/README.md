@@ -49,6 +49,14 @@ npm run db:create-admin
 
 API không có đăng ký admin công khai. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được.
 
+## Tài khoản khách hàng
+
+Khách có thể tạo tài khoản và đăng nhập bằng `POST /auth/customer/register` và `POST /auth/customer/login`. Cả hai nhận `email` và `password`; đăng ký cần thêm `name`, mật khẩu dài 12–128 ký tự. `dateOfBirth` (`YYYY-MM-DD`), `phone`, `address`, và `gender` là tùy chọn. Email được cắt khoảng trắng và chuyển thành chữ thường.
+
+Phản hồi đăng nhập/đăng ký có `access_token`, `token_type`, `expires_in` và `customer` với các trường `customerId`, `name`, `email`, `dateOfBirth`, `phone`, `address`, `gender`. Gửi token ở header `Authorization: Bearer <token>` để gọi `GET /auth/customer/profile` hoặc `PATCH /auth/customer/profile`. PATCH chỉ nhận `name`, `dateOfBirth`, `phone`, `address`, `gender`; bỏ qua trường để giữ nguyên, gửi `null` để xóa trường cho phép null. Email và mật khẩu không cập nhật qua API hồ sơ.
+
+JWT có phân biệt loại chủ thể. Customer token không truy cập được các API quản trị; token nhân viên cũ chưa có claim loại chủ thể vẫn được nhận đến khi hết hạn 15 phút hiện tại.
+
 ## API danh mục
 
 Các endpoint dưới đây đều yêu cầu JWT của nhân viên trong header `Authorization: Bearer <token>`:
@@ -69,6 +77,16 @@ Các endpoint này cũng yêu cầu JWT nhân viên:
 - `GET /products/:productId/variants`: liệt kê biến thể.
 - `POST /products/:productId/variants`: thêm biến thể với `price` và tùy chọn `size`, `color`.
 - `PATCH /products/:productId/variants/:variantId` và `DELETE /products/:productId/variants/:variantId`: cập nhật hoặc xóa biến thể thuộc sản phẩm đó.
+
+## API storefront công khai
+
+Các route này không yêu cầu đăng nhập và chỉ đọc dữ liệu dành cho storefront:
+
+- `GET /store/categories`: danh mục có ít nhất một sản phẩm `active`.
+- `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: lọc theo từ khóa tên/nhãn hiệu/mô tả (không phân biệt hoa thường), danh mục và phân trang. Mặc định `page=1`, `limit=20`; giới hạn tối đa 100. Phản hồi có `items`, `page`, `limit`, `total`. Mỗi item gồm thông tin sản phẩm, danh mục và `priceFrom` là giá biến thể thấp nhất.
+- `GET /store/products/:productId`: chi tiết sản phẩm `active`, danh mục và các biến thể theo thứ tự ID.
+
+Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả biến thể của sản phẩm đang `active` đều xuất hiện và được tính trong `priceFrom`. Sản phẩm không hoạt động hoặc không tồn tại trả `404`. API này không trả số tồn kho; đặt hàng và trừ kho sẽ được bổ sung ở giai đoạn tiếp theo.
 
 ## API nhà cung cấp
 
@@ -118,6 +136,8 @@ Các endpoint đều yêu cầu JWT nhân viên. Số lượng được tính t�
 - `src/main.ts`: khởi động ứng dụng NestJS.
 - `src/app.module.ts`: cấu hình module gốc và kết nối PostgreSQL.
 - `src/catalog/entities/`: entity danh mục, sản phẩm và biến thể.
+- `src/catalog/storefront.*`: API đọc danh mục và sản phẩm công khai.
+- `src/customers/`: tài khoản khách hàng, hồ sơ và xác thực JWT riêng.
 - `src/suppliers/`, `src/imports/`, `src/inventory/`: quản lý nhà cung cấp, phiếu nhập và sổ tồn kho.
 - `src/employees/entities/`: entity nhân viên dùng cho đăng nhập.
 - `src/auth/`: đăng nhập JWT, xác minh bearer token và băm mật khẩu.

@@ -7,20 +7,23 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
-import { Employee } from '../employees/entities/employee.entity';
-import { AccessTokenPayload } from './auth.types';
-import { AuthenticatedRequest } from './authenticated-request';
+import { AccessTokenPayload } from '../auth/auth.types';
+import { Customer } from './entities/customer.entity';
+import { CustomerAuthenticatedRequest } from './customer-authenticated-request';
+import { toCustomerProfile } from './customer-profile';
 
 @Injectable()
-export class EmployeeJwtGuard implements CanActivate {
+export class CustomerJwtGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
-    @InjectRepository(Employee)
-    private readonly employees: Repository<Employee>,
+    @InjectRepository(Customer)
+    private readonly customers: Repository<Customer>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const request = context
+      .switchToHttp()
+      .getRequest<CustomerAuthenticatedRequest>();
     const authorization = request.headers.authorization;
     const [scheme, token, ...extra] = authorization?.split(' ') ?? [];
 
@@ -36,31 +39,34 @@ export class EmployeeJwtGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    if (payload.actorType !== undefined && payload.actorType !== 'employee') {
+    if (payload.actorType !== 'customer') {
       throw new UnauthorizedException();
     }
 
-    const employeeId = Number(payload.sub);
+    const customerId = Number(payload.sub);
 
-    if (!Number.isSafeInteger(employeeId) || employeeId <= 0) {
+    if (!Number.isSafeInteger(customerId) || customerId <= 0) {
       throw new UnauthorizedException();
     }
 
-    const employee = await this.employees.findOne({
-      where: { employeeId, status: 'active' },
+    const customer = await this.customers.findOne({
+      where: { customerId },
       select: {
-        employeeId: true,
+        customerId: true,
         name: true,
         email: true,
-        position: true,
+        dateOfBirth: true,
+        phone: true,
+        address: true,
+        gender: true,
       },
     });
 
-    if (!employee) {
+    if (!customer) {
       throw new UnauthorizedException();
     }
 
-    request.employee = employee;
+    request.customer = toCustomerProfile(customer);
     return true;
   }
 }
