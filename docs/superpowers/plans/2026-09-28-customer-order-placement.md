@@ -80,14 +80,15 @@
 - Create: `backend/src/orders/orders.module.ts`
 - Modify: `backend/src/orders/orders.service.ts`
 - Modify: `backend/src/app.module.ts`
+- Modify: `backend/src/customers/customers.module.ts`
 
-- [ ] Add `GET /orders?page=1&limit=20`, scoped to customer ID, newest order first, default 1/20, max 100. Return paginated order-header summaries with `items`, `page`, `limit`, and `total`; do not join detail rows into pagination.
-- [ ] Add `POST /orders` using `CreateOrderDto`; derive customer ID from the authenticated request and delegate to the already transaction-safe `createOrder` service. Return the normal creation response without accepting customer ID from the body.
-- [ ] Add `GET /orders/:orderId`, scoped to customer ID, with ordered detail rows; reject malformed/out-of-range int32 IDs as not found. An order belonging to another customer also returns not found.
-- [ ] Add `POST /orders/:orderId/cancel`: in one transaction, pessimistically lock the customer-owned order first, return not found for absent/foreign orders, return conflict unless status is pending, lock its variant IDs ascending, append exactly one customer-attributed cancellation movement per line, and set status to cancelled.
-- [ ] Guard every controller route with existing `CustomerJwtGuard`; register Order, OrderDetail, InventoryMovement, ProductVariant, and Product repositories. Export CustomerJwtGuard from CustomersModule and import CustomersModule and InventoryModule in OrdersModule; do not register a second CustomerJwtGuard provider.
-- [ ] Register OrdersModule once in AppModule; do not create duplicate JWT guard providers.
-- [ ] Run `npm run build` in `backend/`; expect route metadata, guard injection, module graph and repository registrations to compile.
+- [x] Add `GET /orders?page=1&limit=20`, scoped to customer ID, newest order first, default 1/20, max 100. Return paginated order-header summaries with `items`, `page`, `limit`, and `total`; do not join detail rows into pagination.
+- [x] Add `POST /orders` using `CreateOrderDto`; derive customer ID from the authenticated request and delegate to the already transaction-safe `createOrder` service. Return the normal creation response without accepting customer ID from the body.
+- [x] Add `GET /orders/:orderId`, scoped to customer ID, with ordered detail rows; reject malformed/out-of-range int32 IDs as not found. An order belonging to another customer also returns not found.
+- [x] Add `POST /orders/:orderId/cancel`: in one transaction, pessimistically lock the customer-owned order first, return not found for absent/foreign orders, return conflict unless status is pending, lock its variant IDs ascending, append exactly one customer-attributed cancellation movement per line, and set status to cancelled.
+- [x] Guard every controller route with existing `CustomerJwtGuard`; register Order, OrderDetail, InventoryMovement, ProductVariant, and Product repositories. Export CustomerJwtGuard from CustomersModule and import CustomersModule and InventoryModule in OrdersModule; do not register a second CustomerJwtGuard provider.
+- [x] Register OrdersModule once in AppModule; do not create duplicate JWT guard providers.
+- [x] Run `npm run build` in `backend/`; expect route metadata, guard injection, module graph and repository registrations to compile.
 
 ## Task 5: Synchronize ERD and API documentation
 
