@@ -10,14 +10,14 @@ Continue the NestJS/PostgreSQL backend with supplier management, purchase import
 - Record opening balances, imports, later sales, and stock-count corrections in an inventory movement ledger.
 - Make import creation and its stock movements atomic.
 - Correct the ERD's missing/ambiguous keys and optional one-to-one relationships.
-- Sales/order APIs are a later phase; the ledger supports outbound sale movements, which will be written when an order is actually fulfilled. Draft, pending, or canceled orders do not reduce stock.
+- Sales/order APIs were a later phase at the time of this design. Its planned fulfillment-time stock deduction rule is historical and superseded by the approved [customer order placement design](2026-09-28-customer-order-placement-design.md), which writes the outbound sale movement at order placement and a compensating inbound movement when a pending order is cancelled.
 
 ## Data model
 
 - `supplier`: generated ID, required name, optional address and email.
 - `stock_import`: generated ID, timestamp, computed total, optional note, required supplier and employee.
 - `import_detail`: composite primary key `(import_id, variant_id)`, positive quantity, nonnegative unit price, computed subtotal. A variant may appear once per import.
-- `inventory_movement`: variant, direction (`in`/`out`), movement kind (`opening`/`import`/`sale`/`adjustment`), quantity, effective timestamp, employee, an optional source-document relation, and optional note. Opening balance is an inbound movement; imports are inbound; fulfilled sales are outbound. Adjustments can be inbound or outbound. Opening quantity may be zero; all other movements require a positive integer quantity. There can be one opening movement per variant, and it can only be recorded before any other movement for that variant. Import movements reference their `(import_id, variant_id)` detail pair with a database foreign key and a unique constraint. The later order migration will add the matching `(order_id, variant_id)` source relation for sale movements.
+- `inventory_movement`: variant, direction (`in`/`out`), movement kind (`opening`/`import`/`sale`/`adjustment`), quantity, effective timestamp, employee, an optional source-document relation, and optional note. Opening balance is an inbound movement; imports are inbound; under this phase's then-planned policy, fulfilled sales were outbound. That historical timing is superseded by the [customer order placement design](2026-09-28-customer-order-placement-design.md). Adjustments can be inbound or outbound. Opening quantity may be zero; all other movements require a positive integer quantity. There can be one opening movement per variant, and it can only be recorded before any other movement for that variant. Import movements reference their `(import_id, variant_id)` detail pair with a database foreign key and a unique constraint. The later order migration will add the matching `(order_id, variant_id)` source relation for sale movements.
 
 Inventory movement and its source document are written in the same database transaction. Import totals and line subtotals are computed by the server from integer quantities and decimal money values, never accepted from the client. Quantities use positive PostgreSQL `integer` values (opening may be zero); unit prices use `numeric(12,2)`, line subtotals use `numeric(22,2)`, and import totals use `numeric(24,2)`. Those total columns accommodate the maximum integer quantity, unit price, and 100 accepted detail rows. Foreign keys restrict deletion of suppliers, variants, employees, imports, and other records already used by history. A period's beginning balance is the net of movements before its start; inbound and outbound movements in the period supply the `+ nhập - xuất` terms. No separate mutable stock total is maintained.
 
@@ -46,7 +46,7 @@ Supplier deletion is rejected if an import references it. Invalid suppliers/vari
 
 ## Out of scope
 
-Customer/order/payment/packing/invoice APIs, public product browsing, product images, and live stock reservation are later phases. This phase does not deduct stock for an order because order fulfillment is not implemented yet.
+Customer/order/payment/packing/invoice APIs, public product browsing, product images, and live stock reservation are later phases. At the time of this phase, it did not deduct stock for an order because fulfillment was not implemented yet.
 
 ## Acceptance criteria
 

@@ -21,7 +21,7 @@ Sau khi đã cấu hình database, API chạy tại http://localhost:3000.
 
 1. Tạo database PostgreSQL tên `sales_system`.
 2. Sao chép `.env.example` thành `.env` và cập nhật `DATABASE_URL` bằng thông tin PostgreSQL local của bạn.
-3. Chạy migration để tạo schema danh mục, sản phẩm, biến thể, nhân viên, nhà cung cấp, phiếu nhập và sổ biến động tồn kho:
+3. Chạy migration để tạo schema danh mục, sản phẩm, biến thể, khách hàng, đơn hàng, nhân viên, nhà cung cấp, phiếu nhập và sổ biến động tồn kho:
 
 ```powershell
 npm run db:migrate
@@ -86,7 +86,33 @@ Các route này không yêu cầu đăng nhập và chỉ đọc dữ liệu dà
 - `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: lọc theo từ khóa tên/nhãn hiệu/mô tả (không phân biệt hoa thường), danh mục và phân trang. Mặc định `page=1`, `limit=20`; giới hạn tối đa 100. Phản hồi có `items`, `page`, `limit`, `total`. Mỗi item gồm thông tin sản phẩm, danh mục và `priceFrom` là giá biến thể thấp nhất.
 - `GET /store/products/:productId`: chi tiết sản phẩm `active`, danh mục và các biến thể theo thứ tự ID.
 
-Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả biến thể của sản phẩm đang `active` đều xuất hiện và được tính trong `priceFrom`. Sản phẩm không hoạt động hoặc không tồn tại trả `404`. API này không trả số tồn kho; đặt hàng và trừ kho sẽ được bổ sung ở giai đoạn tiếp theo.
+Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả biến thể của sản phẩm đang `active` đều xuất hiện và được tính trong `priceFrom`. Sản phẩm không hoạt động hoặc không tồn tại trả `404`. API storefront không trả số tồn kho. Đơn hàng được tạo qua API khách hàng bên dưới; khi đặt hàng thành công, hệ thống trừ kho ngay trong cùng transaction.
+
+## API đơn hàng khách hàng
+
+Tất cả route đơn hàng yêu cầu customer JWT trong header `Authorization: Bearer <token>`. Khách chỉ xem hoặc hủy đơn của chính mình; đơn không tồn tại hoặc thuộc khách khác trả `404`.
+
+- `POST /orders`: tạo đơn với 1–100 biến thể khác nhau, số lượng nguyên dương, cùng thông tin giao hàng bắt buộc `recipientName`, `recipientPhone`, `shippingAddress`; `note` là tùy chọn. Tên người nhận tối đa 120 ký tự, điện thoại tối đa 30 ký tự; các chuỗi được cắt khoảng trắng và địa chỉ phải còn nội dung sau khi cắt. Ví dụ:
+
+```json
+{
+  "recipientName": "Nguyen Van An",
+  "recipientPhone": "0901234567",
+  "shippingAddress": "12 Nguyen Hue, Quan 1, TP. Ho Chi Minh",
+  "note": "Gọi trước khi giao",
+  "details": [
+    { "variantId": 1, "quantity": 2 },
+    { "variantId": 3, "quantity": 1 }
+  ]
+}
+```
+
+  Server lấy khách hàng từ JWT, kiểm tra sản phẩm còn hoạt động và đủ tồn, rồi tính giá từng dòng và tổng tiền. Nếu biến thể không tồn tại/không hoạt động hoặc thiếu hàng, yêu cầu bị từ chối và không ghi một phần. Giá, tổng tiền, giảm giá, phí giao hàng, trạng thái thanh toán và trạng thái đơn không nhận từ client. Đơn mới có `discountAmount: "0.00"`, `shippingFee: "0.00"`, `paymentMethod: null`, `paymentStatus: "unpaid"`, `status: "pending"`; tạo đơn, chi tiết và biến động xuất kho được ghi nguyên tử. Phản hồi tạo đơn gồm các trường `orderId`, `orderDate`, `customerId`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `status`, `note` và `details` (mỗi dòng có `orderId`, `variantId`, `quantity`, `unitPrice`, `subtotal`).
+- `GET /orders?page=1&limit=20`: liệt kê đơn của khách hiện tại, mới nhất trước. Mặc định `page=1`, `limit=20`; `page` phải từ 1 trở lên, `limit` từ 1 đến tối đa 100. Phản hồi có dạng `{ "items": [...], "page": 1, "limit": 20, "total": 1 }`; mỗi phần tử `items` có các trường đơn hàng ở trên nhưng không gồm `details`.
+- `GET /orders/:orderId`: xem một đơn của khách hiện tại, kèm `details` theo thứ tự `variantId`; phản hồi có các trường như phản hồi tạo đơn.
+- `POST /orders/:orderId/cancel`: hủy đơn đang `pending` của khách hiện tại. Trả đơn đã cập nhật với `status: "cancelled"` và chi tiết đơn; mỗi dòng được hoàn kho bằng một biến động nhập bù mới. Hủy lại hoặc hủy đơn không còn `pending` trả `409 Conflict`.
+
+Trong giai đoạn hiện tại, trạng thái đơn là `pending` hoặc `cancelled`; thanh toán chưa được xử lý. API không trả tồn kho khả dụng hoặc số lượng còn lại.
 
 ## API nhà cung cấp
 
@@ -122,7 +148,7 @@ Các endpoint đều yêu cầu JWT nhân viên. Số lượng được tính t�
 - `POST /inventory/adjustments`: ghi điều chỉnh kiểm kê, ví dụ `{ "variantId": 1, "direction": "out", "quantity": 1, "note": "Chênh lệch kiểm kê" }`. Điều chỉnh xuất không được làm tồn âm.
 - `GET /inventory/variants/:variantId/balance?from=2026-09-01&to=2026-10-01`: trả `beginningBalance`, `inbound`, `outbound`, `endingBalance`. Ngày tính theo UTC; `from` được tính, `to` là mốc kết thúc không bao gồm.
 
-`endingBalance = beginningBalance + inbound - outbound`. Phiếu nhập tạo biến động nhập. Đơn chờ xử lý hoặc bị hủy không trừ tồn; phần API đơn hàng sau này sẽ ghi biến động xuất khi đơn thực sự được giao/xuất.
+`endingBalance = beginningBalance + inbound - outbound`. Phiếu nhập tạo biến động nhập. Đặt đơn tạo biến động xuất `sale` ngay khi lưu đơn; hủy đơn đang chờ xử lý nối thêm biến động nhập `sale_cancellation` để hoàn kho, không sửa hoặc xóa biến động xuất ban đầu. Vì vậy đơn `pending` đã có lịch sử xuất kho; đơn `cancelled` có cả biến động xuất và nhập bù. Tồn kho tiếp tục được tính từ sổ biến động, không lưu số tồn có thể lệch lịch sử.
 
 ## Lệnh hữu ích
 
@@ -138,7 +164,7 @@ Các endpoint đều yêu cầu JWT nhân viên. Số lượng được tính t�
 - `src/catalog/entities/`: entity danh mục, sản phẩm và biến thể.
 - `src/catalog/storefront.*`: API đọc danh mục và sản phẩm công khai.
 - `src/customers/`: tài khoản khách hàng, hồ sơ và xác thực JWT riêng.
-- `src/suppliers/`, `src/imports/`, `src/inventory/`: quản lý nhà cung cấp, phiếu nhập và sổ tồn kho.
+- `src/suppliers/`, `src/imports/`, `src/inventory/`, `src/orders/`: quản lý nhà cung cấp, phiếu nhập, sổ tồn kho và đơn hàng khách hàng.
 - `src/employees/entities/`: entity nhân viên dùng cho đăng nhập.
 - `src/auth/`: đăng nhập JWT, xác minh bearer token và băm mật khẩu.
 - `src/database/data-source.ts`: cấu hình TypeORM CLI.
