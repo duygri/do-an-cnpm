@@ -157,7 +157,7 @@ erDiagram
     PRODUCT_VARIANT ||--o{ INVENTORY_MOVEMENT : changes
     EMPLOYEE o|--o{ INVENTORY_MOVEMENT : admin_actor
     CUSTOMER o|--o{ INVENTORY_MOVEMENT : customer_actor
-    IMPORT_DETAIL ||--o| INVENTORY_MOVEMENT : creates_inbound
+    IMPORT_DETAIL ||--|| INVENTORY_MOVEMENT : creates_inbound
     ORDER_DETAIL ||--|| INVENTORY_MOVEMENT : creates_order_sale
     ORDER_DETAIL ||--o| INVENTORY_MOVEMENT : creates_sale_cancellation
 ```
