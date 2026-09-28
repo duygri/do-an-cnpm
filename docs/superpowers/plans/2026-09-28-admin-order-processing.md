@@ -21,7 +21,7 @@
 - [ ] Add the `Packing` TypeORM entity mapped to the approved MVP fields: generated `packingId`, server `packingDate`, nullable `packingType` (`bag`/`box`), `status` (`packed`), nullable `note`, `employeeId`, and unique `orderId`; add restrictive Employee and SalesOrder relations without eager loading.
 - [ ] Add a non-eager one-to-one `SalesOrder.packing` relation and extend `SalesOrderStatus`/status check to `pending | packed | cancelled`.
 - [ ] Create a migration that adds `packed` to the existing sales-order status check, adds `(status, order_date)` index, creates `packing` with validated columns, checks, unique order index, and restrictive FKs.
-- [ ] Implement `down` with a preflight query before any DDL; if packed orders or packing rows exist, throw a clear error and make no changes. Otherwise drop the new index/table and restore the original status check.
+- [ ] Require this migration to run transactionally. In `down`, require an active transaction, acquire `ACCESS EXCLUSIVE` locks on `sales_order` then `packing` (the application lock order), and only then preflight packed orders and packing rows before any DDL; if either count is nonzero, throw a clear error and make no changes. Otherwise drop the new index/table and restore the original status check.
 - [ ] Register `Packing` with `TypeOrmModule.forFeature` and preserve the existing customer-order module wiring.
 - [ ] Review entity/migration parity and run `git diff --check`.
 
@@ -78,7 +78,7 @@
 
 - [ ] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`; expect success.
 - [ ] Run `npm run db:migrate` against the already configured local development database, then `npm run db:migrations`; confirm the new migration is applied and every prior migration remains applied. Do not display or commit `.env` contents.
-- [ ] Review the migration `down` implementation and confirm its first database operation is the packed-order/packing-row preflight; confirm it throws before any DDL when data exists and performs only schema rollback when both counts are zero. Do not execute migration rollback or add/run automated tests under the approved no-tests scope.
+- [ ] Review the migration `down` implementation and confirm it requires a transaction, locks `sales_order` then `packing` before its packed-order/packing-row preflight, throws before any DDL when data exists, and performs only schema rollback when both counts are zero. Do not execute migration rollback or add/run automated tests under the approved no-tests scope.
 - [ ] Verify the clean diff, migration/entity parity, employee authentication, safe projections, lock order/cancellation interaction, database constraints, and response serialization.
 - [ ] Mark this task and preceding task boxes complete only after the corresponding commands/reviews succeed; commit implementation and docs on `codex/admin-order-processing`.
 

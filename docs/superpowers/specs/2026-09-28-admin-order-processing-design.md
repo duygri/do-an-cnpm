@@ -46,7 +46,7 @@ Add `packing` with a generated integer `packing_id` primary key (matching the ap
 
 Extend `sales_order.status` validation to allow `pending`, `packed`, and `cancelled`. Add the composite index `(status, order_date)` for filtered staff history; retain the existing order-date index for unfiltered history. Add TypeORM relations without eager-loading customer secrets. The `packing` record has no weight or packing-fee columns; `sales_order.shipping_fee` remains the separate delivery charge.
 
-The migration is reversible when no order is currently `packed`. Its `down` path must first query for packed orders and fail with a clear message before executing any destructive DDL if one exists; it must not silently delete packing history or convert a packed order back into a cancellable state. Run rollback only after packed orders have been handled explicitly.
+The migration is reversible when no order is currently `packed`. Its `down` path must require an active transaction, acquire `ACCESS EXCLUSIVE` locks on `sales_order` then `packing` (matching the application lock order) to block pack/cancel writes, and only then query for packed orders and packing rows. If either count is nonzero, fail with a clear message before executing any destructive DDL. It must not silently delete packing history or convert a packed order back into a cancellable state. Run rollback only after packed orders have been handled explicitly.
 
 ## Errors and concurrency
 
