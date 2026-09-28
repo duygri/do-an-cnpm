@@ -9,6 +9,7 @@ import {
 
 export class CreateOrderPacking1790710000000 implements MigrationInterface {
   name = 'CreateOrderPacking1790710000000';
+  transaction = true;
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.dropCheckConstraint(
@@ -108,6 +109,17 @@ export class CreateOrderPacking1790710000000 implements MigrationInterface {
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    if (!queryRunner.isTransactionActive) {
+      throw new Error(
+        'Cannot revert order packing migration without an active transaction.',
+      );
+    }
+
+    await queryRunner.query(
+      'LOCK TABLE "sales_order" IN ACCESS EXCLUSIVE MODE',
+    );
+    await queryRunner.query('LOCK TABLE "packing" IN ACCESS EXCLUSIVE MODE');
+
     const counts: Array<{
       packed_order_count: string;
       packing_row_count: string;
