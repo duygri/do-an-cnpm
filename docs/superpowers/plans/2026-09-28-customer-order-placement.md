@@ -33,14 +33,14 @@
 - Create: `backend/src/database/migrations/1790700000000-create-customer-orders.ts`
 - Modify: `backend/src/inventory/entities/inventory-movement.entity.ts`
 
-- [ ] Add `sales_order` with generated integer ID, timestamp, customer FK (RESTRICT), recipient snapshot fields, zero-default discount and shipping fee, total, nullable payment method, unpaid payment status, pending/cancelled status, and optional note. Use `numeric(24,2)` for money; add checks preventing negative amounts and unsupported in-scope statuses.
-- [ ] Add `order_detail` with composite PK `(order_id, variant_id)`, RESTRICT FKs, positive integer quantity, `numeric(12,2)` unit-price snapshot, `numeric(22,2)` subtotal, and nonnegative money checks.
-- [ ] In the new migration, create order header before detail table, then add nullable `customer_id` and `order_id` columns to `inventory_movement` and make `employee_id` nullable.
-- [ ] Replace the existing inventory kind/direction/import-source checks with checks for opening/import/sale/sale_cancellation/adjustment, valid direction per kind, source columns per kind, and exactly one actor. Opening/import/adjustment require an employee; sale/sale_cancellation require a customer. Preserve import-detail composite FK and existing import uniqueness.
-- [ ] Add RESTRICT composite FK `inventory_movement(order_id, variant_id) -> order_detail(order_id, variant_id)`, and partial unique indexes enforcing at most one sale and one cancellation movement per order line.
-- [ ] Implement rollback in dependency order: delete order-linked sale/cancellation ledger rows, drop new constraints/indexes, remove order/customer source columns, restore employee NOT NULL and the prior check constraints, then drop order detail/header tables.
-- [ ] Update entity mappings and relationships to match the migration exactly; preserve current import movement creation behavior and employee relation nullability for existing rows.
-- [ ] Run `npm run build` in `backend/` after this task; expect successful Nest compilation.
+- [x] Add `sales_order` with generated integer ID, timestamp, customer FK (RESTRICT), recipient snapshot fields, zero-default discount and shipping fee, total, nullable payment method, unpaid payment status, pending/cancelled status, and optional note. Use `numeric(24,2)` for money; add checks preventing negative amounts and unsupported in-scope statuses.
+- [x] Add `order_detail` with composite PK `(order_id, variant_id)`, RESTRICT FKs, positive integer quantity, `numeric(12,2)` unit-price snapshot, `numeric(22,2)` subtotal, and nonnegative money checks.
+- [x] In the new migration, create order header before detail table, then add nullable `customer_id` and `order_id` columns to `inventory_movement` and make `employee_id` nullable.
+- [x] Replace the existing inventory kind/direction/import-source checks with checks for opening/import/sale/sale_cancellation/adjustment, valid direction per kind, source columns per kind, and exactly one actor. Opening/import/adjustment require an employee; sale/sale_cancellation require a customer. Preserve import-detail composite FK and existing import uniqueness.
+- [x] Add RESTRICT composite FK `inventory_movement(order_id, variant_id) -> order_detail(order_id, variant_id)`, and partial unique indexes enforcing at most one sale and one cancellation movement per order line.
+- [x] Implement rollback in dependency order: delete order-linked sale/cancellation ledger rows, drop new constraints/indexes, remove order/customer source columns, restore employee NOT NULL and the prior check constraints, then drop order detail/header tables.
+- [x] Update entity mappings and relationships to match the migration exactly; preserve current import movement creation behavior and employee relation nullability for existing rows.
+- [x] Run `npm run build` in `backend/` after this task; expect successful Nest compilation.
 
 ## Task 2: Expose transaction-safe customer stock ledger operations
 
