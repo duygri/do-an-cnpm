@@ -64,13 +64,13 @@
 - Create: `backend/src/orders/entities/sales-order.entity.ts`
 - Create: `backend/src/orders/entities/order-detail.entity.ts`
 
-- [ ] Validate required trimmed `recipientName` (1–120 chars), `recipientPhone` (1–30 chars), `shippingAddress` (non-empty), 1–100 detail rows, distinct positive PostgreSQL int32 variant IDs, positive int32 quantities, and optional trimmed note. With the global whitelist pipe, reject client-supplied totals, status, prices, discounts, payment fields, and unknown properties.
-- [ ] In a single `DataSource.transaction`, sort and write-lock all requested variant rows; validate all exist and join their parent products to require `active`; compute each current balance under those locks; reject the entire request when any line is unavailable or exceeds balance.
-- [ ] Use integer cents/BigInt to snapshot current locked variant prices, calculate line subtotals and the header total. Reject any value that cannot fit the specified PostgreSQL numeric precision rather than relying on rounding.
-- [ ] Save a pending/unpaid order header with zero discount and shipping fee, then all composite-key detail rows, then sale movements referencing those persisted order lines. Derive customer ID only from the authenticated request.
-- [ ] Return the saved order with delivery snapshot, server-calculated totals, status/payment state, and ordered line details. Re-read the saved row after commit if needed to include database-generated timestamps/relations.
-- [ ] Map missing/inactive variants and insufficient balances to a client error with a useful variant identifier; no database writes may remain after these failures.
-- [ ] Run `npm run build` in `backend/`; expect DTO validation, transaction services, and BigInt money calculations to compile.
+- [x] Validate required trimmed `recipientName` (1–120 chars), `recipientPhone` (1–30 chars), `shippingAddress` (non-empty), 1–100 detail rows, distinct positive PostgreSQL int32 variant IDs, positive int32 quantities, and optional trimmed note. With the global whitelist pipe, reject client-supplied totals, status, prices, discounts, payment fields, and unknown properties.
+- [x] In a single `DataSource.transaction`, sort and write-lock all requested variant rows; validate all exist and join their parent products to require `active`; compute each current balance under those locks; reject the entire request when any line is unavailable or exceeds balance.
+- [x] Use integer cents/BigInt to snapshot current locked variant prices, calculate line subtotals and the header total. Reject any value that cannot fit the specified PostgreSQL numeric precision rather than relying on rounding.
+- [x] Save a pending/unpaid order header with zero discount and shipping fee, then all composite-key detail rows, then sale movements referencing those persisted order lines. Derive customer ID only from the authenticated request.
+- [x] Return the saved order with delivery snapshot, server-calculated totals, status/payment state, and ordered line details. Re-read the saved row after commit if needed to include database-generated timestamps/relations.
+- [x] Map missing/inactive variants and insufficient balances to a client error with a useful variant identifier; no database writes may remain after these failures.
+- [x] Run `npm run build` in `backend/`; expect DTO validation, transaction services, and BigInt money calculations to compile.
 
 ## Task 4: Add customer order listing, detail, cancellation, and module wiring
 
