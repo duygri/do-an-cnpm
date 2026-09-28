@@ -98,6 +98,14 @@ export class StorefrontService {
   }
 
   async findProduct(productId: number) {
+    if (
+      !Number.isSafeInteger(productId) ||
+      productId < 1 ||
+      productId > 2_147_483_647
+    ) {
+      throw new NotFoundException('Không tìm thấy sản phẩm.');
+    }
+
     const product = await this.products.findOne({
       where: { productId, status: 'active' },
       relations: { category: true, variants: true },
