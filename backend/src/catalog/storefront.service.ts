@@ -67,8 +67,8 @@ export class StorefrontService {
       .addGroupBy('category.categoryId')
       .addGroupBy('category.name')
       .orderBy('product.productId', 'ASC')
-      .skip(offset)
-      .take(limit);
+      .offset(offset)
+      .limit(limit);
 
     const countQuery = this.products
       .createQueryBuilder('product')
