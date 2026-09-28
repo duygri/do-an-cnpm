@@ -44,133 +44,129 @@ export class OrdersService {
       );
     }
 
-    const savedOrderId = await this.dataSource.transaction(
-      async (manager): Promise<number> => {
-        await this.inventoryService.lockVariants(manager, variantIds);
+    return this.dataSource.transaction(async (manager): Promise<SalesOrder> => {
+      await this.inventoryService.lockVariants(manager, variantIds);
 
-        const variants = await manager
-          .getRepository(ProductVariant)
-          .createQueryBuilder('variant')
-          .innerJoinAndSelect('variant.product', 'product')
-          .where('variant.variantId IN (:...variantIds)', { variantIds })
-          .orderBy('variant.variantId', 'ASC')
-          .getMany();
-        const variantsById = new Map(
-          variants.map((variant) => [variant.variantId, variant]),
-        );
-
-        for (const variantId of variantIds) {
-          const variant = variantsById.get(variantId);
-          if (!variant) {
-            throw new NotFoundException(
-              `Product variant ${variantId} was not found.`,
-            );
-          }
-          if (variant.product.status !== 'active') {
-            throw new BadRequestException(
-              `Product variant ${variantId} is unavailable because its product is inactive.`,
-            );
-          }
-        }
-
-        let totalCents = 0n;
-        const pricedLines: PricedOrderLine[] = [];
-
-        for (const detail of sortedDetails) {
-          const variant = variantsById.get(detail.variantId)!;
-          const currentBalance = await this.inventoryService.getCurrentBalance(
-            manager,
-            detail.variantId,
-          );
-
-          if (currentBalance < BigInt(detail.quantity)) {
-            throw new BadRequestException(
-              `Insufficient stock for product variant ${detail.variantId}.`,
-            );
-          }
-
-          const unitPriceCents = this.parseUnitPrice(
-            variant.price,
-            detail.variantId,
-          );
-          const subtotalCents = unitPriceCents * BigInt(detail.quantity);
-          this.assertFitsNumeric(
-            subtotalCents,
-            SUBTOTAL_PRECISION,
-            `Subtotal for product variant ${detail.variantId}`,
-          );
-          totalCents += subtotalCents;
-
-          pricedLines.push({
-            variantId: detail.variantId,
-            quantity: detail.quantity,
-            unitPrice: this.formatCents(unitPriceCents),
-            subtotal: this.formatCents(subtotalCents),
-          });
-        }
-
-        this.assertFitsNumeric(totalCents, TOTAL_PRECISION, 'Order total');
-
-        const orderRepository = manager.getRepository(SalesOrder);
-        const order = await orderRepository.save(
-          orderRepository.create({
-            customerId,
-            recipientName: input.recipientName,
-            recipientPhone: input.recipientPhone,
-            shippingAddress: input.shippingAddress,
-            discountAmount: '0.00',
-            shippingFee: '0.00',
-            totalAmount: this.formatCents(totalCents),
-            paymentMethod: null,
-            paymentStatus: 'unpaid',
-            status: 'pending',
-            note: input.note?.trim() || null,
-          }),
-        );
-
-        const detailRepository = manager.getRepository(OrderDetail);
-        await detailRepository.save(
-          pricedLines.map((line) =>
-            detailRepository.create({
-              orderId: order.orderId,
-              variantId: line.variantId,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice,
-              subtotal: line.subtotal,
-            }),
-          ),
-        );
-
-        await this.inventoryService.createSaleMovements(
-          manager,
-          order.orderId,
-          customerId,
-          order.orderDate,
-          pricedLines.map(({ variantId, quantity }) => ({
-            variantId,
-            quantity,
-          })),
-        );
-
-        return order.orderId;
-      },
-    );
-
-    const savedOrder = await this.dataSource
-      .getRepository(SalesOrder)
-      .createQueryBuilder('order')
-      .leftJoinAndSelect('order.details', 'detail')
-      .where('order.orderId = :orderId', { orderId: savedOrderId })
-      .orderBy('detail.variantId', 'ASC')
-      .getOne();
-
-    if (!savedOrder) {
-      throw new InternalServerErrorException(
-        'The order was created but could not be loaded.',
+      const variants = await manager
+        .getRepository(ProductVariant)
+        .createQueryBuilder('variant')
+        .innerJoinAndSelect('variant.product', 'product')
+        .where('variant.variantId IN (:...variantIds)', { variantIds })
+        .orderBy('variant.variantId', 'ASC')
+        .getMany();
+      const variantsById = new Map(
+        variants.map((variant) => [variant.variantId, variant]),
       );
-    }
 
-    return savedOrder;
+      for (const variantId of variantIds) {
+        const variant = variantsById.get(variantId);
+        if (!variant) {
+          throw new NotFoundException(
+            `Product variant ${variantId} was not found.`,
+          );
+        }
+        if (variant.product.status !== 'active') {
+          throw new BadRequestException(
+            `Product variant ${variantId} is unavailable because its product is inactive.`,
+          );
+        }
+      }
+
+      let totalCents = 0n;
+      const pricedLines: PricedOrderLine[] = [];
+
+      for (const detail of sortedDetails) {
+        const variant = variantsById.get(detail.variantId)!;
+        const currentBalance = await this.inventoryService.getCurrentBalance(
+          manager,
+          detail.variantId,
+        );
+
+        if (currentBalance < BigInt(detail.quantity)) {
+          throw new BadRequestException(
+            `Insufficient stock for product variant ${detail.variantId}.`,
+          );
+        }
+
+        const unitPriceCents = this.parseUnitPrice(
+          variant.price,
+          detail.variantId,
+        );
+        const subtotalCents = unitPriceCents * BigInt(detail.quantity);
+        this.assertFitsNumeric(
+          subtotalCents,
+          SUBTOTAL_PRECISION,
+          `Subtotal for product variant ${detail.variantId}`,
+        );
+        totalCents += subtotalCents;
+
+        pricedLines.push({
+          variantId: detail.variantId,
+          quantity: detail.quantity,
+          unitPrice: this.formatCents(unitPriceCents),
+          subtotal: this.formatCents(subtotalCents),
+        });
+      }
+
+      this.assertFitsNumeric(totalCents, TOTAL_PRECISION, 'Order total');
+
+      const orderRepository = manager.getRepository(SalesOrder);
+      const order = await orderRepository.save(
+        orderRepository.create({
+          customerId,
+          recipientName: input.recipientName,
+          recipientPhone: input.recipientPhone,
+          shippingAddress: input.shippingAddress,
+          discountAmount: '0.00',
+          shippingFee: '0.00',
+          totalAmount: this.formatCents(totalCents),
+          paymentMethod: null,
+          paymentStatus: 'unpaid',
+          status: 'pending',
+          note: input.note?.trim() || null,
+        }),
+      );
+
+      const detailRepository = manager.getRepository(OrderDetail);
+      await detailRepository.save(
+        pricedLines.map((line) =>
+          detailRepository.create({
+            orderId: order.orderId,
+            variantId: line.variantId,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            subtotal: line.subtotal,
+          }),
+        ),
+      );
+
+      await this.inventoryService.createSaleMovements(
+        manager,
+        order.orderId,
+        customerId,
+        order.orderDate,
+        pricedLines.map(({ variantId, quantity }) => ({
+          variantId,
+          quantity,
+        })),
+      );
+
+      const savedOrder = await manager
+        .getRepository(SalesOrder)
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.details', 'detail')
+        .where('order.orderId = :orderId', { orderId: order.orderId })
+        .orderBy('detail.variantId', 'ASC')
+        .getOne();
+
+      if (!savedOrder) {
+        throw new InternalServerErrorException(
+          'The order could not be loaded within the transaction.',
+        );
+      }
+
+      return savedOrder;
+    });
   }
 
   private parseUnitPrice(price: string, variantId: number): bigint {
