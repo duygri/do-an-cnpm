@@ -19,6 +19,7 @@
 - Modify `backend/src/inventory/entities/inventory-movement.entity.ts`: optional employee actor, customer actor and order source relations, cancellation kind.
 - Modify `backend/src/inventory/inventory.service.ts` and `inventory.module.ts`: transaction-manager helpers for locked variant/balance reads and customer order/cancellation movements; export the module provider.
 - Modify `backend/src/app.module.ts`: register OrdersModule.
+- Modify `backend/src/customers/customers.module.ts`: export CustomerJwtGuard for reuse by OrdersModule.
 - Modify `docs/erd/sales-system-erd.md`: show recipient snapshots, customer actor, sale-on-order and sale-cancellation relationships and corrected stock rules.
 - Modify `backend/README.md`: document order routes, request/response behavior, statuses, validation, stock deduction and cancellation.
 - Modify `docs/superpowers/specs/2026-09-27-supplier-import-inventory-design.md`: mark its fulfillment-time deduction rule as superseded by the approved order-placement policy.
@@ -83,7 +84,7 @@
 - [ ] Add `GET /orders?page=1&limit=20`, scoped to customer ID, newest order first, default 1/20, max 100. Return paginated order-header summaries with `items`, `page`, `limit`, and `total`; do not join detail rows into pagination.
 - [ ] Add `GET /orders/:orderId`, scoped to customer ID, with ordered detail rows; reject malformed/out-of-range int32 IDs as not found. An order belonging to another customer also returns not found.
 - [ ] Add `POST /orders/:orderId/cancel`: in one transaction, pessimistically lock the customer-owned order first, return not found for absent/foreign orders, return conflict unless status is pending, lock its variant IDs ascending, append exactly one customer-attributed cancellation movement per line, and set status to cancelled.
-- [ ] Guard every controller route with existing `CustomerJwtGuard`; register Order, OrderDetail, InventoryMovement, ProductVariant, Product, and Customer repositories and import AuthModule/InventoryModule according to existing Nest conventions.
+- [ ] Guard every controller route with existing `CustomerJwtGuard`; register Order, OrderDetail, InventoryMovement, ProductVariant, and Product repositories. Export CustomerJwtGuard from CustomersModule and import CustomersModule and InventoryModule in OrdersModule; do not register a second CustomerJwtGuard provider.
 - [ ] Register OrdersModule once in AppModule; do not create duplicate JWT guard providers.
 - [ ] Run `npm run build` in `backend/`; expect route metadata, guard injection, module graph and repository registrations to compile.
 
@@ -107,8 +108,8 @@
 
 - [ ] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`; expect all to succeed.
 - [ ] Run `git diff --check` and inspect migration/entity parity, actor/source checks, transaction lock order, money bounds, and route ownership filters.
-- [ ] Apply the new migration to the configured local PostgreSQL database with `npm run db:migrate`; confirm every migration shows applied using `npm run db:migrations`. Never print or commit `.env` contents.
-- [ ] Commit implementation and docs on `codex/customer-orders`, fast-forward the user checkout to the completed commit, push the authorized change to `main`, and confirm the remote branch hash.
+- [ ] Apply the new migration to the already-configured local development PostgreSQL database with `npm run db:migrate`; confirm every migration shows applied using `npm run db:migrations`. This continues the previously authorized local migration workflow. Never print or commit `.env` contents.
+- [ ] Commit implementation and docs on `codex/customer-orders`. Handle publication and checkout integration as a separate delivery step after code review.
 
 No automated tests are added or run in this plan. The primary checks are TypeScript build, ESLint, migration status, and review of the transaction and schema constraints.
 
