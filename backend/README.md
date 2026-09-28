@@ -114,6 +114,10 @@ Tất cả route đơn hàng yêu cầu customer JWT trong header `Authorization
 
 Trong giai đoạn hiện tại, trạng thái đơn là `pending` hoặc `cancelled`; thanh toán chưa được xử lý. API không trả tồn kho khả dụng hoặc số lượng còn lại.
 
+### Phạm vi đóng gói MVP
+
+Thiết kế đóng gói MVP ghi nhận thời điểm đóng gói, trạng thái, nhân viên phụ trách và ghi chú; loại bao bì (ví dụ túi hoặc hộp) là tùy chọn. Không bắt buộc cân nặng kiện hàng và không tính phí đóng gói riêng. `shipping_fee` trên đơn là phí giao hàng, tách biệt với đóng gói. Đây là phạm vi thiết kế; API và bảng đóng gói chưa được triển khai.
+
 ## API nhà cung cấp
 
 Các endpoint đều yêu cầu JWT nhân viên:
