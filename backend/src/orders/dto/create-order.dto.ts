@@ -17,14 +17,26 @@ import {
 const trimString = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
+const transformIntegerInput = ({ value }: { value: unknown }): unknown => {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return Number(value);
+  }
+
+  return value;
+};
+
 export class CreateOrderDetailDto {
-  @Type(() => Number)
+  @Transform(transformIntegerInput)
   @IsInt()
   @Min(1)
   @Max(2_147_483_647)
   variantId!: number;
 
-  @Type(() => Number)
+  @Transform(transformIntegerInput)
   @IsInt()
   @Min(1)
   @Max(2_147_483_647)
