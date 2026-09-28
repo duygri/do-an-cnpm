@@ -41,9 +41,9 @@
 - Modify: `backend/src/app.module.ts`
 
 - [ ] Validate registration fields: trimmed nonblank name, normalized valid email, password length 12–128, ISO date-only optional birth date, and bounded optional phone/address/gender values.
-- [ ] Implement `POST /auth/customer/register` and `POST /auth/customer/login`. Hash with `PasswordService`, sign 15-minute tokens with `actorType: 'customer'`, return a safe profile, map duplicate email to `409`, and use one generic `401` for invalid login credentials.
+- [ ] Implement `POST /auth/customer/register` and `POST /auth/customer/login`. Trim and lowercase email on both routes, hash with `PasswordService`, sign 15-minute tokens with `actorType: 'customer'`, map duplicate email to `409`, and use one generic `401` for invalid login credentials. Return auth responses with `access_token`, `token_type: "Bearer"`, `expires_in`, and `customer` containing `customerId`, `name`, `email`, `dateOfBirth`, `phone`, `address`, and `gender`.
 - [ ] Implement `CustomerJwtGuard`: require a valid bearer JWT with `actorType: 'customer'`, a positive integer subject, and an existing customer. Attach only safe customer fields to the request.
-- [ ] Implement `GET /auth/customer/profile` and `PATCH /auth/customer/profile`. Omitted patch fields remain unchanged; `null` clears nullable fields; blank optional text is trimmed and stored as `null`; name must remain nonblank. Do not accept email/password updates here.
+- [ ] Implement `GET /auth/customer/profile` and `PATCH /auth/customer/profile`. The profile response contains only `customerId`, `name`, `email`, `dateOfBirth`, `phone`, `address`, and `gender`. Omitted patch fields remain unchanged; `null` clears nullable fields; blank optional text is trimmed and stored as `null`; name must remain nonblank. Do not accept email/password updates here.
 - [ ] Register `CustomersModule` in `AppModule`. Do not return or select `passwordHash` in profile responses.
 
 ### Task 3: Add public storefront reads
@@ -56,8 +56,8 @@
 
 - [ ] Add `GET /store/categories`, returning only categories with at least one active product and only `categoryId`, `name`, and `description`.
 - [ ] Add `GET /store/products` query validation: `page` defaults to 1, `limit` defaults to 20 and caps at 100, optional `q` is bounded and case-insensitive, and optional `categoryId` is a positive integer.
-- [ ] Return only active products with stable `productId` ordering and pagination metadata `{ items, page, limit, total }`. Each item contains only the specified summary fields and lowest variant price as a decimal string or `null`.
-- [ ] Add `GET /store/products/:productId` returning only an active product, its safe category fields, and its variant fields ordered by `variantId`. Unknown and inactive products return `404`.
+- [ ] Return only active products with stable `productId` ordering and pagination metadata `{ items, page, limit, total }`. Each summary item contains `productId`, `name`, `description`, `brand`, nested `category` with `categoryId` and `name`, and `priceFrom` (minimum price across all variants as a decimal string or `null` when there are none).
+- [ ] Add `GET /store/products/:productId` returning only an active product with `productId`, `name`, `description`, `brand`, nested `category` with `categoryId`, `name`, and `description`, and all variants with `variantId`, `size`, `color`, and `price`, ordered by `variantId`. The schema has no variant status, so do not filter variants. Unknown and inactive products return `404`.
 - [ ] Keep the existing `/categories`, `/products`, and product-variant administration controllers protected with `EmployeeJwtGuard`; do not include inventory movement or password data in storefront responses.
 
 ### Task 4: Document customer and storefront APIs
