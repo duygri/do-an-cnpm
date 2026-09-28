@@ -108,10 +108,9 @@
 
 **Files:** none beyond the files above.
 
-- [ ] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`; expect all to succeed.
-- [ ] Run `git diff --check` and inspect migration/entity parity, actor/source checks, transaction lock order, money bounds, and route ownership filters.
-- [ ] Apply the new migration to the already-configured local development PostgreSQL database with `npm run db:migrate`; confirm every migration shows applied using `npm run db:migrations`. This continues the previously authorized local migration workflow. Never print or commit `.env` contents.
-- [ ] Commit implementation and docs on `codex/customer-orders`. Handle publication and checkout integration as a separate delivery step after code review.
+- [x] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`; all succeeded.
+- [x] Run `git diff --check` and inspect migration/entity parity, actor/source checks, transaction lock order, money bounds, and route ownership filters.
+- [x] Apply the new migration to the configured local development PostgreSQL database with `npm run db:migrate`; confirmed every migration shows applied using `npm run db:migrations`. Never print or commit `.env` contents.
+- [x] Commit implementation and docs on `codex/customer-orders`. Handle publication and checkout integration as a separate delivery step after code review.
 
 No automated tests are added or run in this plan. The primary checks are TypeScript build, ESLint, migration status, and review of the transaction and schema constraints.
-

@@ -87,6 +87,3 @@ Existing inventory movements remain valid with their employee actor and import s
 - Duplicate cancellation, invalid items, and out-of-stock requests cannot create duplicate or partial order/movement records.
 - The migration is reversible and preserves existing import/opening/adjustment ledger behavior.
 - The corrected ERD and backend README document the order API, order states, stock deduction and cancellation rules.
-
-
-
