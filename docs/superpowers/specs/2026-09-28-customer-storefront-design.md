@@ -15,7 +15,7 @@ Add customer registration, login, profile access, and public product browsing wh
 
 - Add a customer entity and migration with a unique normalized email, password hash, and the profile columns already represented by the ERD.
 - Implement customer account endpoints as a separate customer feature. Reuse the existing scrypt password service and configured JWT signing service.
-- Add an `actorType` claim to employee and customer access tokens. Each guard accepts only its own actor type, preventing a customer token from being accepted as an employee token when numeric IDs happen to match.
+- Add an `actorType` claim to employee and customer access tokens. The employee guard accepts an untyped legacy employee token only until its existing 15-minute expiry, but rejects `actorType: customer`; the customer guard requires `actorType: customer`. This prevents cross-account use when numeric IDs happen to match while avoiding forced logout during rollout.
 - Add separate storefront read routes rather than making employee administration routes public. Storefront queries only return active products and their variants; product search is case-insensitive and results have stable product-ID ordering.
 - Registration and login normalize email by trimming and lowercasing. Registration rejects duplicate email with `409`; invalid credentials return the same `401` response. Passwords are never included in API responses.
 
@@ -24,10 +24,12 @@ Add customer registration, login, profile access, and public product browsing wh
 - `POST /auth/customer/register`: create account and return a customer profile plus a 15-minute bearer token.
 - `POST /auth/customer/login`: authenticate and return the same response shape.
 - `GET /auth/customer/profile`: return the authenticated customer's safe profile.
-- `PATCH /auth/customer/profile`: update supplied name, date of birth, phone, address, and/or gender fields.
-- `GET /store/categories`: list categories with at least one active product.
-- `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: return active product summaries and pagination metadata; page defaults to 1 and limit to 20, with a maximum limit of 100.
-- `GET /store/products/:productId`: return an active product, its category, and its variants. Inactive or unknown products return `404`.
+- `PATCH /auth/customer/profile`: update supplied name, date of birth, phone, address, and/or gender fields. Omitted fields are unchanged; explicit `null` clears nullable fields. Blank optional phone, address, and gender strings are trimmed and stored as `null`; name must remain nonblank. Email and password are not patchable here.
+- `GET /store/categories`: list categories with at least one active product. Each item has `categoryId`, `name`, and `description`.
+- `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: return active product summaries and pagination metadata; page defaults to 1 and limit to 20, with a maximum limit of 100. Each summary has `productId`, `name`, `description`, `brand`, nested `category` (`categoryId`, `name`), and `priceFrom` (lowest variant price or `null`). The page response has `items`, `page`, `limit`, and `total`.
+- `GET /store/products/:productId`: return an active product with `productId`, `name`, `description`, `brand`, nested `category` (`categoryId`, `name`, `description`), and `variants` (`variantId`, `size`, `color`, `price`). Inactive or unknown products return `404`.
+
+Customer profile objects contain `customerId`, `name`, `email`, `dateOfBirth`, `phone`, `address`, and `gender`; auth responses add `access_token`, `token_type: "Bearer"`, and `expires_in`. No response contains `passwordHash`.
 
 Registration requires a valid email and a 12–128 character password, following the existing admin-password policy. Optional date of birth is an ISO date (`YYYY-MM-DD`). The public API does not expose password hashes, employee data, inventory ledger rows, or administration write operations.
 
