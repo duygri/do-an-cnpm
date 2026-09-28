@@ -4,6 +4,9 @@
 
 Allow an authenticated customer to place and manage their own sales orders while keeping stock balances correct and auditable.
 
+## Inventory policy revision
+
+This approved order phase supersedes the fulfillment-time stock deduction rule in 2026-09-27-supplier-import-inventory-design.md. A pending order now writes its outbound sale movements immediately and reduces available stock; cancelling a pending order restores stock with sale_cancellation inbound movements. Update the corrected ERD and backend README to show this timing consistently.
 ## Scope
 
 - Add customer-authenticated order creation, order listing/detail, and cancellation while an order is pending.
@@ -84,5 +87,6 @@ Existing inventory movements remain valid with their employee actor and import s
 - Duplicate cancellation, invalid items, and out-of-stock requests cannot create duplicate or partial order/movement records.
 - The migration is reversible and preserves existing import/opening/adjustment ledger behavior.
 - The corrected ERD and backend README document the order API, order states, stock deduction and cancellation rules.
+
 
 
