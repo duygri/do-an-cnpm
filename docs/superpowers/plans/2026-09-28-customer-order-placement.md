@@ -49,12 +49,12 @@
 - Modify: `backend/src/inventory/inventory.module.ts`
 - Modify: `backend/src/inventory/entities/inventory-movement.entity.ts`
 
-- [ ] Expose transaction-manager-scoped helpers to lock requested variant rows in ascending ID order and read their current net balances as BigInt. Never use JavaScript Number for the aggregate balance.
-- [ ] Add a helper that accepts an existing `EntityManager`, order ID, customer ID, timestamp, and order-line quantities and writes outbound `sale` movements with the customer actor after order detail rows exist.
-- [ ] Add a helper that accepts an existing `EntityManager`, order ID, customer ID, timestamp, and quantities and writes inbound `sale_cancellation` movements. It must not edit or remove original movements.
-- [ ] Keep current opening, import, and adjustment methods attributed to employees; ensure their saves explicitly set nullable customer/order fields to null when needed.
-- [ ] Export InventoryService from InventoryModule for OrdersModule.
-- [ ] Run `npm run build` in `backend/`; expect all movement entity relation types and module injection to compile.
+- [x] Expose transaction-manager-scoped helpers to lock requested variant rows in ascending ID order and read their current net balances as BigInt. Never use JavaScript Number for the aggregate balance.
+- [x] Add a helper that accepts an existing `EntityManager`, order ID, customer ID, timestamp, and order-line quantities and writes outbound `sale` movements with the customer actor after order detail rows exist.
+- [x] Add a helper that accepts an existing `EntityManager`, order ID, customer ID, timestamp, and quantities and writes inbound `sale_cancellation` movements. It must not edit or remove original movements.
+- [x] Keep current opening, import, and adjustment methods attributed to employees; ensure their saves explicitly set nullable customer/order fields to null when needed.
+- [x] Export InventoryService from InventoryModule for OrdersModule.
+- [x] Run `npm run build` in `backend/`; expect all movement entity relation types and module injection to compile.
 
 ## Task 3: Validate and atomically place customer orders
 
