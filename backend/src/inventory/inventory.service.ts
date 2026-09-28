@@ -17,6 +17,11 @@ interface ImportMovementInput {
   quantity: number;
 }
 
+interface OrderMovementInput {
+  variantId: number;
+  quantity: number;
+}
+
 @Injectable()
 export class InventoryService {
   constructor(
@@ -64,6 +69,8 @@ export class InventoryService {
           quantity: row.quantity,
           employeeId: employee.employeeId,
           importId: null,
+          customerId: null,
+          orderId: null,
           note: 'Tồn đầu kỳ ban đầu',
         }),
       );
@@ -100,6 +107,8 @@ export class InventoryService {
           quantity: input.quantity,
           employeeId: employee.employeeId,
           importId: null,
+          customerId: null,
+          orderId: null,
           note: input.note,
         }),
       );
@@ -187,27 +196,90 @@ export class InventoryService {
           effectiveAt,
           employeeId,
           importId,
+          customerId: null,
+          orderId: null,
           note: null,
         }),
       ),
     );
   }
 
-  private async lockVariants(
+  async createSaleMovements(
+    manager: EntityManager,
+    orderId: number,
+    customerId: number,
+    effectiveAt: Date,
+    rows: OrderMovementInput[],
+  ): Promise<InventoryMovement[]> {
+    const movementRepository = manager.getRepository(InventoryMovement);
+    return movementRepository.save(
+      rows.map((row) =>
+        movementRepository.create({
+          variantId: row.variantId,
+          direction: 'out',
+          movementType: 'sale',
+          quantity: row.quantity,
+          effectiveAt,
+          employeeId: null,
+          importId: null,
+          customerId,
+          orderId,
+          note: null,
+        }),
+      ),
+    );
+  }
+
+  async createSaleCancellationMovements(
+    manager: EntityManager,
+    orderId: number,
+    customerId: number,
+    effectiveAt: Date,
+    rows: OrderMovementInput[],
+  ): Promise<InventoryMovement[]> {
+    const movementRepository = manager.getRepository(InventoryMovement);
+    return movementRepository.save(
+      rows.map((row) =>
+        movementRepository.create({
+          variantId: row.variantId,
+          direction: 'in',
+          movementType: 'sale_cancellation',
+          quantity: row.quantity,
+          effectiveAt,
+          employeeId: null,
+          importId: null,
+          customerId,
+          orderId,
+          note: null,
+        }),
+      ),
+    );
+  }
+
+  async lockVariants(
     manager: EntityManager,
     variantIds: number[],
   ): Promise<void> {
+    const orderedVariantIds = [...new Set(variantIds)].sort(
+      (left, right) => left - right,
+    );
+    if (orderedVariantIds.length === 0) {
+      return;
+    }
+
     const variants = await manager
       .getRepository(ProductVariant)
       .createQueryBuilder('variant')
-      .where('variant.variantId IN (:...variantIds)', { variantIds })
+      .where('variant.variantId IN (:...variantIds)', {
+        variantIds: orderedVariantIds,
+      })
       .orderBy('variant.variantId', 'ASC')
       .setLock('pessimistic_write')
       .getMany();
 
-    if (variants.length !== variantIds.length) {
+    if (variants.length !== orderedVariantIds.length) {
       const foundIds = new Set(variants.map((variant) => variant.variantId));
-      const missingId = variantIds.find(
+      const missingId = orderedVariantIds.find(
         (variantId) => !foundIds.has(variantId),
       );
       throw new NotFoundException(
@@ -216,7 +288,7 @@ export class InventoryService {
     }
   }
 
-  private async getCurrentBalance(
+  async getCurrentBalance(
     manager: EntityManager,
     variantId: number,
   ): Promise<bigint> {
