@@ -360,6 +360,21 @@ export class OrdersService {
   ): Promise<CustomerOrderResponse> {
     const orderId = this.parseOrderId(orderIdInput);
 
+    const existingOrder = await this.dataSource
+      .getRepository(SalesOrder)
+      .findOne({
+        select: { orderId: true, paymentMethod: true },
+        where: { orderId, customerId },
+      });
+    if (!existingOrder) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    if (existingOrder.paymentMethod === 'payos') {
+      await this.payments.cancelPayosOrder(customerId, orderId);
+      return this.getOrder(customerId, String(orderId));
+    }
+
     return this.dataSource.transaction(async (manager) => {
       const orderRepository = manager.getRepository(SalesOrder);
       const order = await orderRepository
@@ -375,12 +390,6 @@ export class OrdersService {
 
       if (order.status !== 'pending') {
         throw new ConflictException('Only pending orders can be cancelled.');
-      }
-
-      if (order.paymentMethod === 'payos') {
-        throw new ConflictException(
-          'PayOS order cancellation requires confirmed provider cancellation.',
-        );
       }
 
       order.status = 'cancelled';

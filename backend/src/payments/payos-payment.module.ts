@@ -7,6 +7,7 @@ import { PayosWebhookController } from './payos-webhook.controller';
 import { PAYMENT_PROVIDER } from './payment-provider';
 import { PayosPaymentProvider } from './payos-payment.provider';
 import { PaymentsService } from './payments.service';
+import { PaymentExpiryScheduler } from './payment-expiry.scheduler';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PaymentsService } from './payments.service';
     PayosPaymentProvider,
     { provide: PAYMENT_PROVIDER, useExisting: PayosPaymentProvider },
     PaymentsService,
+    PaymentExpiryScheduler,
   ],
   exports: [PAYMENT_PROVIDER, PayosPaymentProvider, PaymentsService],
 })

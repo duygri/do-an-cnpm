@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
@@ -245,7 +247,617 @@ export class PaymentsService {
     }
   }
 
-  private async createLink(orderId: number): Promise<void> {
+  /** Cancels a customer's PayOS order only after PayOS confirms zero paid and a terminal link. */
+  async cancelPayosOrder(customerId: number, orderId: number): Promise<void> {
+    const state = await this.loadOwnedState(customerId, orderId);
+    if (!state) throw new NotFoundException('Order not found.');
+    this.assertCustomerCanCancelPayos(state);
+    if (!this.isConfigured()) throw this.unavailable();
+
+    try {
+      await this.provider.cancelLink(
+        state.attempt.providerOrderCode,
+        'Customer cancelled the order',
+      );
+    } catch {
+      // A timeout may follow a successful cancel. The subsequent lookup is authoritative.
+    }
+
+    const link = await this.lookupLink(state.attempt.providerOrderCode);
+    if (!link) throw this.unavailable();
+
+    const expectedAmount = this.toWholeVnd(state.attempt.amount);
+    const identityMatches =
+      link.orderCode === state.attempt.providerOrderCode &&
+      link.linkId === state.attempt.providerPaymentLinkId &&
+      link.amount === expectedAmount;
+    const aggregateIsValid =
+      Number.isSafeInteger(link.amountPaid) &&
+      link.amountPaid >= 0 &&
+      Number.isSafeInteger(link.amountRemaining) &&
+      link.amountRemaining >= 0;
+
+    if (
+      identityMatches &&
+      aggregateIsValid &&
+      link.status === 'PAID' &&
+      link.amountPaid === expectedAmount &&
+      link.amountRemaining === 0
+    ) {
+      await this.applyFullPayment(orderId, link);
+      throw new ConflictException('The order has already been paid.');
+    }
+
+    if (
+      !identityMatches ||
+      !aggregateIsValid ||
+      link.amountPaid > 0 ||
+      link.amountRemaining !== expectedAmount
+    ) {
+      await this.markProviderLinkForReview(
+        orderId,
+        link,
+        identityMatches
+          ? 'PayOS cancellation found partial or inconsistent payment amounts.'
+          : 'PayOS cancellation link identity or amount does not match the local attempt.',
+      );
+      throw this.unavailable();
+    }
+
+    if (!this.isNonPayableStatus(link.status)) {
+      // Keep the local order and voucher reservation intact while the state is ambiguous.
+      throw this.unavailable();
+    }
+
+    const result = await this.cancelAfterProviderConfirmation(
+      customerId,
+      orderId,
+      link,
+      'cancelled',
+    );
+    if (result !== 'cancelled') {
+      if (result === 'paid') {
+        throw new ConflictException('The order has already been paid.');
+      }
+      throw new ConflictException(
+        'The order changed while PayOS cancellation was being confirmed.',
+      );
+    }
+  }
+
+  /** Reconciles due setup leases, unresolved attempts, and expired checkout links. */
+  async reconcileScheduledAttempts(): Promise<void> {
+    if (!this.isConfigured()) return;
+
+    const now = new Date();
+    const dueAttempts = await this.dataSource
+      .getRepository(PaymentAttempt)
+      .createQueryBuilder('attempt')
+      .innerJoin('attempt.order', 'order')
+      .select('attempt.orderId', 'orderId')
+      .where('order.paymentMethod = :paymentMethod', {
+        paymentMethod: 'payos',
+      })
+      .andWhere("order.paymentStatus = 'unpaid'")
+      .andWhere("order.status = 'pending'")
+      .andWhere('attempt.setupLeaseExpiresAt <= :now', { now })
+      .andWhere(
+        `(
+          attempt.status IN (:...reconcilableStatuses)
+          OR (attempt.status = 'pending' AND attempt.expiresAt <= :now)
+        )`,
+        { reconcilableStatuses: ['creating', 'reconciliation_required'] },
+      )
+      .orderBy('attempt.expiresAt', 'ASC')
+      .getRawMany<{ orderId: number }>();
+
+    for (const dueAttempt of dueAttempts) {
+      try {
+        const claimed = await this.claimScheduledAttempt(dueAttempt.orderId);
+        if (!claimed) continue;
+        await this.reconcileScheduledAttempt(dueAttempt.orderId, claimed);
+      } catch (error) {
+        this.logger.warn(
+          JSON.stringify({
+            orderId: dueAttempt.orderId,
+            outcome: 'payos_reconciliation_retry',
+            error:
+              error instanceof Error ? error.name : 'UnknownProviderError',
+          }),
+        );
+      }
+    }
+  }
+
+  private assertCustomerCanCancelPayos(state: PaymentState): void {
+    if (
+      state.order.paymentMethod !== 'payos' ||
+      state.order.status !== 'pending' ||
+      state.order.paymentStatus !== 'unpaid' ||
+      state.attempt.provider !== 'payos' ||
+      state.attempt.status !== 'pending' ||
+      this.hasPaymentEvidence(state.attempt) ||
+      !state.attempt.providerPaymentLinkId ||
+      !state.attempt.checkoutUrl
+    ) {
+      throw new ConflictException(
+        'This PayOS order cannot be cancelled in its current payment state.',
+      );
+    }
+  }
+
+  private async loadOwnedState(
+    customerId: number,
+    orderId: number,
+  ): Promise<PaymentState | null> {
+    const order = await this.dataSource
+      .getRepository(SalesOrder)
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.paymentAttempt', 'attempt')
+      .where('order.orderId = :orderId', { orderId })
+      .andWhere('order.customerId = :customerId', { customerId })
+      .getOne();
+    if (!order) return null;
+    if (!order.paymentAttempt) {
+      throw new ConflictException(
+        'This PayOS order cannot be cancelled in its current payment state.',
+      );
+    }
+    return { order, attempt: order.paymentAttempt };
+  }
+
+  private async markProviderLinkForReview(
+    orderId: number,
+    link: PaymentProviderLink,
+    reason: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const state = await this.lockState(manager, orderId);
+      if (
+        !state ||
+        state.order.paymentMethod !== 'payos' ||
+        state.order.status !== 'pending' ||
+        state.order.paymentStatus !== 'unpaid' ||
+        !['creating', 'pending', 'reconciliation_required'].includes(
+          state.attempt.status,
+        )
+      ) {
+        return;
+      }
+      await this.flagForReview(manager, state, link, reason);
+    });
+  }
+
+  private async cancelAfterProviderConfirmation(
+    customerId: number | null,
+    orderId: number,
+    link: PaymentProviderLink,
+    terminalAttemptStatus: 'cancelled' | 'expired' | 'failed',
+    allowedAttemptStatuses: string[] = ['pending'],
+  ): Promise<'cancelled' | 'paid' | 'changed'> {
+    return this.dataSource.transaction(async (manager) => {
+      const state = await this.lockState(manager, orderId);
+      if (!state) return 'changed';
+      if (customerId !== null && state.order.customerId !== customerId) {
+        throw new NotFoundException('Order not found.');
+      }
+      if (state.order.paymentStatus === 'paid') return 'paid';
+
+      const expectedAmount = this.toWholeVnd(state.attempt.amount);
+      const canCancel =
+        state.order.paymentMethod === 'payos' &&
+        state.order.status === 'pending' &&
+        state.order.paymentStatus === 'unpaid' &&
+        allowedAttemptStatuses.includes(state.attempt.status) &&
+        !this.hasPaymentEvidence(state.attempt) &&
+        Boolean(state.attempt.providerPaymentLinkId) &&
+        Boolean(state.attempt.checkoutUrl) &&
+        state.attempt.providerPaymentLinkId === link.linkId &&
+        state.attempt.providerOrderCode === link.orderCode &&
+        link.amount === expectedAmount &&
+        link.amountPaid === 0 &&
+        link.amountRemaining === expectedAmount &&
+        this.isNonPayableStatus(link.status);
+      if (!canCancel) return 'changed';
+
+      state.order.status = 'cancelled';
+      state.attempt.status = terminalAttemptStatus;
+      state.attempt.setupLeaseExpiresAt = new Date(0);
+      state.attempt.reconciliationReason = null;
+      state.attempt.reconciliationAt = null;
+      await manager.getRepository(SalesOrder).save(state.order);
+      await manager.getRepository(PaymentAttempt).save(state.attempt);
+      return 'cancelled';
+    });
+  }
+
+  private isNonPayableStatus(status: PaymentProviderLink['status']): boolean {
+    return status === 'CANCELLED' || status === 'EXPIRED' || status === 'FAILED';
+  }
+
+  private terminalAttemptStatus(
+    status: PaymentProviderLink['status'],
+  ): 'cancelled' | 'expired' | 'failed' {
+    if (status === 'EXPIRED') return 'expired';
+    if (status === 'FAILED') return 'failed';
+    return 'cancelled';
+  }
+
+  private async claimScheduledAttempt(
+    orderId: number,
+  ): Promise<PaymentState | null> {
+    return this.dataSource.transaction(async (manager) => {
+      const state = await this.lockState(manager, orderId);
+      const now = Date.now();
+      const due =
+        state?.attempt.status === 'creating' ||
+        state?.attempt.status === 'reconciliation_required' ||
+        (state?.attempt.status === 'pending' &&
+          state.attempt.expiresAt.getTime() <= now);
+      if (
+        !state ||
+        !due ||
+        state.order.paymentMethod !== 'payos' ||
+        state.order.status !== 'pending' ||
+        state.order.paymentStatus !== 'unpaid' ||
+        state.attempt.setupLeaseExpiresAt.getTime() > now
+      ) {
+        return null;
+      }
+
+      state.attempt.setupLeaseExpiresAt = new Date(
+        now + PAYOS_SETUP_LEASE_MS,
+      );
+      await manager.getRepository(PaymentAttempt).save(state.attempt);
+      return state;
+    });
+  }
+
+  private async reconcileScheduledAttempt(
+    orderId: number,
+    claimed: PaymentState,
+  ): Promise<void> {
+    let link: PaymentProviderLink | null;
+    try {
+      link = await this.provider.getLink(claimed.attempt.providerOrderCode);
+    } catch (error) {
+      // Keep local state and voucher reservation intact; the lease makes this retryable.
+      this.logScheduledLookupFailure(orderId, 'initial_link_lookup', error);
+      return;
+    }
+
+    if (!link) {
+      await this.handleMissingScheduledLink(orderId, claimed);
+      return;
+    }
+
+    await this.reconcileScheduledLink(orderId, claimed, link);
+  }
+
+  private async handleMissingScheduledLink(
+    orderId: number,
+    claimed: PaymentState,
+  ): Promise<void> {
+    const hasProviderEvidence =
+      claimed.attempt.providerPaymentLinkId !== null ||
+      claimed.attempt.checkoutUrl !== null ||
+      claimed.attempt.providerReference !== null ||
+      this.hasObservedFunds(claimed.attempt.observedAmountPaid);
+    const canRetrySameCode =
+      !hasProviderEvidence &&
+      (claimed.attempt.status === 'creating' ||
+        claimed.attempt.status === 'reconciliation_required');
+
+    if (canRetrySameCode) {
+      const retry = await this.prepareRetryAfterConfirmedNoLink(orderId);
+      if (retry === 'expired') return;
+      if (retry === 'creating') {
+        await this.createLink(orderId, true);
+        return;
+      }
+    }
+
+    if (
+      claimed.attempt.status === 'creating' &&
+      claimed.attempt.expiresAt.getTime() <= Date.now() &&
+      !hasProviderEvidence
+    ) {
+      await this.expireIfDueAndUnlinked(orderId);
+      return;
+    }
+
+    await this.markReconciliationRequired(
+      orderId,
+      'PayOS payment link could not be found during scheduled reconciliation.',
+    );
+  }
+
+  private async prepareRetryAfterConfirmedNoLink(
+    orderId: number,
+  ): Promise<'creating' | 'expired' | 'changed'> {
+    return this.dataSource.transaction(async (manager) => {
+      const state = await this.lockState(manager, orderId);
+      if (
+        !state ||
+        state.order.paymentMethod !== 'payos' ||
+        state.order.status !== 'pending' ||
+        state.order.paymentStatus !== 'unpaid' ||
+        !['creating', 'reconciliation_required'].includes(
+          state.attempt.status,
+        ) ||
+        state.attempt.providerPaymentLinkId !== null ||
+        state.attempt.checkoutUrl !== null ||
+        state.attempt.providerReference !== null ||
+        this.hasObservedFunds(state.attempt.observedAmountPaid)
+      ) {
+        return 'changed';
+      }
+
+      if (state.attempt.expiresAt.getTime() <= Date.now()) {
+        state.attempt.status = 'expired';
+        state.attempt.setupLeaseExpiresAt = new Date(0);
+        state.attempt.reconciliationReason = null;
+        state.attempt.reconciliationAt = null;
+        state.order.status = 'cancelled';
+        await manager.getRepository(PaymentAttempt).save(state.attempt);
+        await manager.getRepository(SalesOrder).save(state.order);
+        return 'expired';
+      }
+
+      state.attempt.status = 'creating';
+      state.attempt.reconciliationReason = null;
+      state.attempt.reconciliationAt = null;
+      await manager.getRepository(PaymentAttempt).save(state.attempt);
+      return 'creating';
+    });
+  }
+
+  private async reconcileScheduledLink(
+    orderId: number,
+    claimed: PaymentState,
+    link: PaymentProviderLink,
+  ): Promise<void> {
+    const expectedAmount = this.toWholeVnd(claimed.attempt.amount);
+    const identityMatches =
+      link.orderCode === claimed.attempt.providerOrderCode &&
+      link.amount === expectedAmount &&
+      (claimed.attempt.providerPaymentLinkId === null ||
+        claimed.attempt.providerPaymentLinkId === link.linkId);
+    const aggregateIsValid =
+      Number.isSafeInteger(link.amountPaid) &&
+      link.amountPaid >= 0 &&
+      Number.isSafeInteger(link.amountRemaining) &&
+      link.amountRemaining >= 0;
+
+    if (
+      identityMatches &&
+      aggregateIsValid &&
+      link.status === 'PAID' &&
+      link.amountPaid === expectedAmount &&
+      link.amountRemaining === 0
+    ) {
+      await this.applyFullPayment(orderId, link);
+      return;
+    }
+
+    if (this.hasPaymentEvidence(claimed.attempt)) {
+      await this.markProviderLinkForReview(
+        orderId,
+        link,
+        'Prior PayOS payment evidence remains unresolved; administrator review is required.',
+      );
+      return;
+    }
+
+    if (!identityMatches || !aggregateIsValid) {
+      await this.markProviderLinkForReview(
+        orderId,
+        link,
+        'PayOS scheduled reconciliation found a mismatched link or amount.',
+      );
+      return;
+    }
+
+    // An orphan without a saved URL is reserved for administrator review even when unpaid.
+    if (!claimed.attempt.checkoutUrl) {
+      await this.markProviderLinkForReview(
+        orderId,
+        link,
+        'PayOS link exists without a locally saved checkout URL; administrator review is required.',
+      );
+      return;
+    }
+
+    const isUnpaidWholeLink =
+      link.amountPaid === 0 && link.amountRemaining === expectedAmount;
+    const beforeDeadline =
+      claimed.attempt.expiresAt.getTime() > Date.now();
+    if (
+      beforeDeadline &&
+      isUnpaidWholeLink &&
+      link.status === 'PENDING' &&
+      ['creating', 'pending', 'reconciliation_required'].includes(
+        claimed.attempt.status,
+      )
+    ) {
+      await this.confirmReusableCheckout(orderId, link);
+      return;
+    }
+
+    if (isUnpaidWholeLink && this.isNonPayableStatus(link.status)) {
+      await this.cancelAfterProviderConfirmation(
+        null,
+        orderId,
+        link,
+        this.terminalAttemptStatus(link.status),
+        ['creating', 'pending', 'reconciliation_required'],
+      );
+      return;
+    }
+
+    if (isUnpaidWholeLink && !beforeDeadline) {
+      await this.cancelExpiredKnownLink(orderId, claimed, link, expectedAmount);
+      return;
+    }
+
+    await this.markProviderLinkForReview(
+      orderId,
+      link,
+      'PayOS link state or aggregate amount requires administrator review.',
+    );
+  }
+
+  private async cancelExpiredKnownLink(
+    orderId: number,
+    claimed: PaymentState,
+    link: PaymentProviderLink,
+    expectedAmount: number,
+  ): Promise<void> {
+    let confirmed = link;
+    if (!this.isNonPayableStatus(link.status)) {
+      try {
+        await this.provider.cancelLink(
+          claimed.attempt.providerOrderCode,
+          'Payment link expired',
+        );
+      } catch {
+        // Confirm current aggregate state below before making any local transition.
+      }
+      try {
+        const refreshed = await this.provider.getLink(
+          claimed.attempt.providerOrderCode,
+        );
+        if (!refreshed) {
+          await this.markReconciliationRequired(
+            orderId,
+            'PayOS expired link could not be found after cancellation was requested.',
+          );
+          return;
+        }
+        confirmed = refreshed;
+      } catch (error) {
+        this.logScheduledLookupFailure(orderId, 'expiry_refresh_lookup', error);
+        return;
+      }
+    }
+
+    const confirmedIdentityMatches =
+      confirmed.orderCode === claimed.attempt.providerOrderCode &&
+      confirmed.linkId === claimed.attempt.providerPaymentLinkId &&
+      confirmed.amount === expectedAmount;
+    const aggregateIsValid =
+      Number.isSafeInteger(confirmed.amountPaid) &&
+      confirmed.amountPaid >= 0 &&
+      Number.isSafeInteger(confirmed.amountRemaining) &&
+      confirmed.amountRemaining >= 0;
+
+    if (
+      confirmedIdentityMatches &&
+      aggregateIsValid &&
+      confirmed.status === 'PAID' &&
+      confirmed.amountPaid === expectedAmount &&
+      confirmed.amountRemaining === 0
+    ) {
+      await this.applyFullPayment(orderId, confirmed);
+      return;
+    }
+
+    if (
+      confirmedIdentityMatches &&
+      aggregateIsValid &&
+      confirmed.amountPaid === 0 &&
+      confirmed.amountRemaining === expectedAmount &&
+      this.isNonPayableStatus(confirmed.status)
+    ) {
+      await this.cancelAfterProviderConfirmation(
+        null,
+        orderId,
+        confirmed,
+        this.terminalAttemptStatus(confirmed.status),
+        ['creating', 'pending', 'reconciliation_required'],
+      );
+      return;
+    }
+
+    await this.markProviderLinkForReview(
+      orderId,
+      confirmed,
+      'PayOS expiry cancellation is incomplete or its final state is inconsistent.',
+    );
+  }
+
+  private hasObservedFunds(amount: string | null): boolean {
+    if (amount === null) return false;
+    const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(amount);
+    if (!match) return true;
+    try {
+      const cents =
+        BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0');
+      return cents > 0n;
+    } catch {
+      return true;
+    }
+  }
+
+  private logScheduledLookupFailure(
+    orderId: number,
+    stage: string,
+    error: unknown,
+  ): void {
+    this.logger.warn(
+      JSON.stringify({
+        orderId,
+        stage,
+        outcome: 'provider_lookup_retry',
+        error: error instanceof Error ? error.name : 'UnknownProviderError',
+      }),
+    );
+  }
+
+  private observedAmountExceedsVnd(
+    observedAmount: string | null,
+    expectedAmountVnd: number,
+  ): boolean {
+    if (observedAmount === null) return false;
+    const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(observedAmount);
+    if (!match) return true;
+    const observedCents =
+      BigInt(match[1]) * 100n +
+      BigInt((match[2] ?? '').padEnd(2, '0') || '0');
+    return observedCents > BigInt(expectedAmountVnd) * 100n;
+  }
+
+  private hasPaymentEvidence(
+    attempt: Pick<PaymentAttempt, 'providerReference' | 'observedAmountPaid'>,
+  ): boolean {
+    return (
+      attempt.providerReference !== null ||
+      this.hasObservedFunds(attempt.observedAmountPaid)
+    );
+  }
+
+  private recordObservedAmountPaid(
+    attempt: PaymentAttempt,
+    amountPaid: number,
+  ): void {
+    if (!Number.isSafeInteger(amountPaid) || amountPaid < 0) return;
+
+    const prior = attempt.observedAmountPaid;
+    if (prior !== null) {
+      const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(prior);
+      if (!match) return;
+      const priorCents =
+        BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0');
+      if (BigInt(amountPaid) * 100n < priorCents) return;
+    }
+
+    attempt.observedAmountPaid = String(amountPaid);
+  }
+
+  private async createLink(
+    orderId: number,
+    scheduledReconciliation = false,
+  ): Promise<void> {
     const state = await this.refreshInitialLease(orderId);
     if (!state) {
       const current = await this.loadState(orderId);
@@ -258,7 +870,12 @@ export class PaymentsService {
         return;
       }
       if (current && current.attempt.status === 'creating') {
-        const found = await this.lookupLink(current.attempt.providerOrderCode);
+        const found = await this.lookupLink(
+          current.attempt.providerOrderCode,
+          scheduledReconciliation
+            ? { orderId, stage: 'create_lease_recovery_lookup' }
+            : undefined,
+        );
         if (found) {
           await this.reconcileFoundLink(orderId, found);
         } else {
@@ -279,7 +896,12 @@ export class PaymentsService {
       created = await this.provider.createLink(input);
     } catch {
       // A create timeout or duplicate order code can mean PayOS created the link.
-      const found = await this.lookupLink(input.orderCode);
+      const found = await this.lookupLink(
+        input.orderCode,
+        scheduledReconciliation
+          ? { orderId, stage: 'create_failure_lookup' }
+          : undefined,
+      );
       if (found) {
         const outcome = await this.reconcileFoundLink(orderId, found);
         if (outcome === 'paid') return;
@@ -332,6 +954,7 @@ export class PaymentsService {
         state.order.status !== 'pending' ||
         state.order.paymentStatus !== 'unpaid' ||
         state.attempt.status !== 'creating' ||
+        this.hasPaymentEvidence(state.attempt) ||
         state.attempt.expiresAt.getTime() <= Date.now()
       ) {
         return null;
@@ -354,14 +977,24 @@ export class PaymentsService {
         !state ||
         state.order.status !== 'pending' ||
         state.order.paymentStatus !== 'unpaid' ||
-        state.attempt.status !== 'creating'
+        state.attempt.status !== 'creating' ||
+        this.hasPaymentEvidence(state.attempt)
       ) {
         return 'terminal';
       }
 
       const now = Date.now();
       if (state.attempt.expiresAt.getTime() <= now) {
+        if (
+          state.attempt.providerPaymentLinkId !== null ||
+          state.attempt.checkoutUrl !== null ||
+          state.attempt.providerReference !== null ||
+          this.hasObservedFunds(state.attempt.observedAmountPaid)
+        ) {
+          return 'terminal';
+        }
         state.attempt.status = 'expired';
+        state.attempt.setupLeaseExpiresAt = new Date(0);
         state.attempt.reconciliationReason = null;
         state.attempt.reconciliationAt = null;
         state.order.status = 'cancelled';
@@ -401,9 +1034,15 @@ export class PaymentsService {
         link.amount === this.toWholeVnd(state.attempt.amount);
 
       state.attempt.providerPaymentLinkId = link.linkId || null;
-      if (pristinePending && identityMatches && stillBeforeDeadline) {
+      if (
+        pristinePending &&
+        identityMatches &&
+        stillBeforeDeadline &&
+        !this.hasPaymentEvidence(state.attempt)
+      ) {
         state.attempt.status = 'pending';
         state.attempt.checkoutUrl = link.checkoutUrl;
+        state.attempt.setupLeaseExpiresAt = new Date(0);
         state.attempt.reconciliationReason = null;
         state.attempt.reconciliationAt = null;
         await manager.getRepository(PaymentAttempt).save(state.attempt);
@@ -412,7 +1051,7 @@ export class PaymentsService {
 
       state.attempt.checkoutUrl = null;
       state.attempt.status = 'reconciliation_required';
-      state.attempt.observedAmountPaid = String(link.amountPaid);
+      this.recordObservedAmountPaid(state.attempt, link.amountPaid);
       state.attempt.reconciliationReason = stillBeforeDeadline
         ? 'PayOS returned a payment link with unexpected amount or status.'
         : 'PayOS created a payment link after the local payment deadline.';
@@ -448,7 +1087,10 @@ export class PaymentsService {
       identityMatches &&
       state.order.status === 'pending' &&
       state.order.paymentStatus === 'unpaid' &&
-      state.attempt.status === 'pending' &&
+      !this.hasPaymentEvidence(state.attempt) &&
+      ['creating', 'pending', 'reconciliation_required'].includes(
+        state.attempt.status,
+      ) &&
       state.attempt.expiresAt.getTime() > Date.now() &&
       Boolean(state.attempt.checkoutUrl) &&
       link.status === 'PENDING' &&
@@ -482,7 +1124,10 @@ export class PaymentsService {
         state.order.paymentMethod === 'payos' &&
         state.order.status === 'pending' &&
         state.order.paymentStatus === 'unpaid' &&
-        state.attempt.status === 'pending' &&
+        !this.hasPaymentEvidence(state.attempt) &&
+        ['creating', 'pending', 'reconciliation_required'].includes(
+          state.attempt.status,
+        ) &&
         state.attempt.expiresAt.getTime() > Date.now() &&
         Boolean(state.attempt.checkoutUrl) &&
         state.attempt.providerOrderCode === link.orderCode &&
@@ -492,7 +1137,14 @@ export class PaymentsService {
         link.status === 'PENDING' &&
         link.amountPaid === 0 &&
         link.amountRemaining === expectedAmount;
-      if (stillReusable) return 'available';
+      if (stillReusable) {
+        state.attempt.status = 'pending';
+        state.attempt.setupLeaseExpiresAt = new Date(0);
+        state.attempt.reconciliationReason = null;
+        state.attempt.reconciliationAt = null;
+        await manager.getRepository(PaymentAttempt).save(state.attempt);
+        return 'available';
+      }
 
       if (
         state.order.status === 'pending' &&
@@ -550,6 +1202,22 @@ export class PaymentsService {
         )
       ) {
         if (
+          this.observedAmountExceedsVnd(
+            state.attempt.observedAmountPaid,
+            expectedAmount,
+          )
+        ) {
+          const priorObservedAmount = state.attempt.observedAmountPaid;
+          return this.flagForReview(
+            manager,
+            state,
+            link,
+            `PayOS aggregate paid amount is below the previously observed amount (${priorObservedAmount} > ${expectedAmount}); administrator review is required.`,
+            state.attempt.providerReference ?? reference,
+          );
+        }
+
+        if (
           reference &&
           (await this.referenceBelongsToAnotherAttempt(
             manager,
@@ -569,12 +1237,13 @@ export class PaymentsService {
         state.order.paymentConfirmedAt = new Date();
         state.order.paymentConfirmedByEmployeeId = null;
         state.attempt.status = 'paid';
+        state.attempt.setupLeaseExpiresAt = new Date(0);
         if (state.attempt.providerPaymentLinkId === null) {
           state.attempt.checkoutUrl = null;
         }
         state.attempt.providerPaymentLinkId = link.linkId;
         state.attempt.providerReference = reference;
-        state.attempt.observedAmountPaid = String(link.amountPaid);
+        this.recordObservedAmountPaid(state.attempt, link.amountPaid);
         state.attempt.paidAt = new Date();
         state.attempt.reconciliationReason = null;
         state.attempt.reconciliationAt = null;
@@ -622,7 +1291,7 @@ export class PaymentsService {
           state.attempt.providerPaymentLinkId = link.linkId;
           state.attempt.checkoutUrl = null;
         }
-        state.attempt.observedAmountPaid = String(link.amountPaid);
+        this.recordObservedAmountPaid(state.attempt, link.amountPaid);
         await manager.getRepository(PaymentAttempt).save(state.attempt);
         return 'paid';
       }
@@ -657,9 +1326,7 @@ export class PaymentsService {
       state.attempt.status = 'reconciliation_required';
       if (link) {
         state.attempt.providerPaymentLinkId = link.linkId || null;
-        if (Number.isSafeInteger(link.amountPaid) && link.amountPaid >= 0) {
-          state.attempt.observedAmountPaid = String(link.amountPaid);
-        }
+        this.recordObservedAmountPaid(state.attempt, link.amountPaid);
         const reference = link.transactionReferences[0];
         if (reference) {
           const referenceConflict = await this.referenceBelongsToAnotherAttempt(
@@ -711,9 +1378,7 @@ export class PaymentsService {
         state.attempt.providerReference = providerReference;
       }
     }
-    if (Number.isSafeInteger(link.amountPaid) && link.amountPaid >= 0) {
-      state.attempt.observedAmountPaid = String(link.amountPaid);
-    }
+    this.recordObservedAmountPaid(state.attempt, link.amountPaid);
     state.attempt.reconciliationReason = reason;
     state.attempt.reconciliationAt = new Date();
     await manager.getRepository(PaymentAttempt).save(state.attempt);
@@ -763,13 +1428,7 @@ export class PaymentsService {
           state.attempt.checkoutUrl = null;
         }
       }
-      if (
-        link &&
-        Number.isSafeInteger(link.amountPaid) &&
-        link.amountPaid >= 0
-      ) {
-        state.attempt.observedAmountPaid = String(link.amountPaid);
-      }
+      if (link) this.recordObservedAmountPaid(state.attempt, link.amountPaid);
 
       const referenceConflict = await this.referenceBelongsToAnotherAttempt(
         manager,
@@ -862,12 +1521,19 @@ export class PaymentsService {
         !state ||
         state.order.status !== 'pending' ||
         state.order.paymentStatus !== 'unpaid' ||
-        state.attempt.status !== 'creating' ||
+        !['creating', 'reconciliation_required'].includes(
+          state.attempt.status,
+        ) ||
+        state.attempt.providerPaymentLinkId !== null ||
+        state.attempt.checkoutUrl !== null ||
+        state.attempt.providerReference !== null ||
+        this.hasObservedFunds(state.attempt.observedAmountPaid) ||
         state.attempt.expiresAt.getTime() > Date.now()
       ) {
         return;
       }
       state.attempt.status = 'expired';
+      state.attempt.setupLeaseExpiresAt = new Date(0);
       state.attempt.reconciliationReason = null;
       state.attempt.reconciliationAt = null;
       state.order.status = 'cancelled';
@@ -878,10 +1544,18 @@ export class PaymentsService {
 
   private async lookupLink(
     orderCode: number,
+    scheduledContext?: { orderId: number; stage: string },
   ): Promise<PaymentProviderLink | null> {
     try {
       return await this.provider.getLink(orderCode);
-    } catch {
+    } catch (error) {
+      if (scheduledContext) {
+        this.logScheduledLookupFailure(
+          scheduledContext.orderId,
+          scheduledContext.stage,
+          error,
+        );
+      }
       throw this.unavailable();
     }
   }
