@@ -70,11 +70,11 @@
 - Modify: `docs/superpowers/specs/2026-09-28-customer-order-placement-design.md`
 - Modify: `docs/superpowers/specs/2026-09-28-admin-order-processing-design.md`
 
-- [ ] Remove `INVENTORY_MOVEMENT`, its relationships, ledger/balance rules, and stock timing statements from the active ERD. Keep suppliers and import documents; retain the existing recipient snapshot and packing MVP fields.
-- [ ] Remove inventory API documentation and all claims that imports/orders/cancellations update or validate stock. Clarify that import quantities are purchase history and order quantities are not checked against available stock.
-- [ ] Add a clear supersession notice at the start of the three historical design specs, linking to `docs/superpowers/specs/2026-09-29-remove-inventory-design.md` and stating which stock behaviors are replaced while purchase, customer-order, and packing contracts remain.
-- [ ] Document that the migration drops existing movement rows and rollback restores only an empty prior ledger schema.
-- [ ] Run `git diff --check` and search for stale inventory claims in active docs and runtime source. Historical migration files may still mention the ledger because they remain immutable.
+- [x] Remove `INVENTORY_MOVEMENT`, its relationships, ledger/balance rules, and stock timing statements from the active ERD. Keep suppliers and import documents; retain the existing recipient snapshot and packing MVP fields.
+- [x] Remove inventory API documentation and all claims that imports/orders/cancellations update or validate stock. Clarify that import quantities are purchase history and order quantities are not checked against available stock.
+- [x] Add a clear supersession notice at the start of the three historical design specs, linking to `docs/superpowers/specs/2026-09-29-remove-inventory-design.md` and stating which stock behaviors are replaced while purchase, customer-order, and packing contracts remain.
+- [x] Document that the migration drops existing movement rows and rollback restores only an empty prior ledger schema.
+- [x] Run `git diff --check` and search for stale inventory claims in active docs and runtime source. Historical migration files may still mention the ledger because they remain immutable.
 
 ### Task 6: Verify and prepare integration
 
