@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ProductVariant } from '../catalog/entities/product-variant.entity';
-import { InventoryService } from '../inventory/inventory.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderDetail } from './entities/order-detail.entity';
 import { SalesOrder } from './entities/sales-order.entity';
@@ -26,10 +25,7 @@ interface PricedOrderLine {
 
 @Injectable()
 export class OrdersService {
-  constructor(
-    private readonly dataSource: DataSource,
-    private readonly inventoryService: InventoryService,
-  ) {}
+  constructor(private readonly dataSource: DataSource) {}
 
   async createOrder(
     input: CreateOrderDto,
@@ -47,8 +43,6 @@ export class OrdersService {
     }
 
     return this.dataSource.transaction(async (manager): Promise<SalesOrder> => {
-      await this.inventoryService.lockVariants(manager, variantIds);
-
       const variants = await manager
         .getRepository(ProductVariant)
         .createQueryBuilder('variant')
@@ -79,17 +73,6 @@ export class OrdersService {
 
       for (const detail of sortedDetails) {
         const variant = variantsById.get(detail.variantId)!;
-        const currentBalance = await this.inventoryService.getCurrentBalance(
-          manager,
-          detail.variantId,
-        );
-
-        if (currentBalance < BigInt(detail.quantity)) {
-          throw new BadRequestException(
-            `Insufficient stock for product variant ${detail.variantId}.`,
-          );
-        }
-
         const unitPriceCents = this.parseUnitPrice(
           variant.price,
           detail.variantId,
@@ -140,17 +123,6 @@ export class OrdersService {
             subtotal: line.subtotal,
           }),
         ),
-      );
-
-      await this.inventoryService.createSaleMovements(
-        manager,
-        order.orderId,
-        customerId,
-        order.orderDate,
-        pricedLines.map(({ variantId, quantity }) => ({
-          variantId,
-          quantity,
-        })),
       );
 
       const savedOrder = await manager
@@ -240,29 +212,6 @@ export class OrdersService {
       if (order.status !== 'pending') {
         throw new ConflictException('Only pending orders can be cancelled.');
       }
-
-      const details = await manager
-        .getRepository(OrderDetail)
-        .createQueryBuilder('detail')
-        .where('detail.orderId = :orderId', { orderId })
-        .orderBy('detail.variantId', 'ASC')
-        .getMany();
-      const rows = details.map(({ variantId, quantity }) => ({
-        variantId,
-        quantity,
-      }));
-
-      await this.inventoryService.lockVariants(
-        manager,
-        rows.map(({ variantId }) => variantId),
-      );
-      await this.inventoryService.createSaleCancellationMovements(
-        manager,
-        order.orderId,
-        customerId,
-        new Date(),
-        rows,
-      );
 
       order.status = 'cancelled';
       await orderRepository.save(order);
