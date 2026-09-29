@@ -76,10 +76,10 @@
 **Files:**
 - Modify: `docs/superpowers/plans/2026-09-28-admin-order-processing.md`
 
-- [ ] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`; expect success.
-- [ ] Run `npm run db:migrate` against the already configured local development database, then `npm run db:migrations`; confirm the new migration is applied and every prior migration remains applied. Do not display or commit `.env` contents.
-- [ ] Review the migration and confirm both paths require an active transaction without a per-migration override, and that `down` locks `sales_order` then `packing` before its packed-order/packing-row preflight, throws before any DDL when data exists, and performs only schema rollback when both counts are zero. Do not execute migration rollback or add/run automated tests under the approved no-tests scope.
-- [ ] Verify the clean diff, migration/entity parity, employee authentication, safe projections, lock order/cancellation interaction, database constraints, and response serialization.
-- [ ] Mark this task and preceding task boxes complete only after the corresponding commands/reviews succeed; commit implementation and docs on `codex/admin-order-processing`.
+- [x] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`; expect success.
+- [x] Run `npm run db:migrate` against the already configured local development database, then `npm run db:migrations`; confirm the new migration is applied and every prior migration remains applied. Do not display or commit `.env` contents.
+- [x] Review the migration and confirm both paths require an active transaction without a per-migration override, and that `down` locks `sales_order` then `packing` before its packed-order/packing-row preflight, throws before any DDL when data exists, and performs only schema rollback when both counts are zero. Do not execute migration rollback or add/run automated tests under the approved no-tests scope.
+- [x] Verify the clean diff, migration/entity parity, employee authentication, safe projections, lock order/cancellation interaction, database constraints, and response serialization.
+- [x] Mark this task and preceding task boxes complete only after the corresponding commands/reviews succeed; commit implementation and docs on `codex/admin-order-processing`.
 
 No automated tests are added or run. Verification is limited to formatting, TypeScript build, ESLint, migration status, diff checks, and code review per the approved feature scope.
