@@ -125,17 +125,35 @@ export class CreateOrderPacking1790710000000 implements MigrationInterface {
     );
     await queryRunner.query('LOCK TABLE "packing" IN ACCESS EXCLUSIVE MODE');
 
-    const counts: Array<{
-      packed_order_count: string;
-      packing_row_count: string;
-    }> = await queryRunner.query(
+    const countResult: unknown = await queryRunner.query(
       `SELECT (SELECT COUNT(*) FROM "sales_order" WHERE "status" = 'packed') AS packed_order_count, (SELECT COUNT(*) FROM "packing") AS packing_row_count`,
     );
-
     if (
-      Number(counts[0].packed_order_count) > 0 ||
-      Number(counts[0].packing_row_count) > 0
+      !Array.isArray(countResult) ||
+      countResult.length !== 1 ||
+      typeof countResult[0] !== 'object' ||
+      countResult[0] === null
     ) {
+      throw new Error(
+        'Could not verify order packing migration rollback state.',
+      );
+    }
+
+    const countRow = countResult[0] as Record<string, unknown>;
+    const packedOrderCount = countRow['packed_order_count'];
+    const packingRowCount = countRow['packing_row_count'];
+    if (
+      typeof packedOrderCount !== 'string' ||
+      !/^\d+$/.test(packedOrderCount) ||
+      typeof packingRowCount !== 'string' ||
+      !/^\d+$/.test(packingRowCount)
+    ) {
+      throw new Error(
+        'Could not verify order packing migration rollback state.',
+      );
+    }
+
+    if (BigInt(packedOrderCount) > 0n || BigInt(packingRowCount) > 0n) {
       throw new Error(
         'Cannot revert order packing migration while packed sales orders or packing records exist. Resolve those records before retrying.',
       );

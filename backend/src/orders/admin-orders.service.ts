@@ -2,11 +2,14 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { OrderDetail } from './entities/order-detail.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 import { GetAdminOrdersDto } from './dto/get-admin-orders.dto';
+import { PackOrderDto } from './dto/pack-order.dto';
+import { Packing } from './entities/packing.entity';
 
 interface AdminOrderDetailRow {
   orderId: number;
@@ -113,7 +116,56 @@ export class AdminOrdersService {
 
   async getOrder(orderIdInput: string) {
     const orderId = this.parseOrderId(orderIdInput);
-    const rows = await this.dataSource
+    return this.loadOrder(this.dataSource.manager, orderId);
+  }
+
+  async packOrder(
+    orderIdInput: string,
+    input: PackOrderDto,
+    employeeId: number,
+  ) {
+    const orderId = this.parseOrderId(orderIdInput);
+
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(SalesOrder);
+      const order = await orderRepository
+        .createQueryBuilder('order')
+        .where('order.orderId = :orderId', { orderId })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!order) {
+        throw new NotFoundException('Order not found.');
+      }
+
+      if (order.status !== 'pending') {
+        throw new ConflictException('Only pending orders can be packed.');
+      }
+
+      await manager
+        .getRepository(Packing)
+        .createQueryBuilder()
+        .insert()
+        .into(Packing)
+        .values({
+          orderId,
+          employeeId,
+          packingType: input.packingType ?? null,
+          status: 'packed',
+          note: input.note ?? null,
+          packingDate: () => 'CURRENT_TIMESTAMP',
+        })
+        .execute();
+
+      order.status = 'packed';
+      await orderRepository.save(order);
+
+      return this.loadOrder(manager, orderId);
+    });
+  }
+
+  private async loadOrder(manager: EntityManager, orderId: number) {
+    const rows = await manager
       .getRepository(SalesOrder)
       .createQueryBuilder('order')
       .leftJoin('order.details', 'detail')

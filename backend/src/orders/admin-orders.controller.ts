@@ -1,6 +1,19 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { EmployeeJwtGuard } from '../auth/employee-jwt.guard';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { GetAdminOrdersDto } from './dto/get-admin-orders.dto';
+import { PackOrderDto } from './dto/pack-order.dto';
 import { AdminOrdersService } from './admin-orders.service';
 
 @Controller('admin/orders')
@@ -16,5 +29,15 @@ export class AdminOrdersController {
   @Get(':orderId')
   get(@Param('orderId') orderId: string) {
     return this.orders.getOrder(orderId);
+  }
+
+  @Post(':orderId/pack')
+  @HttpCode(HttpStatus.OK)
+  pack(
+    @Param('orderId') orderId: string,
+    @Body() input: PackOrderDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.orders.packOrder(orderId, input, request.employee.employeeId);
   }
 }
