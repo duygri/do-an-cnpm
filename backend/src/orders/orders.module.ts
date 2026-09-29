@@ -9,6 +9,7 @@ import { Packing } from './entities/packing.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 import { PromotionDetail } from '../promotions/entities/promotion-detail.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
+import { PaymentAttempt } from '../payments/entities/payment-attempt.entity';
 import { AdminOrdersController } from './admin-orders.controller';
 import { AdminOrdersService } from './admin-orders.service';
 import { OrdersController } from './orders.controller';
@@ -26,6 +27,7 @@ import { OrdersService } from './orders.service';
       Product,
       Promotion,
       PromotionDetail,
+      PaymentAttempt,
     ]),
   ],
   controllers: [OrdersController, AdminOrdersController],
