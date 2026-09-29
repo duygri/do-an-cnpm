@@ -9,9 +9,7 @@ import {
   TableUnique,
 } from 'typeorm';
 
-export class CreatePromotionsVouchers1790740000000
-  implements MigrationInterface
-{
+export class CreatePromotionsVouchers1790740000000 implements MigrationInterface {
   name = 'CreatePromotionsVouchers1790740000000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
@@ -30,7 +28,12 @@ export class CreatePromotionsVouchers1790740000000
           { name: 'description', type: 'text', isNullable: true },
           { name: 'start_date', type: 'date' },
           { name: 'end_date', type: 'date' },
-          { name: 'status', type: 'varchar', length: '20', default: "'active'" },
+          {
+            name: 'status',
+            type: 'varchar',
+            length: '20',
+            default: "'active'",
+          },
         ],
         checks: [
           new TableCheck({
@@ -84,7 +87,12 @@ export class CreatePromotionsVouchers1790740000000
             isNullable: true,
           },
           { name: 'quantity', type: 'integer' },
-          { name: 'status', type: 'varchar', length: '20', default: "'active'" },
+          {
+            name: 'status',
+            type: 'varchar',
+            length: '20',
+            default: "'active'",
+          },
         ],
         uniques: [
           new TableUnique({
@@ -128,8 +136,7 @@ export class CreatePromotionsVouchers1790740000000
           }),
           new TableCheck({
             name: 'CHK_promotion_detail_max_discount',
-            expression:
-              `"max_discount" IS NULL OR ("type" = 'percentage' AND "max_discount" > 0)`,
+            expression: `"max_discount" IS NULL OR ("type" = 'percentage' AND "max_discount" > 0)`,
           }),
           new TableCheck({
             name: 'CHK_promotion_detail_percentage_range',

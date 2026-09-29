@@ -11,10 +11,7 @@ import { PromotionDetail } from './promotion-detail.entity';
 export type PromotionStatus = 'active' | 'inactive';
 
 @Entity({ name: 'promotion' })
-@Check(
-  'CHK_promotion_status',
-  `"status" IN ('active', 'inactive')`,
-)
+@Check('CHK_promotion_status', `"status" IN ('active', 'inactive')`)
 @Check('CHK_promotion_date_range', '"start_date" <= "end_date"')
 @Index('IDX_promotion_status_dates', ['status', 'startDate', 'endDate'])
 export class Promotion {

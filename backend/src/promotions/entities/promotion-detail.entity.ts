@@ -15,22 +15,10 @@ export type PromotionDetailType = 'fixed' | 'percentage';
 
 @Entity({ name: 'promotion_detail' })
 @Unique('UQ_promotion_detail_code', ['code'])
-@Check(
-  'CHK_promotion_detail_code_canonical',
-  `"code" ~ '^[A-Z0-9_-]+$'`,
-)
-@Check(
-  'CHK_promotion_detail_status',
-  `"status" IN ('active', 'inactive')`,
-)
-@Check(
-  'CHK_promotion_detail_date_range',
-  '"start_date" <= "end_date"',
-)
-@Check(
-  'CHK_promotion_detail_type',
-  `"type" IN ('fixed', 'percentage')`,
-)
+@Check('CHK_promotion_detail_code_canonical', `"code" ~ '^[A-Z0-9_-]+$'`)
+@Check('CHK_promotion_detail_status', `"status" IN ('active', 'inactive')`)
+@Check('CHK_promotion_detail_date_range', '"start_date" <= "end_date"')
+@Check('CHK_promotion_detail_type', `"type" IN ('fixed', 'percentage')`)
 @Check('CHK_promotion_detail_discount_positive', '"discount_value" > 0')
 @Check('CHK_promotion_detail_min_price_nonnegative', '"min_price" >= 0')
 @Check(
