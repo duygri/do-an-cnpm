@@ -39,6 +39,8 @@ interface AdminOrderDetailRow {
   packingStatus: 'packed' | null;
   packingNote: string | null;
   packingEmployeeId: number | null;
+  paymentConfirmedAt: Date | string | null;
+  paymentConfirmedByEmployeeId: number | null;
 }
 
 @Injectable()
@@ -164,6 +166,52 @@ export class AdminOrdersService {
     });
   }
 
+  async markPaid(orderIdInput: string, employeeId: number) {
+    const orderId = this.parseOrderId(orderIdInput);
+
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(SalesOrder);
+      const order = await orderRepository
+        .createQueryBuilder('order')
+        .where('order.orderId = :orderId', { orderId })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!order) {
+        throw new NotFoundException('Order not found.');
+      }
+
+      if (order.status !== 'packed') {
+        throw new ConflictException(
+          'Only packed orders can be marked as paid.',
+        );
+      }
+
+      if (order.paymentMethod !== 'cod') {
+        throw new ConflictException('Only COD orders can be marked as paid.');
+      }
+
+      if (order.paymentStatus !== 'unpaid') {
+        throw new ConflictException(
+          'Only unpaid orders can be marked as paid.',
+        );
+      }
+
+      await orderRepository
+        .createQueryBuilder()
+        .update(SalesOrder)
+        .set({
+          paymentStatus: 'paid',
+          paymentConfirmedAt: () => 'CURRENT_TIMESTAMP',
+          paymentConfirmedByEmployeeId: employeeId,
+        })
+        .where('orderId = :orderId', { orderId })
+        .execute();
+
+      return this.loadOrder(manager, orderId);
+    });
+  }
+
   private async loadOrder(manager: EntityManager, orderId: number) {
     const rows = await manager
       .getRepository(SalesOrder)
@@ -183,6 +231,11 @@ export class AdminOrdersService {
       .addSelect('order.totalAmount', 'totalAmount')
       .addSelect('order.paymentMethod', 'paymentMethod')
       .addSelect('order.paymentStatus', 'paymentStatus')
+      .addSelect('order.paymentConfirmedAt', 'paymentConfirmedAt')
+      .addSelect(
+        'order.paymentConfirmedByEmployeeId',
+        'paymentConfirmedByEmployeeId',
+      )
       .addSelect('order.status', 'status')
       .addSelect('order.note', 'note')
       .addSelect('detail.orderId', 'detailOrderId')
@@ -245,6 +298,14 @@ export class AdminOrdersService {
       totalAmount: this.toFixedMoney(order.totalAmount),
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
+      paymentConfirmedAt:
+        order.paymentConfirmedAt === null
+          ? null
+          : this.toIsoUtc(order.paymentConfirmedAt),
+      paymentConfirmedByEmployeeId:
+        order.paymentConfirmedByEmployeeId === null
+          ? null
+          : this.toInteger(order.paymentConfirmedByEmployeeId),
       status: order.status,
       note: order.note,
       details,
