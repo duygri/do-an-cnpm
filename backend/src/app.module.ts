@@ -8,7 +8,6 @@ import { CustomersModule } from './customers/customers.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ImportsModule } from './imports/imports.module';
-import { InventoryModule } from './inventory/inventory.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { OrdersModule } from './orders/orders.module';
 
@@ -30,7 +29,6 @@ import { OrdersModule } from './orders/orders.module';
     AuthModule,
     CustomersModule,
     SuppliersModule,
-    InventoryModule,
     ImportsModule,
     OrdersModule,
   ],
