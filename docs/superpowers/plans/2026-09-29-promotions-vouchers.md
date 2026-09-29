@@ -86,10 +86,10 @@
 - Modify: `backend/README.md`
 - Modify: `docs/erd/sales-system-erd.md`
 
-- [ ] **Step 1: Document employee APIs.** Specify routes, payload fields, access, statuses, errors, and the lack of hard delete.
-- [ ] **Step 2: Document checkout behavior.** Include a `voucherCode` order example, formula, minimum/cap behavior, global usage count, pending-cancellation release, and COD unchanged.
-- [ ] **Step 3: Update the current Mermaid ERD and rules.** Ensure campaign/voucher fields, `sales_order.voucher_id`, FK/index behavior, and global redemption semantics match the migration.
-- [ ] **Step 4: Commit documentation.** Stage only the two documentation files; commit with `docs: describe promotion and voucher flow`.
+- [x] **Step 1: Document employee APIs.** Specify routes, payload fields, access, statuses, errors, and the lack of hard delete.
+- [x] **Step 2: Document checkout behavior.** Include a `voucherCode` order example, formula, minimum/cap behavior, global usage count, pending-cancellation release, and COD unchanged.
+- [x] **Step 3: Update the current Mermaid ERD and rules.** Ensure campaign/voucher fields, `sales_order.voucher_id`, FK/index behavior, and global redemption semantics match the migration.
+- [x] **Step 4: Commit documentation.** Stage only the two documentation files; commit with `docs: describe promotion and voucher flow`.
 
 ## Task 5: Verify the integrated backend change
 
