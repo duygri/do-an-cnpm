@@ -93,11 +93,11 @@
 
 ## Task 5: Verify the integrated backend change
 
-- [ ] **Step 1: Run formatting.** From `backend/`, run `npm run format`.
-- [ ] **Step 2: Build and lint.** From `backend/`, run `npm run build` and `npm run lint`; resolve all diagnostics before proceeding.
-- [ ] **Step 3: Review migration status.** With the configured local database, run `npm run db:migrate` and `npm run db:migrations`; confirm the new migration is applied and prior rows remain intact.
-- [ ] **Step 4: Review the final diff.** Run `git diff --check`, inspect all changed files, confirm no frontend files changed, and confirm rollback checks lock before reading voucher references.
-- [ ] **Step 5: Commit any verification-driven fixes.** Use a focused commit message describing the fix. Do not run or add automated tests under the current task instructions.
+- [x] **Step 1: Run formatting.** From `backend/`, run `npm run format`.
+- [x] **Step 2: Build and lint.** From `backend/`, run `npm run build` and `npm run lint`; resolve all diagnostics before proceeding.
+- [x] **Step 3: Review migration status.** With the configured local database, run `npm run db:migrate` and `npm run db:migrations`; confirm the new migration is applied and prior rows remain intact.
+- [x] **Step 4: Review the final diff.** Run `git diff --check`, inspect all changed files, confirm no frontend files changed, and confirm rollback checks lock before reading voucher references.
+- [x] **Step 5: Commit any verification-driven fixes.** Use a focused commit message describing the fix. Do not run or add automated tests under the current task instructions.
 
 ## Execution notes
 
