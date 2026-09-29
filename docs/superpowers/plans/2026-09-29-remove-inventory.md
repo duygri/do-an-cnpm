@@ -16,11 +16,11 @@
 - Modify: `backend/src/orders/orders.service.ts`
 - Modify: `backend/src/orders/orders.module.ts`
 
-- [ ] Remove `InventoryService` injection and `InventoryModule`/`InventoryMovement` registrations from the order module.
-- [ ] Preserve duplicate-variant, product-active, variant-existence, price, quantity, and order-total validation. Remove variant locks used only for stock coordination, balance reads, insufficient-stock errors, and sale movement writes from order creation.
-- [ ] Keep customer cancellation restricted to `pending` and keep its sales-order row lock for serialization with packing. Remove detail-based variant locks and cancellation/restock movement writes; cancellation only updates order status.
-- [ ] Preserve the existing order response, recipient/shipping snapshots, line quantities, and transaction atomicity for order plus order details.
-- [ ] Inspect the diff to confirm there is no remaining order-flow dependency on inventory services or balance checks.
+- [x] Remove `InventoryService` injection and `InventoryModule`/`InventoryMovement` registrations from the order module.
+- [x] Preserve duplicate-variant, product-active, variant-existence, price, quantity, and order-total validation. Remove variant locks used only for stock coordination, balance reads, insufficient-stock errors, and sale movement writes from order creation.
+- [x] Keep customer cancellation restricted to `pending` and keep its sales-order row lock for serialization with packing. Remove detail-based variant locks and cancellation/restock movement writes; cancellation only updates order status.
+- [x] Preserve the existing order response, recipient/shipping snapshots, line quantities, and transaction atomicity for order plus order details.
+- [x] Inspect the diff to confirm there is no remaining order-flow dependency on inventory services or balance checks.
 
 ### Task 2: Keep purchase records without stock movements
 
