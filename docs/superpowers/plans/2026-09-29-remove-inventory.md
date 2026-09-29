@@ -81,11 +81,11 @@
 **Files:**
 - Modify: `docs/superpowers/plans/2026-09-29-remove-inventory.md`
 
-- [ ] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`.
-- [ ] Inspect the configured development database's movement-row count, then run the already approved `npm run db:migrate` and `npm run db:migrations`; confirm the removal migration and all prior migrations show as applied. Do not print `.env` or connection secrets.
-- [ ] Run `git diff --check`; statically compare all columns, nullability, five foreign keys, checks (including `NOT VALID` state), and all seven indexes in the recreated rollback schema with the post-`1790700000000-create-customer-orders` ledger schema.
-- [ ] Obtain an independent whole-branch review for runtime dependencies, order/import behavior, route removal, migration safety, and documentation consistency.
-- [ ] No automated tests are added or run under the approved scope.
-- [ ] Mark checkboxes complete only after command and review evidence is available; commit the implementation on `codex/remove-inventory`.
+- [x] Run `npm run format`, `npm run build`, and `npm run lint` from `backend/`.
+- [x] Inspect the configured development database's movement-row count, then run the already approved `npm run db:migrate` and `npm run db:migrations`; confirm the removal migration and all prior migrations show as applied. Do not print `.env` or connection secrets.
+- [x] Run `git diff --check`; statically compare all columns, nullability, five foreign keys, checks (including `NOT VALID` state), and all seven indexes in the recreated rollback schema with the post-`1790700000000-create-customer-orders` ledger schema.
+- [x] Obtain an independent whole-branch review for runtime dependencies, order/import behavior, route removal, migration safety, and documentation consistency.
+- [x] No automated tests are added or run under the approved scope.
+- [x] Mark checkboxes complete only after command and review evidence is available; commit the implementation on `codex/remove-inventory`.
 
 No automated tests are added or run. Verification is limited to formatting, build, ESLint, migration status, diff checks, and code review per the approved scope.
