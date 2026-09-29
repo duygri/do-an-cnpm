@@ -67,7 +67,7 @@ Add database checks for valid statuses, ordered date ranges, supported voucher t
 
 Add nullable `voucher_id` to `sales_order`, a restrictive FK to `promotion_detail`, and an index supporting redemption counts by voucher and order status. Existing orders remain without a voucher. Update the `SalesOrder` entity and order response loading/mapping accordingly.
 
-The migration rollback must refuse to proceed if any sales order references a voucher, so it cannot silently erase applied voucher history. It may then remove the FK/column and promotion tables when no order uses a voucher.
+The `down` migration must run in a transaction and acquire an `ACCESS EXCLUSIVE` lock on `sales_order` before checking whether any order references a voucher. It must abort if a reference exists. The table lock prevents a concurrent checkout from adding a voucher reference after the safety check and before the FK/column are removed. If no reference exists, the migration may remove the FK/column and promotion tables.
 
 ## Errors and response behavior
 
@@ -75,7 +75,7 @@ The migration rollback must refuse to proceed if any sales order references a vo
 - Malformed date, status, code, type, percentage, or amount input: `400 Bad Request`.
 - Duplicate canonical code or lowering a cap below current redemptions: `409 Conflict`.
 - Unknown campaign/voucher or a voucher not belonging to the supplied campaign: `404 Not Found`.
-- Successful customer and employee order responses include `voucherCode` (`null` if not applied) and the stored `discountAmount`; `totalAmount` reflects the discount.
+- Every customer and employee order response, including list items, create responses, and detail responses, includes `voucherCode` (`null` if not applied) and the stored `discountAmount`; `totalAmount` reflects the discount.
 
 ## Acceptance criteria
 
