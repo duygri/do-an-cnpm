@@ -72,13 +72,13 @@
 - Modify: `backend/src/orders/admin-orders.service.ts`
 - Modify: `backend/src/orders/entities/sales-order.entity.ts` if response relation metadata is needed
 
-- [ ] **Step 1: Add optional `voucherCode`.** Trim and uppercase it; reject non-string or overlong values through the DTO. Keep all pricing, voucher ID, and payment fields server-owned.
-- [ ] **Step 2: Add voucher lookup and eligibility checks to the order transaction.** After pricing active variants, lock promotion then voucher rows, check both statuses and inclusive date ranges using PostgreSQL `CURRENT_DATE`, count redemptions with `status IN ('pending', 'packed')`, and compare the merchandise subtotal with min_price.
-- [ ] **Step 3: Calculate discounts in cents.** For fixed discounts use the lesser of the fixed amount and merchandise subtotal. For percentage discounts use integer-cent half-up rounding, then apply optional `max_discount` and the subtotal ceiling. Compute `total_amount = merchandise subtotal - discount + shipping fee`.
-- [ ] **Step 4: Save voucher snapshots atomically.** Store `voucher_id`, `discount_amount`, and the calculated total with order and details. Any unavailable voucher, cap failure, or threshold failure must leave no partial order data. Without a voucher preserve the current zero-discount behavior.
-- [ ] **Step 5: Return voucher code consistently.** Include nullable `voucherCode` and `discountAmount` in customer create/list/detail responses and employee list/detail responses; keep existing COD/payment fields and access controls unchanged.
-- [ ] **Step 6: Verify cancellation release behavior.** Confirm the existing pending-only cancellation changes status transactionally, so the derived redemption count stops including the cancelled order exactly once; no separate counter write is added.
-- [ ] **Step 7: Commit checkout integration.** Stage the order DTO/service/entity changes; commit with `feat: apply vouchers to customer orders`.
+- [x] **Step 1: Add optional `voucherCode`.** Trim and uppercase it; reject non-string or overlong values through the DTO. Keep all pricing, voucher ID, and payment fields server-owned.
+- [x] **Step 2: Add voucher lookup and eligibility checks to the order transaction.** After pricing active variants, lock promotion then voucher rows, check both statuses and inclusive date ranges using PostgreSQL `CURRENT_DATE`, count redemptions with `status IN ('pending', 'packed')`, and compare the merchandise subtotal with min_price.
+- [x] **Step 3: Calculate discounts in cents.** For fixed discounts use the lesser of the fixed amount and merchandise subtotal. For percentage discounts use integer-cent half-up rounding, then apply optional `max_discount` and the subtotal ceiling. Compute `total_amount = merchandise subtotal - discount + shipping fee`.
+- [x] **Step 4: Save voucher snapshots atomically.** Store `voucher_id`, `discount_amount`, and the calculated total with order and details. Any unavailable voucher, cap failure, or threshold failure must leave no partial order data. Without a voucher preserve the current zero-discount behavior.
+- [x] **Step 5: Return voucher code consistently.** Include nullable `voucherCode` and `discountAmount` in customer create/list/detail responses and employee list/detail responses; keep existing COD/payment fields and access controls unchanged.
+- [x] **Step 6: Verify cancellation release behavior.** Confirm the existing pending-only cancellation changes status transactionally, so the derived redemption count stops including the cancelled order exactly once; no separate counter write is added.
+- [x] **Step 7: Commit checkout integration.** Stage the order DTO/service/entity changes; commit with `feat: apply vouchers to customer orders`.
 
 ## Task 4: Document the feature
 
