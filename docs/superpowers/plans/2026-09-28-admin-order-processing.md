@@ -52,12 +52,12 @@
 - Modify: `backend/src/orders/entities/packing.entity.ts`
 - Modify: `backend/src/orders/orders.module.ts`
 
-- [ ] Validate optional `packingType` against `bag | box`; validate optional string note at max 1000 characters; trim values and convert an empty note to null.
-- [ ] Add `POST /admin/orders/:orderId/pack`; derive the employee ID only from the authenticated request and ignore no client-owned status/date fields because the DTO rejects unknown fields.
-- [ ] In one transaction, pessimistically lock the order, require `pending`, insert one `packed` Packing row with database/server time, update SalesOrder status to `packed`, reload the detail response inside the transaction, then return it.
-- [ ] Return `404` for missing orders and `409` for already-packed/cancelled orders; ensure no partial writes.
-- [ ] Preserve customer cancellation's pending-only behavior and use the shared order-row lock to serialize concurrent cancellation vs packing. Do not alter inventory movements at pack time.
-- [ ] Run `npm run build` and `npm run lint` in `backend/`.
+- [x] Validate optional `packingType` against `bag | box`; validate optional string note at max 1000 characters; trim values and convert an empty note to null.
+- [x] Add `POST /admin/orders/:orderId/pack`; derive the employee ID only from the authenticated request and ignore no client-owned status/date fields because the DTO rejects unknown fields.
+- [x] In one transaction, pessimistically lock the order, require `pending`, insert one `packed` Packing row with database/server time, update SalesOrder status to `packed`, reload the detail response inside the transaction, then return it.
+- [x] Return `404` for missing orders and `409` for already-packed/cancelled orders; ensure no partial writes.
+- [x] Preserve customer cancellation's pending-only behavior and use the shared order-row lock to serialize concurrent cancellation vs packing. Do not alter inventory movements at pack time.
+- [x] Run `npm run build` and `npm run lint` in `backend/`.
 
 ### Task 4: Synchronize order documentation
 
