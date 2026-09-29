@@ -28,11 +28,11 @@
 - Modify: `backend/src/imports/imports.service.ts`
 - Modify: `backend/src/imports/imports.module.ts`
 
-- [ ] Remove the `InventoryService` dependency and module import from imports.
-- [ ] Keep supplier/variant validation, duplicate-line validation, server-side money calculations, and the transaction saving the import header and details.
-- [ ] Remove variant row locks used only for inventory coordination and remove import-movement writes. Keep database foreign keys as protection for supplier and variant references.
-- [ ] Update the unique-constraint error message so it describes duplicate import lines and does not claim an inventory movement was recorded.
-- [ ] Confirm import detail quantities remain purchase-document values only and never feed a sellable balance.
+- [x] Remove the `InventoryService` dependency and module import from imports.
+- [x] Keep supplier/variant validation, duplicate-line validation, server-side money calculations, and the transaction saving the import header and details.
+- [x] Remove variant row locks used only for inventory coordination and remove import-movement writes. Keep database foreign keys as protection for supplier and variant references.
+- [x] Update the unique-constraint error message so it describes duplicate import lines and does not claim an inventory movement was recorded.
+- [x] Confirm import detail quantities remain purchase-document values only and never feed a sellable balance.
 
 ### Task 3: Remove the inventory API and module
 
