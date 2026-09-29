@@ -88,6 +88,7 @@ Import `ScheduleModule.forRoot()` once in `AppModule` and register the payment m
 - Modify: `backend/src/orders/orders.service.ts`
 - Modify: `backend/src/orders/orders.module.ts`
 - Modify: `backend/src/payments/payos-payment.module.ts`
+- Create: `backend/src/payments/payments.service.ts` (PayOS link initiation and retry reconciliation; Task 4 extends it for webhooks and Task 5 extends it for cancellation/expiry.)
 
 - [ ] **Step 1: Validate payment selection and idempotency input**
 
