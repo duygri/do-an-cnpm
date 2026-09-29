@@ -23,11 +23,11 @@ All promotion and voucher management routes require the existing active-employee
 - `GET /promotions`: list promotions.
 - `GET /promotions/:promotionId`: read one promotion.
 - `POST /promotions`: create a promotion with `name`, `startDate`, `endDate`, and optional `description` and `status`.
-- `PATCH /promotions/:promotionId`: update supported promotion fields.
+- `PATCH /promotions/:promotionId`: update any supplied subset of `name`, `description`, `startDate`, `endDate`, and `status`.
 - `GET /promotions/:promotionId/vouchers`: list the campaign's vouchers.
 - `GET /promotions/:promotionId/vouchers/:voucherId`: read one voucher belonging to the campaign.
 - `POST /promotions/:promotionId/vouchers`: create a voucher with `code`, `name`, `type`, `discountValue`, `startDate`, `endDate`, `minPrice`, optional `maxDiscount`, `quantity`, and optional `status`.
-- `PATCH /promotions/:promotionId/vouchers/:voucherId`: update supported fields other than `code`.
+- `PATCH /promotions/:promotionId/vouchers/:voucherId`: update any supplied subset of `name`, `type`, `discountValue`, `startDate`, `endDate`, `minPrice`, `maxDiscount`, `quantity`, and `status`. `code` is immutable.
 - Extend `POST /orders` with optional `voucherCode`.
 
 There are no `DELETE` routes. Employees deactivate a promotion or voucher by setting `status` to `inactive`. The voucher's campaign and code remain available to explain existing orders. Missing management resources return `404`; malformed input returns `400`; duplicate codes and attempts to reduce `quantity` below current redemptions return `409`.
