@@ -7,6 +7,8 @@ import { ProductVariant } from '../catalog/entities/product-variant.entity';
 import { OrderDetail } from './entities/order-detail.entity';
 import { Packing } from './entities/packing.entity';
 import { SalesOrder } from './entities/sales-order.entity';
+import { PromotionDetail } from '../promotions/entities/promotion-detail.entity';
+import { Promotion } from '../promotions/entities/promotion.entity';
 import { AdminOrdersController } from './admin-orders.controller';
 import { AdminOrdersService } from './admin-orders.service';
 import { OrdersController } from './orders.controller';
@@ -22,6 +24,8 @@ import { OrdersService } from './orders.service';
       Packing,
       ProductVariant,
       Product,
+      Promotion,
+      PromotionDetail,
     ]),
   ],
   controllers: [OrdersController, AdminOrdersController],

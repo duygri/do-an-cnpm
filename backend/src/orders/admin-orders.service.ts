@@ -4,7 +4,8 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
+import { PromotionDetail } from '../promotions/entities/promotion-detail.entity';
 import { OrderDetail } from './entities/order-detail.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 import { GetAdminOrdersDto } from './dto/get-admin-orders.dto';
@@ -15,6 +16,7 @@ interface AdminOrderDetailRow {
   orderId: number;
   orderDate: Date | string;
   customerId: number;
+  voucherId: number | null;
   recipientName: string;
   recipientPhone: string;
   shippingAddress: string;
@@ -55,6 +57,8 @@ export class AdminOrdersService {
       recipientName: string;
       status: string;
       paymentStatus: string;
+      voucherCode: string | null;
+      discountAmount: string;
       totalAmount: string;
       detailCount: number;
     }>;
@@ -69,15 +73,21 @@ export class AdminOrdersService {
         orderId: true,
         orderDate: true,
         customerId: true,
+        voucherId: true,
         recipientName: true,
         status: true,
         paymentStatus: true,
+        discountAmount: true,
         totalAmount: true,
       },
       order: { orderDate: 'DESC', orderId: 'DESC' },
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
     });
+
+    const voucherCodes = await this.findVoucherCodes(
+      orders.map((order) => order.voucherId),
+    );
 
     const detailCounts = new Map<number, number>();
     if (orders.length > 0) {
@@ -104,9 +114,14 @@ export class AdminOrdersService {
         orderId: this.toInteger(order.orderId),
         orderDate: this.toIsoUtc(order.orderDate),
         customerId: this.toInteger(order.customerId),
+        voucherCode:
+          order.voucherId === null
+            ? null
+            : this.requireVoucherCode(voucherCodes, order.voucherId),
         recipientName: order.recipientName,
         status: order.status,
         paymentStatus: order.paymentStatus,
+        discountAmount: this.toFixedMoney(order.discountAmount),
         totalAmount: this.toFixedMoney(order.totalAmount),
         detailCount: detailCounts.get(order.orderId) ?? 0,
       })),
@@ -223,6 +238,7 @@ export class AdminOrdersService {
       .select('order.orderId', 'orderId')
       .addSelect('order.orderDate', 'orderDate')
       .addSelect('order.customerId', 'customerId')
+      .addSelect('order.voucherId', 'voucherId')
       .addSelect('order.recipientName', 'recipientName')
       .addSelect('order.recipientPhone', 'recipientPhone')
       .addSelect('order.shippingAddress', 'shippingAddress')
@@ -274,6 +290,11 @@ export class AdminOrdersService {
         subtotal: this.toFixedMoney(row.detailSubtotal!),
       }));
 
+    const voucherCode =
+      order.voucherId === null
+        ? null
+        : await this.findVoucherCode(this.toInteger(order.voucherId));
+
     const packing =
       order.packingId === null
         ? null
@@ -290,6 +311,7 @@ export class AdminOrdersService {
       orderId: this.toInteger(order.orderId),
       orderDate: this.toIsoUtc(order.orderDate),
       customerId: this.toInteger(order.customerId),
+      voucherCode,
       recipientName: order.recipientName,
       recipientPhone: order.recipientPhone,
       shippingAddress: order.shippingAddress,
@@ -328,6 +350,55 @@ export class AdminOrdersService {
     }
 
     return orderId;
+  }
+
+  private async findVoucherCodes(
+    voucherIds: Array<number | null>,
+  ): Promise<Map<number, string>> {
+    const uniqueVoucherIds = [
+      ...new Set(
+        voucherIds.filter(
+          (voucherId): voucherId is number => voucherId !== null,
+        ),
+      ),
+    ];
+    if (uniqueVoucherIds.length === 0) return new Map();
+
+    const vouchers = await this.dataSource.getRepository(PromotionDetail).find({
+      select: { voucherId: true, code: true },
+      where: { voucherId: In(uniqueVoucherIds) },
+    });
+    return new Map(
+      vouchers.map((voucher) => [voucher.voucherId, voucher.code]),
+    );
+  }
+
+  private async findVoucherCode(voucherId: number): Promise<string> {
+    const voucher = await this.dataSource
+      .getRepository(PromotionDetail)
+      .findOne({
+        select: { voucherId: true, code: true },
+        where: { voucherId },
+      });
+    if (!voucher) {
+      throw new InternalServerErrorException(
+        'The order references a voucher that could not be loaded.',
+      );
+    }
+    return voucher.code;
+  }
+
+  private requireVoucherCode(
+    voucherCodes: Map<number, string>,
+    voucherId: number,
+  ): string {
+    const code = voucherCodes.get(voucherId);
+    if (!code) {
+      throw new InternalServerErrorException(
+        'The order references a voucher that could not be loaded.',
+      );
+    }
+    return code;
   }
 
   private toInteger(value: number | null): number {
