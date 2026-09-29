@@ -40,4 +40,13 @@ export class AdminOrdersController {
   ) {
     return this.orders.packOrder(orderId, input, request.employee.employeeId);
   }
+
+  @Post(':orderId/mark-paid')
+  @HttpCode(HttpStatus.OK)
+  markPaid(
+    @Param('orderId') orderId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.orders.markPaid(orderId, request.employee.employeeId);
+  }
 }

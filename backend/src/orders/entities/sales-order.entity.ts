@@ -14,14 +14,26 @@ import { Customer } from '../../customers/entities/customer.entity';
 import { OrderDetail } from './order-detail.entity';
 import { Packing } from './packing.entity';
 
-export type SalesOrderPaymentStatus = 'unpaid';
+export type SalesOrderPaymentMethod = 'cod';
+export type SalesOrderPaymentStatus = 'unpaid' | 'paid';
 export type SalesOrderStatus = 'pending' | 'packed' | 'cancelled';
 
 @Entity({ name: 'sales_order' })
 @Check('CHK_sales_order_discount_nonnegative', '"discount_amount" >= 0')
 @Check('CHK_sales_order_shipping_nonnegative', '"shipping_fee" >= 0')
 @Check('CHK_sales_order_total_nonnegative', '"total_amount" >= 0')
-@Check('CHK_sales_order_payment_status', '"payment_status" IN (\'unpaid\')')
+@Check(
+  'CHK_sales_order_payment_status',
+  "\"payment_status\" IN ('unpaid', 'paid')",
+)
+@Check(
+  'CHK_sales_order_payment_method',
+  '"payment_method" IS NULL OR "payment_method" = \'cod\'',
+)
+@Check(
+  'CHK_sales_order_payment_confirmation',
+  `CASE WHEN "payment_status" = 'unpaid' THEN "payment_confirmed_at" IS NULL AND "payment_confirmed_by_employee_id" IS NULL WHEN "payment_status" = 'paid' THEN "payment_method" IS NOT DISTINCT FROM 'cod' AND "payment_confirmed_at" IS NOT NULL AND "payment_confirmed_by_employee_id" IS NOT NULL ELSE FALSE END`,
+)
 @Check(
   'CHK_sales_order_status',
   "\"status\" IN ('pending', 'packed', 'cancelled')",
@@ -75,7 +87,7 @@ export class SalesOrder {
     length: 30,
     nullable: true,
   })
-  paymentMethod!: string | null;
+  paymentMethod!: SalesOrderPaymentMethod | null;
 
   @Column({
     name: 'payment_status',
@@ -84,6 +96,22 @@ export class SalesOrder {
     default: 'unpaid',
   })
   paymentStatus!: SalesOrderPaymentStatus;
+
+  @Column({
+    name: 'payment_confirmed_at',
+    type: 'timestamptz',
+    nullable: true,
+    select: false,
+  })
+  paymentConfirmedAt!: Date | null;
+
+  @Column({
+    name: 'payment_confirmed_by_employee_id',
+    type: 'integer',
+    nullable: true,
+    select: false,
+  })
+  paymentConfirmedByEmployeeId!: number | null;
 
   @Column({ type: 'varchar', length: 20, default: 'pending' })
   status!: SalesOrderStatus;

@@ -105,7 +105,7 @@ export class OrdersService {
           discountAmount: '0.00',
           shippingFee: '0.00',
           totalAmount: this.formatCents(totalCents),
-          paymentMethod: null,
+          paymentMethod: 'cod',
           paymentStatus: 'unpaid',
           status: 'pending',
           note: input.note?.trim() || null,

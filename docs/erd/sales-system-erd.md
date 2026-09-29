@@ -66,6 +66,8 @@ erDiagram
         numeric shipping_fee
         varchar payment_method
         varchar payment_status
+        timestamptz payment_confirmed_at "nullable until paid"
+        int payment_confirmed_by_employee_id FK "nullable, ON DELETE RESTRICT"
         varchar(20) status "pending, packed, cancelled"
         text note
         numeric total_amount
@@ -135,6 +137,7 @@ erDiagram
     EMPLOYEE ||--o{ STOCK_IMPORT : records
     STOCK_IMPORT ||--|{ IMPORT_DETAIL : contains
     PRODUCT_VARIANT ||--o{ IMPORT_DETAIL : received_as
+    EMPLOYEE o|--o{ SALES_ORDER : confirms_payment
     SALES_ORDER ||--o| PACKING : has
     EMPLOYEE ||--o{ PACKING : packs
     SALES_ORDER ||--o| INVOICE : has
@@ -144,6 +147,8 @@ erDiagram
 
 - `ORDER_DETAIL` uses `(order_id, variant_id)` as its primary key; `IMPORT_DETAIL` uses `(import_id, variant_id)`. Each variant occurs once in a document's detail rows.
 - `SALES_ORDER.status` is `pending`, `packed`, or `cancelled`; customer cancellation is permitted only while `pending`, and the employee packing action transitions directly from `pending` to `packed`.
+- New customer orders are assigned `payment_method = 'cod'` and `payment_status = 'unpaid'` by the server; customers cannot choose or override payment fields. Legacy rows may keep a null payment method. Payment status is `unpaid` or `paid`; an unpaid order has no confirmation timestamp or employee, while a paid order must use COD and have both confirmation fields.
+- An active employee may confirm payment only for a packed, unpaid COD order, after physically receiving the full `total_amount` in cash. Packing does not mean payment was received. Confirmation records PostgreSQL `CURRENT_TIMESTAMP` and the employee ID, changes the payment status to `paid`, and leaves order status `packed`; only one confirmation can succeed. Pending/cancelled, non-COD, and already-paid orders cannot be confirmed. Customer order responses omit the confirmation fields; admin order detail includes them. This flow does not model partial payment or refunds, create an invoice, or start a delivery lifecycle.
 - An order has zero or one packing row and zero or one invoice row while being processed. Each packing/invoice row belongs to exactly one order; the required unique `packing.order_id` FK enforces at most one packing row per order. Each packing row also references exactly one required employee; one employee may pack many orders.
 - MVP packing records the server timestamp, `packed` status, required employee, and optional note; packaging type is nullable and restricted to `bag` or `box`. The order-to-packing relationship is one-to-zero-or-one. It does not require package weight or a packing fee. `SALES_ORDER.shipping_fee` remains a separate delivery charge.
 - Voucher codes and employee/customer emails are unique. `INVOICE.total_amount` is an immutable issue-time amount snapshot; payment method/status remain on `SALES_ORDER`, so the duplicate invoice method is removed.
