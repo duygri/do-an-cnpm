@@ -21,7 +21,7 @@ Sau khi đã cấu hình database, API chạy tại http://localhost:3000.
 
 1. Tạo database PostgreSQL tên `sales_system`.
 2. Sao chép `.env.example` thành `.env` và cập nhật `DATABASE_URL` bằng thông tin PostgreSQL local của bạn.
-3. Chạy migration để tạo schema danh mục, sản phẩm, biến thể, khách hàng, đơn hàng, nhân viên, nhà cung cấp, phiếu nhập và sổ biến động tồn kho:
+3. Chạy migration để tạo schema danh mục, sản phẩm, biến thể, khách hàng, đơn hàng, nhân viên, nhà cung cấp và phiếu nhập:
 
 ```powershell
 npm run db:migrate
@@ -34,6 +34,8 @@ npm run db:migrations
 ```
 
 Ứng dụng không tự thay đổi schema khi khởi động (`synchronize: false`); mọi thay đổi cấu trúc phải đi qua migration.
+
+Migration `1790720000000-remove-inventory-ledger` xóa bảng `inventory_movement` và toàn bộ dòng ledger hiện có. Rollback chỉ phục hồi cấu trúc ledger từ các migration lịch sử dưới dạng bảng rỗng; các dòng đã xóa không thể khôi phục.
 
 ## Đăng nhập nhân viên
 
@@ -86,7 +88,7 @@ Các route này không yêu cầu đăng nhập và chỉ đọc dữ liệu dà
 - `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: lọc theo từ khóa tên/nhãn hiệu/mô tả (không phân biệt hoa thường), danh mục và phân trang. Mặc định `page=1`, `limit=20`; giới hạn tối đa 100. Phản hồi có `items`, `page`, `limit`, `total`. Mỗi item gồm thông tin sản phẩm, danh mục và `priceFrom` là giá biến thể thấp nhất.
 - `GET /store/products/:productId`: chi tiết sản phẩm `active`, danh mục và các biến thể theo thứ tự ID.
 
-Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả biến thể của sản phẩm đang `active` đều xuất hiện và được tính trong `priceFrom`. Sản phẩm không hoạt động hoặc không tồn tại trả `404`. API storefront không trả số tồn kho. Đơn hàng được tạo qua API khách hàng bên dưới; khi đặt hàng thành công, hệ thống trừ kho ngay trong cùng transaction.
+Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả biến thể của sản phẩm đang `active` đều xuất hiện và được tính trong `priceFrom`. Sản phẩm không hoạt động hoặc không tồn tại trả `404`. API storefront không trả số tồn kho. Hệ thống không theo dõi số lượng hàng khả dụng; API đặt hàng chỉ kiểm tra sản phẩm đang hoạt động và biến thể hợp lệ.
 
 ## API đơn hàng khách hàng
 
@@ -107,10 +109,10 @@ Tất cả route đơn hàng yêu cầu customer JWT trong header `Authorization
 }
 ```
 
-  Server lấy khách hàng từ JWT, kiểm tra sản phẩm còn hoạt động và đủ tồn, rồi tính giá từng dòng và tổng tiền. Nếu biến thể không tồn tại/không hoạt động hoặc thiếu hàng, yêu cầu bị từ chối và không ghi một phần. Giá, tổng tiền, giảm giá, phí giao hàng, trạng thái thanh toán và trạng thái đơn không nhận từ client. Đơn mới có `discountAmount: "0.00"`, `shippingFee: "0.00"`, `paymentMethod: null`, `paymentStatus: "unpaid"`, `status: "pending"`; tạo đơn, chi tiết và biến động xuất kho được ghi nguyên tử. Phản hồi tạo đơn gồm các trường `orderId`, `orderDate`, `customerId`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `status`, `note` và `details` (mỗi dòng có `orderId`, `variantId`, `quantity`, `unitPrice`, `subtotal`).
+  Server lấy khách hàng từ JWT, kiểm tra sản phẩm còn hoạt động và biến thể hợp lệ, rồi tính giá từng dòng và tổng tiền. Số lượng đặt không được đối chiếu với số hàng khả dụng, vì hệ thống không theo dõi tồn kho. Giá, tổng tiền, giảm giá, phí giao hàng, trạng thái thanh toán và trạng thái đơn không nhận từ client. Đơn mới có `discountAmount: "0.00"`, `shippingFee: "0.00"`, `paymentMethod: null`, `paymentStatus: "unpaid"`, `status: "pending"`; tạo đơn và chi tiết được ghi nguyên tử. Phản hồi tạo đơn gồm các trường `orderId`, `orderDate`, `customerId`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `status`, `note` và `details` (mỗi dòng có `orderId`, `variantId`, `quantity`, `unitPrice`, `subtotal`).
 - `GET /orders?page=1&limit=20`: liệt kê đơn của khách hiện tại, mới nhất trước. Mặc định `page=1`, `limit=20`; `page` phải từ 1 trở lên, `limit` từ 1 đến tối đa 100. Phản hồi có dạng `{ "items": [...], "page": 1, "limit": 20, "total": 1 }`; mỗi phần tử `items` có các trường đơn hàng ở trên nhưng không gồm `details`.
 - `GET /orders/:orderId`: xem một đơn của khách hiện tại, kèm `details` theo thứ tự `variantId`; phản hồi có các trường như phản hồi tạo đơn.
-- `POST /orders/:orderId/cancel`: hủy đơn đang `pending` của khách hiện tại. Trả đơn đã cập nhật với `status: "cancelled"` và chi tiết đơn; mỗi dòng được hoàn kho bằng một biến động nhập bù mới. Hủy lại hoặc hủy đơn không còn `pending` trả `409 Conflict`.
+- `POST /orders/:orderId/cancel`: hủy đơn đang `pending` của khách hiện tại. Trả đơn đã cập nhật với `status: "cancelled"` và chi tiết đơn. Hủy lại hoặc hủy đơn không còn `pending` trả `409 Conflict`; hủy đơn chỉ đổi trạng thái, không cập nhật tồn kho.
 
 Trong giai đoạn hiện tại, trạng thái đơn là `pending`, `packed` hoặc `cancelled`; thanh toán chưa được xử lý. API không trả tồn kho khả dụng hoặc số lượng còn lại.
 
@@ -126,7 +128,7 @@ Trong mọi phản hồi quản trị đơn, ID, số lượng, số dòng, `pag
 
 Validation query/body, trường body không được hỗ trợ, `packingType` ngoài `bag`/`box`, ghi chú khác `null` nhưng không phải chuỗi hoặc dài quá 1000 ký tự trả `400 Bad Request`. ID đơn không hợp lệ hoặc không tồn tại trả `404 Not Found`. Chỉ đơn `pending` mới được đóng gói; đơn `packed` hoặc `cancelled` trả `409 Conflict`.
 
-Đóng gói là một transaction: khóa dòng `sales_order` bằng pessimistic write lock, xác nhận trạng thái vẫn `pending`, tạo một bản ghi `packing` với thời gian server và nhân viên từ JWT, chuyển đơn sang `packed`, rồi đọc lại phản hồi trước khi commit. Việc hủy khách hàng cũng khóa cùng dòng đơn trước khi kiểm tra trạng thái, nên hai thao tác được tuần tự hóa và chỉ một thao tác hợp lệ có thể commit. Đặt hàng đã trừ tồn bằng biến động `sale`; đóng gói không thay đổi kho và không tạo biến động tồn kho. `shipping_fee` là phí giao hàng riêng; MVP không có cân nặng kiện hàng hay phí đóng gói.
+Đóng gói là một transaction: khóa dòng `sales_order` bằng pessimistic write lock, xác nhận trạng thái vẫn `pending`, tạo một bản ghi `packing` với thời gian server và nhân viên từ JWT, chuyển đơn sang `packed`, rồi đọc lại phản hồi trước khi commit. Việc hủy khách hàng cũng khóa cùng dòng đơn trước khi kiểm tra trạng thái, nên hai thao tác được tuần tự hóa và chỉ một thao tác hợp lệ có thể commit. Đóng gói không thay đổi số lượng hàng; hệ thống không theo dõi tồn kho. `shipping_fee` là phí giao hàng riêng; MVP không có cân nặng kiện hàng hay phí đóng gói.
 
 ## API nhà cung cấp
 
@@ -152,17 +154,7 @@ Các endpoint đều yêu cầu JWT nhân viên:
 }
 ```
 
-API lấy `employeeId` từ JWT, tính subtotal/tổng tiền phía server, rồi lưu phiếu, chi tiết và biến động nhập kho trong cùng transaction. Không thể sửa/xóa phiếu nhập; muốn hiệu chỉnh tồn phải ghi biến động điều chỉnh.
-
-## API tồn kho
-
-Các endpoint đều yêu cầu JWT nhân viên. Số lượng được tính từ sổ `inventory_movement`, không lưu một số tồn có thể lệch khỏi lịch sử.
-
-- `POST /inventory/opening-balances`: tạo lô tồn đầu kỳ ban đầu với `rows` gồm `{ "variantId": 1, "quantity": 20 }`. Mỗi biến thể chỉ được đặt một lần và phải đặt trước biến động kho đầu tiên. Có thể đặt số lượng `0`; cả lô được lưu toàn bộ hoặc không lưu.
-- `POST /inventory/adjustments`: ghi điều chỉnh kiểm kê, ví dụ `{ "variantId": 1, "direction": "out", "quantity": 1, "note": "Chênh lệch kiểm kê" }`. Điều chỉnh xuất không được làm tồn âm.
-- `GET /inventory/variants/:variantId/balance?from=2026-09-01&to=2026-10-01`: trả `beginningBalance`, `inbound`, `outbound`, `endingBalance`. Ngày tính theo UTC; `from` được tính, `to` là mốc kết thúc không bao gồm.
-
-`endingBalance = beginningBalance + inbound - outbound`. Phiếu nhập tạo biến động nhập. Đặt đơn tạo biến động xuất `sale` ngay khi lưu đơn; hủy đơn đang chờ xử lý nối thêm biến động nhập `sale_cancellation` để hoàn kho, không sửa hoặc xóa biến động xuất ban đầu. Vì vậy đơn `pending` đã có lịch sử xuất kho; đơn `cancelled` có cả biến động xuất và nhập bù. Tồn kho tiếp tục được tính từ sổ biến động, không lưu số tồn có thể lệch lịch sử.
+API lấy `employeeId` từ JWT, tính subtotal/tổng tiền phía server, rồi lưu phiếu và chi tiết trong cùng transaction. Số lượng phiếu nhập chỉ là lịch sử chứng từ mua hàng; chúng không làm tăng số lượng khả dụng, vì hệ thống không ghi nhận hay tính tồn kho. Không thể sửa/xóa phiếu nhập.
 
 ## Lệnh hữu ích
 
@@ -178,7 +170,7 @@ Các endpoint đều yêu cầu JWT nhân viên. Số lượng được tính t�
 - `src/catalog/entities/`: entity danh mục, sản phẩm và biến thể.
 - `src/catalog/storefront.*`: API đọc danh mục và sản phẩm công khai.
 - `src/customers/`: tài khoản khách hàng, hồ sơ và xác thực JWT riêng.
-- `src/suppliers/`, `src/imports/`, `src/inventory/`, `src/orders/`: quản lý nhà cung cấp, phiếu nhập, sổ tồn kho và đơn hàng khách hàng.
+- `src/suppliers/`, `src/imports/`, `src/orders/`: quản lý nhà cung cấp, phiếu nhập và đơn hàng khách hàng.
 - `src/employees/entities/`: entity nhân viên dùng cho đăng nhập.
 - `src/auth/`: đăng nhập JWT, xác minh bearer token và băm mật khẩu.
 - `src/database/data-source.ts`: cấu hình TypeORM CLI.

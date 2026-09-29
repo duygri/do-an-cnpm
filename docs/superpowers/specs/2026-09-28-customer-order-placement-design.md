@@ -1,3 +1,5 @@
+> **Superseded for inventory behavior (2026-09-29).** This is a historical design record; the current decision is [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md). The stock-availability check, variant locks used only for stock coordination, sale movements at order placement, stock-restoration movements on cancellation, and claims that concurrent orders cannot oversell a tracked balance are no longer current. Keep customer authentication and ownership checks, active-product/valid-variant checks, recipient snapshots, server-calculated prices/totals, order details, and pending-only cancellation; cancellation remains serialized with packing and changes order status only.
+
 # Customer Order Placement Design
 
 ## Goal

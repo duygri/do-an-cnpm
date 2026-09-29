@@ -1,3 +1,5 @@
+> **Superseded for inventory behavior (2026-09-29).** This is a historical design record; the current decision is [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md). The ledger, opening-balance and adjustment APIs, balance calculations, import-to-ledger writes, and all other inventory-movement behavior described below are no longer current. Keep the supplier/import APIs, document lines and server-side purchase totals: import quantities remain purchase-document history only and do not create or update an available-stock balance.
+
 # Supplier, imports, and inventory design
 
 ## Goal

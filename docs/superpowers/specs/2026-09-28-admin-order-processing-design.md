@@ -1,3 +1,5 @@
+> **Superseded for inventory behavior (2026-09-29).** This is a historical design record; the current decision is [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md). Statements below that an inventory ledger is preserved, order placement deducts stock, or cancellation restores stock are no longer current; packing and cancellation do not change inventory. Keep the employee-authenticated order list/detail contracts, direct `pending` → `packed` workflow, packing MVP fields and transaction/row-lock coordination with pending-only cancellation.
+
 # Admin Order Processing Design
 
 ## Goal
