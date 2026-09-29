@@ -55,14 +55,14 @@
 - Create: `backend/src/promotions/promotions.module.ts`
 - Modify: `backend/src/app.module.ts`
 
-- [ ] **Step 1: Validate campaign DTOs.** Require name and `YYYY-MM-DD` date bounds on create; allow only supplied `name`, `description`, dates, and `active`/`inactive` status on update; reject empty patches and reversed date ranges.
-- [ ] **Step 2: Validate voucher DTOs.** Normalize code to uppercase and validate allowed characters/length; accept `fixed` or `percentage`; validate positive two-decimal discount, percentage at most 100, nonnegative minimum, percentage-only optional cap, positive quantity, date bounds, and active/inactive status. Never accept code in the update DTO.
-- [ ] **Step 3: Implement employee-protected routes.** Add the approved GET/POST/PATCH campaign routes and nested voucher list/detail/create/update routes. Return 404 when a voucher does not belong to the route's campaign. Do not add DELETE endpoints.
-- [ ] **Step 4: Implement read/create operations.** Order results by ID, map entities to intentional API fields, and translate duplicate canonical-code violations into `409 Conflict`.
-- [ ] **Step 5: Implement safe campaign updates.** In one transaction, lock the campaign row, validate the complete updated date range/status, save, and hold the lock through commit.
-- [ ] **Step 6: Implement safe voucher updates.** In one transaction, lock campaign then voucher, validate eligibility fields, count orders in `pending` or `packed`, reject a new quantity below that count with `409`, save, and hold both locks through commit. Serialize eligibility changes against checkout.
-- [ ] **Step 7: Register `PromotionsModule`.** Import employee auth and TypeORM repositories, then add it to `AppModule`.
-- [ ] **Step 8: Commit the management API slice.** Stage only promotion module files and `backend/src/app.module.ts`; commit with `feat: add promotion management api`.
+- [x] **Step 1: Validate campaign DTOs.** Require name and `YYYY-MM-DD` date bounds on create; allow only supplied `name`, `description`, dates, and `active`/`inactive` status on update; reject empty patches and reversed date ranges.
+- [x] **Step 2: Validate voucher DTOs.** Normalize code to uppercase and validate allowed characters/length; accept `fixed` or `percentage`; validate positive two-decimal discount, percentage at most 100, nonnegative minimum, percentage-only optional cap, positive quantity, date bounds, and active/inactive status. Never accept code in the update DTO.
+- [x] **Step 3: Implement employee-protected routes.** Add the approved GET/POST/PATCH campaign routes and nested voucher list/detail/create/update routes. Return 404 when a voucher does not belong to the route's campaign. Do not add DELETE endpoints.
+- [x] **Step 4: Implement read/create operations.** Order results by ID, map entities to intentional API fields, and translate duplicate canonical-code violations into `409 Conflict`.
+- [x] **Step 5: Implement safe campaign updates.** In one transaction, lock the campaign row, validate the complete updated date range/status, save, and hold the lock through commit.
+- [x] **Step 6: Implement safe voucher updates.** In one transaction, lock campaign then voucher, validate eligibility fields, count orders in `pending` or `packed`, reject a new quantity below that count with `409`, save, and hold both locks through commit. Serialize eligibility changes against checkout.
+- [x] **Step 7: Register `PromotionsModule`.** Import employee auth and TypeORM repositories, then add it to `AppModule`.
+- [x] **Step 8: Commit the management API slice.** Stage only promotion module files and `backend/src/app.module.ts`; commit with `feat: add promotion management api`.
 
 ## Task 3: Apply vouchers during customer checkout
 
