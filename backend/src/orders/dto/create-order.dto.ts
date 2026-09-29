@@ -5,6 +5,7 @@ import {
   ArrayUnique,
   IsArray,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -49,6 +50,10 @@ export class CreateOrderDetailDto {
 }
 
 export class CreateOrderDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsIn(['cod', 'payos'])
+  paymentMethod?: 'cod' | 'payos';
+
   @Transform(trimString)
   @IsString()
   @Length(1, 120)

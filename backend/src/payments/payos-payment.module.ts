@@ -5,6 +5,7 @@ import { SalesOrder } from '../orders/entities/sales-order.entity';
 import { PaymentAttempt } from './entities/payment-attempt.entity';
 import { PAYMENT_PROVIDER } from './payment-provider';
 import { PayosPaymentProvider } from './payos-payment.provider';
+import { PaymentsService } from './payments.service';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { PayosPaymentProvider } from './payos-payment.provider';
   providers: [
     PayosPaymentProvider,
     { provide: PAYMENT_PROVIDER, useExisting: PayosPaymentProvider },
+    PaymentsService,
   ],
-  exports: [PAYMENT_PROVIDER, PayosPaymentProvider],
+  exports: [PAYMENT_PROVIDER, PayosPaymentProvider, PaymentsService],
 })
 export class PayosPaymentModule {}

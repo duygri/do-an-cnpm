@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   PayOS,
+  NotFoundError as PayOSNotFoundError,
   type PaymentLink as PayOSPaymentLink,
   type Webhook as PayOSWebhook,
 } from '@payos/node';
@@ -14,6 +15,8 @@ import {
   PaymentProvider,
   PaymentProviderLink,
   VerifiedPaymentWebhook,
+  PAYOS_REQUEST_MAX_RETRIES,
+  PAYOS_REQUEST_TIMEOUT_MS,
 } from './payment-provider';
 
 type PayOSCredentials = {
@@ -49,16 +52,23 @@ export class PayosPaymentProvider implements PaymentProvider {
 
     const expiredAt = this.toPayOSExpiry(input.expiresAt);
     const description = this.getDescription(input.orderCode);
+    // The setup lease exceeds this bounded request; retries reconcile by orderCode.
     const created = await this.createClient(
       configuration,
-    ).paymentRequests.create({
-      orderCode: input.orderCode,
-      amount: input.amount,
-      description,
-      returnUrl: configuration.returnUrl,
-      cancelUrl: configuration.cancelUrl,
-      expiredAt,
-    });
+    ).paymentRequests.create(
+      {
+        orderCode: input.orderCode,
+        amount: input.amount,
+        description,
+        returnUrl: configuration.returnUrl,
+        cancelUrl: configuration.cancelUrl,
+        expiredAt,
+      },
+      {
+        timeout: PAYOS_REQUEST_TIMEOUT_MS,
+        maxRetries: PAYOS_REQUEST_MAX_RETRIES,
+      },
+    );
 
     return {
       linkId: created.paymentLinkId,
@@ -73,11 +83,18 @@ export class PayosPaymentProvider implements PaymentProvider {
     };
   }
 
-  async getLink(orderCode: number): Promise<PaymentProviderLink> {
+  async getLink(orderCode: number): Promise<PaymentProviderLink | null> {
     this.assertOrderCode(orderCode);
     const payOS = this.createClient(this.requireCredentials());
-    const link = await payOS.paymentRequests.get(orderCode);
-    return this.mapPaymentLink(link);
+    try {
+      const link = await payOS.paymentRequests.get(orderCode);
+      return this.mapPaymentLink(link);
+    } catch (error) {
+      if (error instanceof PayOSNotFoundError) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async cancelLink(
@@ -175,6 +192,8 @@ export class PayosPaymentProvider implements PaymentProvider {
       clientId: credentials.clientId,
       apiKey: credentials.apiKey,
       checksumKey: credentials.checksumKey,
+      timeout: PAYOS_REQUEST_TIMEOUT_MS,
+      maxRetries: PAYOS_REQUEST_MAX_RETRIES,
     });
   }
 

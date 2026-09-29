@@ -1,4 +1,7 @@
 export const PAYMENT_PROVIDER = Symbol('PAYMENT_PROVIDER');
+export const PAYOS_REQUEST_TIMEOUT_MS = 20_000;
+export const PAYOS_REQUEST_MAX_RETRIES = 0;
+export const PAYOS_SETUP_LEASE_MS = 60_000;
 
 export type PaymentProviderLinkStatus =
   | 'PENDING'
@@ -43,7 +46,7 @@ export interface VerifiedPaymentWebhook {
 export interface PaymentProvider {
   isConfigured(): boolean;
   createLink(input: CreatePaymentLinkInput): Promise<PaymentProviderLink>;
-  getLink(orderCode: number): Promise<PaymentProviderLink>;
+  getLink(orderCode: number): Promise<PaymentProviderLink | null>;
   cancelLink(
     orderCode: number,
     cancellationReason?: string,

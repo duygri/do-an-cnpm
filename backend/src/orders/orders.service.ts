@@ -4,7 +4,9 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { ProductVariant } from '../catalog/entities/product-variant.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
@@ -13,6 +15,9 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderDetail } from './entities/order-detail.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 import { GetOrdersDto } from './dto/get-orders.dto';
+import { PaymentAttempt } from '../payments/entities/payment-attempt.entity';
+import { PaymentsService } from '../payments/payments.service';
+import { PAYOS_SETUP_LEASE_MS } from '../payments/payment-provider';
 
 const UNIT_PRICE_PRECISION = 12;
 const SUBTOTAL_PRECISION = 22;
@@ -25,16 +30,53 @@ interface PricedOrderLine {
   subtotal: string;
 }
 
-type CustomerOrderResponse = SalesOrder & { voucherCode: string | null };
+type CustomerOrderResponse = Omit<
+  SalesOrder,
+  'paymentAttempt' | 'idempotencyKey' | 'requestFingerprint' | 'paymentMethod'
+> & {
+  paymentMethod: Exclude<SalesOrder['paymentMethod'], null>;
+  voucherCode: string | null;
+  checkoutUrl?: string;
+  paymentExpiresAt?: Date;
+};
+
+type CreateOrderResult = { orderId: number; created: boolean };
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly payments: PaymentsService,
+  ) {}
 
   async createOrder(
     input: CreateOrderDto,
     customerId: number,
+    rawIdempotencyKey?: string,
   ): Promise<CustomerOrderResponse> {
+    const paymentMethod = input.paymentMethod ?? 'cod';
+    const idempotencyKey =
+      paymentMethod === 'payos'
+        ? this.validateIdempotencyKey(rawIdempotencyKey)
+        : null;
+    const requestFingerprint =
+      idempotencyKey === null
+        ? null
+        : this.createRequestFingerprint(input, paymentMethod);
+
+    if (idempotencyKey !== null) {
+      const existing = await this.findByIdempotencyKey(
+        this.dataSource.manager,
+        customerId,
+        idempotencyKey,
+      );
+      if (existing) {
+        this.assertMatchingFingerprint(existing, requestFingerprint!);
+        await this.payments.startOrResume(existing.orderId, false);
+        return this.getOrder(customerId, String(existing.orderId));
+      }
+    }
+
     const sortedDetails = [...input.details].sort(
       (left, right) => left.variantId - right.variantId,
     );
@@ -46,124 +88,206 @@ export class OrdersService {
       );
     }
 
-    return this.dataSource.transaction(async (manager) => {
-      const variants = await manager
-        .getRepository(ProductVariant)
-        .createQueryBuilder('variant')
-        .innerJoinAndSelect('variant.product', 'product')
-        .where('variant.variantId IN (:...variantIds)', { variantIds })
-        .orderBy('variant.variantId', 'ASC')
-        .getMany();
-      const variantsById = new Map(
-        variants.map((variant) => [variant.variantId, variant]),
-      );
-
-      for (const variantId of variantIds) {
-        const variant = variantsById.get(variantId);
-        if (!variant) {
-          throw new NotFoundException(
-            `Product variant ${variantId} was not found.`,
+    let result: CreateOrderResult;
+    try {
+      result = await this.dataSource.transaction(async (manager) => {
+        if (idempotencyKey !== null) {
+          const existing = await this.findByIdempotencyKey(
+            manager,
+            customerId,
+            idempotencyKey,
           );
+          if (existing) {
+            this.assertMatchingFingerprint(existing, requestFingerprint!);
+            return { orderId: existing.orderId, created: false };
+          }
         }
-        if (variant.product.status !== 'active') {
-          throw new BadRequestException(
-            `Product variant ${variantId} is unavailable because its product is inactive.`,
+
+        const variants = await manager
+          .getRepository(ProductVariant)
+          .createQueryBuilder('variant')
+          .innerJoinAndSelect('variant.product', 'product')
+          .where('variant.variantId IN (:...variantIds)', { variantIds })
+          .orderBy('variant.variantId', 'ASC')
+          .getMany();
+        const variantsById = new Map(
+          variants.map((variant) => [variant.variantId, variant]),
+        );
+
+        for (const variantId of variantIds) {
+          const variant = variantsById.get(variantId);
+          if (!variant) {
+            throw new NotFoundException(
+              `Product variant ${variantId} was not found.`,
+            );
+          }
+          if (variant.product.status !== 'active') {
+            throw new BadRequestException(
+              `Product variant ${variantId} is unavailable because its product is inactive.`,
+            );
+          }
+        }
+
+        let totalCents = 0n;
+        const pricedLines: PricedOrderLine[] = [];
+
+        for (const detail of sortedDetails) {
+          const variant = variantsById.get(detail.variantId)!;
+          const unitPriceCents = this.parseUnitPrice(
+            variant.price,
+            detail.variantId,
           );
+          const subtotalCents = unitPriceCents * BigInt(detail.quantity);
+          this.assertFitsNumeric(
+            subtotalCents,
+            SUBTOTAL_PRECISION,
+            `Subtotal for product variant ${detail.variantId}`,
+          );
+          totalCents += subtotalCents;
+
+          pricedLines.push({
+            variantId: detail.variantId,
+            quantity: detail.quantity,
+            unitPrice: this.formatCents(unitPriceCents),
+            subtotal: this.formatCents(subtotalCents),
+          });
         }
-      }
 
-      let totalCents = 0n;
-      const pricedLines: PricedOrderLine[] = [];
+        let voucherId: number | null = null;
+        let discountCents = 0n;
+        if (input.voucherCode !== undefined && input.voucherCode !== null) {
+          const voucherResult = await this.resolveVoucher(
+            manager,
+            input.voucherCode,
+            totalCents,
+            idempotencyKey === null
+              ? undefined
+              : {
+                  customerId,
+                  idempotencyKey,
+                  requestFingerprint: requestFingerprint!,
+                },
+          );
+          if (voucherResult.existingOrderId !== undefined) {
+            return { orderId: voucherResult.existingOrderId, created: false };
+          }
+          voucherId = voucherResult.voucher.voucherId;
+          discountCents = voucherResult.discountCents;
+        }
 
-      for (const detail of sortedDetails) {
-        const variant = variantsById.get(detail.variantId)!;
-        const unitPriceCents = this.parseUnitPrice(
-          variant.price,
-          detail.variantId,
-        );
-        const subtotalCents = unitPriceCents * BigInt(detail.quantity);
-        this.assertFitsNumeric(
-          subtotalCents,
-          SUBTOTAL_PRECISION,
-          `Subtotal for product variant ${detail.variantId}`,
-        );
-        totalCents += subtotalCents;
+        const shippingFeeCents = 0n;
+        const orderTotalCents = totalCents - discountCents + shippingFeeCents;
 
-        pricedLines.push({
-          variantId: detail.variantId,
-          quantity: detail.quantity,
-          unitPrice: this.formatCents(unitPriceCents),
-          subtotal: this.formatCents(subtotalCents),
-        });
-      }
+        this.assertFitsNumeric(orderTotalCents, TOTAL_PRECISION, 'Order total');
 
-      let voucherId: number | null = null;
-      let discountCents = 0n;
-      if (input.voucherCode !== undefined && input.voucherCode !== null) {
-        const voucherResult = await this.resolveVoucher(
-          manager,
-          input.voucherCode,
-          totalCents,
-        );
-        voucherId = voucherResult.voucher.voucherId;
-        discountCents = voucherResult.discountCents;
-      }
+        let payosAmount: bigint | null = null;
+        if (paymentMethod === 'payos') {
+          if (orderTotalCents % 100n !== 0n) {
+            throw new BadRequestException(
+              'PayOS requires the final order total to be a whole amount in VND.',
+            );
+          }
+          payosAmount = orderTotalCents / 100n;
+          if (payosAmount > BigInt(Number.MAX_SAFE_INTEGER)) {
+            throw new BadRequestException(
+              'PayOS order total exceeds the supported exact integer VND amount.',
+            );
+          }
+          if (payosAmount > 0n && !this.payments.isConfigured()) {
+            throw new ServiceUnavailableException(
+              'PayOS payment provider is not configured.',
+            );
+          }
+        }
 
-      const shippingFeeCents = 0n;
-      const orderTotalCents = totalCents - discountCents + shippingFeeCents;
-
-      this.assertFitsNumeric(orderTotalCents, TOTAL_PRECISION, 'Order total');
-
-      const orderRepository = manager.getRepository(SalesOrder);
-      const order = await orderRepository.save(
-        orderRepository.create({
-          customerId,
-          voucherId,
-          recipientName: input.recipientName,
-          recipientPhone: input.recipientPhone,
-          shippingAddress: input.shippingAddress,
-          discountAmount: this.formatCents(discountCents),
-          shippingFee: this.formatCents(shippingFeeCents),
-          totalAmount: this.formatCents(orderTotalCents),
-          paymentMethod: 'cod',
-          paymentStatus: 'unpaid',
-          status: 'pending',
-          note: input.note?.trim() || null,
-        }),
-      );
-
-      const detailRepository = manager.getRepository(OrderDetail);
-      await detailRepository.save(
-        pricedLines.map((line) =>
-          detailRepository.create({
-            orderId: order.orderId,
-            variantId: line.variantId,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            subtotal: line.subtotal,
+        const orderRepository = manager.getRepository(SalesOrder);
+        const isZeroTotalPayos =
+          paymentMethod === 'payos' && payosAmount === 0n;
+        const order = await orderRepository.save(
+          orderRepository.create({
+            customerId,
+            voucherId,
+            recipientName: input.recipientName,
+            recipientPhone: input.recipientPhone,
+            shippingAddress: input.shippingAddress,
+            discountAmount: this.formatCents(discountCents),
+            shippingFee: this.formatCents(shippingFeeCents),
+            totalAmount: this.formatCents(orderTotalCents),
+            paymentMethod,
+            paymentStatus: isZeroTotalPayos ? 'paid' : 'unpaid',
+            paymentConfirmedAt: isZeroTotalPayos ? new Date() : null,
+            paymentConfirmedByEmployeeId: null,
+            status: 'pending',
+            note: input.note?.trim() || null,
+            idempotencyKey,
+            requestFingerprint,
           }),
-        ),
-      );
-
-      const savedOrder = await manager
-        .getRepository(SalesOrder)
-        .createQueryBuilder('order')
-        .leftJoinAndSelect('order.details', 'detail')
-        .where('order.orderId = :orderId', { orderId: order.orderId })
-        .orderBy('detail.variantId', 'ASC')
-        .getOne();
-
-      if (!savedOrder) {
-        throw new InternalServerErrorException(
-          'The order could not be loaded within the transaction.',
         );
-      }
 
-      return this.withVoucherCode(
-        savedOrder,
-        await this.findVoucherCode(manager, savedOrder.voucherId),
+        if (
+          paymentMethod === 'payos' &&
+          payosAmount !== null &&
+          payosAmount > 0n
+        ) {
+          const expiry = new Date(order.orderDate.getTime() + 15 * 60 * 1000);
+          const attemptRepository = manager.getRepository(PaymentAttempt);
+          await attemptRepository.save(
+            attemptRepository.create({
+              orderId: order.orderId,
+              provider: 'payos',
+              providerOrderCode: order.orderId,
+              providerPaymentLinkId: null,
+              checkoutUrl: null,
+              amount: this.formatCents(orderTotalCents),
+              status: 'creating',
+              setupLeaseExpiresAt: new Date(Date.now() + PAYOS_SETUP_LEASE_MS),
+              expiresAt: expiry,
+              paidAt: null,
+              providerReference: null,
+              observedAmountPaid: null,
+              reconciliationReason: null,
+              reconciliationAt: null,
+            }),
+          );
+        }
+
+        const detailRepository = manager.getRepository(OrderDetail);
+        await detailRepository.save(
+          pricedLines.map((line) =>
+            detailRepository.create({
+              orderId: order.orderId,
+              variantId: line.variantId,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              subtotal: line.subtotal,
+            }),
+          ),
+        );
+
+        return { orderId: order.orderId, created: true };
+      });
+    } catch (error) {
+      if (
+        idempotencyKey === null ||
+        !this.isIdempotencyUniqueViolation(error)
+      ) {
+        throw error;
+      }
+      const existing = await this.findByIdempotencyKey(
+        this.dataSource.manager,
+        customerId,
+        idempotencyKey,
       );
-    });
+      if (!existing) throw error;
+      this.assertMatchingFingerprint(existing, requestFingerprint!);
+      result = { orderId: existing.orderId, created: false };
+    }
+
+    await this.payments.startOrResume(
+      result.orderId,
+      result.created && paymentMethod === 'payos',
+    );
+    return this.getOrder(customerId, String(result.orderId));
   }
 
   async listOrders(
@@ -214,6 +338,7 @@ export class OrdersService {
       .getRepository(SalesOrder)
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.details', 'detail')
+      .leftJoinAndSelect('order.paymentAttempt', 'paymentAttempt')
       .where('order.orderId = :orderId', { orderId })
       .andWhere('order.customerId = :customerId', { customerId })
       .orderBy('detail.variantId', 'ASC')
@@ -252,6 +377,12 @@ export class OrdersService {
         throw new ConflictException('Only pending orders can be cancelled.');
       }
 
+      if (order.paymentMethod === 'payos') {
+        throw new ConflictException(
+          'PayOS order cancellation requires confirmed provider cancellation.',
+        );
+      }
+
       order.status = 'cancelled';
       await orderRepository.save(order);
 
@@ -276,11 +407,93 @@ export class OrdersService {
     });
   }
 
+  private validateIdempotencyKey(rawKey?: string): string {
+    if (
+      typeof rawKey !== 'string' ||
+      rawKey.length < 1 ||
+      rawKey.length > 255 ||
+      !/^[A-Za-z0-9._~:-]+$/.test(rawKey)
+    ) {
+      throw new BadRequestException(
+        'PayOS order creation requires an Idempotency-Key of 1 to 255 valid characters.',
+      );
+    }
+    return rawKey;
+  }
+
+  private createRequestFingerprint(
+    input: CreateOrderDto,
+    paymentMethod: 'cod' | 'payos',
+  ): string {
+    const canonicalRequest = {
+      paymentMethod,
+      recipientName: input.recipientName.trim(),
+      recipientPhone: input.recipientPhone.trim(),
+      shippingAddress: input.shippingAddress.trim(),
+      voucherCode: input.voucherCode?.trim().toUpperCase() ?? null,
+      details: input.details
+        .map(({ variantId, quantity }) => ({ variantId, quantity }))
+        .sort((left, right) => left.variantId - right.variantId),
+    };
+
+    return createHash('sha256')
+      .update(JSON.stringify(canonicalRequest))
+      .digest('hex');
+  }
+
+  private async findByIdempotencyKey(
+    manager: EntityManager,
+    customerId: number,
+    idempotencyKey: string,
+  ): Promise<SalesOrder | null> {
+    return manager
+      .getRepository(SalesOrder)
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.details', 'detail')
+      .where('order.customerId = :customerId', { customerId })
+      .andWhere('order.idempotencyKey = :idempotencyKey', { idempotencyKey })
+      .orderBy('detail.variantId', 'ASC')
+      .getOne();
+  }
+
+  private assertMatchingFingerprint(
+    existing: SalesOrder,
+    requestFingerprint: string,
+  ): void {
+    if (existing.requestFingerprint !== requestFingerprint) {
+      throw new ConflictException(
+        'This Idempotency-Key was already used for a different order request.',
+      );
+    }
+  }
+
+  private isIdempotencyUniqueViolation(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) return false;
+    const driverError = (
+      error as {
+        driverError?: { code?: unknown; constraint?: unknown };
+      }
+    ).driverError;
+    return (
+      driverError?.code === '23505' &&
+      driverError.constraint === 'UQ_sales_order_customer_idempotency_key'
+    );
+  }
+
   private async resolveVoucher(
     manager: EntityManager,
     code: string,
     merchandiseSubtotalCents: bigint,
-  ): Promise<{ voucher: PromotionDetail; discountCents: bigint }> {
+    idempotencyRequest?: {
+      customerId: number;
+      idempotencyKey: string;
+      requestFingerprint: string;
+    },
+  ): Promise<{
+    voucher: PromotionDetail;
+    discountCents: bigint;
+    existingOrderId?: number;
+  }> {
     const voucherRepository = manager.getRepository(PromotionDetail);
     const voucherReference = await voucherRepository.findOne({
       select: { voucherId: true, promotionId: true },
@@ -314,6 +527,25 @@ export class OrdersService {
       .getOne();
     if (!voucher) {
       throw new BadRequestException('Voucher code is invalid or unavailable.');
+    }
+
+    if (idempotencyRequest) {
+      const existing = await this.findByIdempotencyKey(
+        manager,
+        idempotencyRequest.customerId,
+        idempotencyRequest.idempotencyKey,
+      );
+      if (existing) {
+        this.assertMatchingFingerprint(
+          existing,
+          idempotencyRequest.requestFingerprint,
+        );
+        return {
+          voucher,
+          discountCents: 0n,
+          existingOrderId: existing.orderId,
+        };
+      }
     }
 
     if (promotion.status !== 'active') {
@@ -469,7 +701,36 @@ export class OrdersService {
     order: SalesOrder,
     voucherCode: string | null,
   ): CustomerOrderResponse {
-    return Object.assign(order, { voucherCode });
+    const attempt = order.paymentAttempt;
+    const customerOrder = Object.fromEntries(
+      Object.entries(order).filter(
+        ([key]) =>
+          key !== 'paymentAttempt' &&
+          key !== 'idempotencyKey' &&
+          key !== 'requestFingerprint',
+      ),
+    ) as Omit<
+      SalesOrder,
+      'paymentAttempt' | 'idempotencyKey' | 'requestFingerprint'
+    >;
+    const response: CustomerOrderResponse = {
+      ...customerOrder,
+      paymentMethod: order.paymentMethod ?? 'cod',
+      voucherCode,
+    };
+
+    if (
+      order.paymentMethod === 'payos' &&
+      order.paymentStatus === 'unpaid' &&
+      order.status === 'pending' &&
+      attempt?.status === 'pending' &&
+      attempt.checkoutUrl
+    ) {
+      response.checkoutUrl = attempt.checkoutUrl;
+      response.paymentExpiresAt = attempt.expiresAt;
+    }
+
+    return response;
   }
 
   private parseOrderId(orderIdInput: string): number {

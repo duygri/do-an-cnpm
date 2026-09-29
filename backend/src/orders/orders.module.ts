@@ -10,6 +10,7 @@ import { SalesOrder } from './entities/sales-order.entity';
 import { PromotionDetail } from '../promotions/entities/promotion-detail.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { PaymentAttempt } from '../payments/entities/payment-attempt.entity';
+import { PayosPaymentModule } from '../payments/payos-payment.module';
 import { AdminOrdersController } from './admin-orders.controller';
 import { AdminOrdersService } from './admin-orders.service';
 import { OrdersController } from './orders.controller';
@@ -19,6 +20,7 @@ import { OrdersService } from './orders.service';
   imports: [
     AuthModule,
     CustomersModule,
+    PayosPaymentModule,
     TypeOrmModule.forFeature([
       SalesOrder,
       OrderDetail,
