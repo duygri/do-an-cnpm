@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
@@ -11,10 +12,12 @@ import { ImportsModule } from './imports/imports.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { OrdersModule } from './orders/orders.module';
 import { PromotionsModule } from './promotions/promotions.module';
+import { PayosPaymentModule } from './payments/payos-payment.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -33,6 +36,7 @@ import { PromotionsModule } from './promotions/promotions.module';
     ImportsModule,
     OrdersModule,
     PromotionsModule,
+    PayosPaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
