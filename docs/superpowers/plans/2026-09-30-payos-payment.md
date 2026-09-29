@@ -106,7 +106,7 @@ Before saving a positive-total PayOS order or payment attempt, verify required P
 
 - [ ] **Step 4: Keep database creation atomic**
 
-In the existing order transaction, persist payment method and PayOS idempotency data with the order/details. For a positive PayOS total, insert a `creating` payment attempt whose provider order code is the new order ID and expiry is exactly 15 minutes after creation. Claim/reclaim the setup lease under a row lock and only when the stored lease has elapsed. Bound the PayOS create request timeout/retries so the maximum request duration is shorter than the lease. Preserve the existing voucher row locks and redemption-count semantics.
+In the existing order transaction, persist payment method and PayOS idempotency data with the order/details. For a positive PayOS total, insert a `creating` payment attempt whose provider order code is the new order ID and expiry is exactly 15 minutes after creation. Claim/reclaim the setup lease under a row lock and only when the stored lease has elapsed. Bound PayOS API request timeouts/retries; especially ensure the maximum create request duration is shorter than the lease. Preserve the existing voucher row locks and redemption-count semantics.
 
 - [ ] **Step 5: Create or reuse the provider link after commit**
 
