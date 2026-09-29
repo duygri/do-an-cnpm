@@ -20,6 +20,7 @@
 - `backend/src/promotions/promotions.service.ts` — reads, creates, and transactionally updates campaigns/vouchers.
 - `backend/src/promotions/promotions.module.ts` and `backend/src/app.module.ts` — register the new feature module and entities.
 - `backend/src/orders/entities/sales-order.entity.ts` — optional voucher reference.
+- `backend/src/orders/orders.module.ts` — register promotion relation entities so TypeORM loads their metadata.
 - `backend/src/orders/dto/create-order.dto.ts` — optional normalized voucher code.
 - `backend/src/orders/orders.service.ts` — transactional voucher validation, usage-cap serialization, discount calculation, and customer response code.
 - `backend/src/orders/admin-orders.service.ts` — include voucher code and discount in employee list/detail responses.
@@ -33,13 +34,14 @@
 - Create: `backend/src/promotions/entities/promotion-detail.entity.ts`
 - Create: `backend/src/database/migrations/1790740000000-create-promotions-vouchers.ts`
 - Modify: `backend/src/orders/entities/sales-order.entity.ts`
+- Modify: `backend/src/orders/orders.module.ts`
 
-- [ ] **Step 1: Map campaign and voucher columns.** Add generated integer IDs; 120-character names; nullable descriptions; `date` start/end fields; active/inactive statuses; canonical code up to 64 characters; `fixed`/`percentage` type; `numeric(24,2)` discount/minimum/cap values; and positive integer quantity.
-- [ ] **Step 2: Add the `SalesOrder` relation.** Map nullable `voucher_id` to `promotion_detail.voucher_id` with `ON DELETE RESTRICT`. Keep it optional for existing and voucher-free orders.
-- [ ] **Step 3: Implement migration `up`.** Create both tables, their campaign FK, status/date/type/money/quantity checks and indexes, including unique constraint `UQ_promotion_detail_code` on the canonical code; add the nullable voucher FK and redemption-count index on `sales_order(voucher_id, status)`.
-- [ ] **Step 4: Implement guarded migration `down`.** Require an active transaction, acquire `ACCESS EXCLUSIVE` on `sales_order` before checking voucher references, and refuse rollback if any reference exists. Only then remove the order FK/index/column and drop the voucher and campaign tables.
-- [ ] **Step 5: Review entity/migration agreement.** Confirm names, nullability, defaults, checks, and FK deletion behavior match the approved spec.
-- [ ] **Step 6: Commit the schema slice.** `git add backend/src/database/migrations/1790740000000-create-promotions-vouchers.ts backend/src/promotions/entities backend/src/orders/entities/sales-order.entity.ts`; commit with `feat: add promotion voucher schema`.
+- [x] **Step 1: Map campaign and voucher columns.** Add generated integer IDs; 120-character names; nullable descriptions; `date` start/end fields; active/inactive statuses; canonical code up to 64 characters; `fixed`/`percentage` type; `numeric(24,2)` discount/minimum/cap values; and positive integer quantity.
+- [x] **Step 2: Add the `SalesOrder` relation.** Map nullable `voucher_id` to `promotion_detail.voucher_id` with `ON DELETE RESTRICT`. Keep it optional for existing and voucher-free orders.
+- [x] **Step 3: Implement migration `up`.** Create both tables, their campaign FK, status/date/type/money/quantity checks and indexes, including unique constraint `UQ_promotion_detail_code` on the canonical code; add the nullable voucher FK and redemption-count index on `sales_order(voucher_id, status)`.
+- [x] **Step 4: Implement guarded migration `down`.** Require an active transaction, acquire `ACCESS EXCLUSIVE` table locks on `promotion`, `promotion_detail`, then `sales_order` before checking voucher references, and refuse rollback if any reference exists. Only then remove the order FK/index/column and drop the voucher and campaign tables.
+- [x] **Step 5: Review entity/migration agreement.** Confirm names, nullability, defaults, checks, and FK deletion behavior match the approved spec.
+- [x] **Step 6: Register relation metadata and commit the schema slice.** Register both `Promotion` and `PromotionDetail` in `OrdersModule` for the schema-only intermediate state. Commit the migration, entities, `SalesOrder`, and `OrdersModule` changes in focused commits.
 
 ## Task 2: Add employee promotion and voucher APIs
 
