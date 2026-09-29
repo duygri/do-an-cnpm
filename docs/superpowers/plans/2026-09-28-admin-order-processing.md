@@ -33,15 +33,15 @@
 - Create: `backend/src/orders/admin-orders.controller.ts`
 - Modify: `backend/src/orders/orders.module.ts`
 
-- [ ] Add pagination DTO validation: use `@Type(() => Number)` before `@IsInt`, require page 1..2,147,483,647 and limit 1..100 (default 1/20), and limit optional status to `pending`, `packed`, or `cancelled`.
-- [ ] Add `GET /admin/orders`, guarded by `EmployeeJwtGuard`, with deterministic newest-first pagination and `{ items, page, limit, total }`; list only order header summary fields and detail count, not line/address data.
-- [ ] Count order lines in a separate batched query so detail joins do not alter list pagination. Return JSON integer counts.
-- [ ] Add route ID parsing that accepts only decimal digits and safe integers 1..2,147,483,647; malformed, zero, and out-of-range IDs return not found before reaching PostgreSQL.
-- [ ] Add `GET /admin/orders/:orderId` returning only the explicit approved order, detail, variant/product, and nullable packing fields; sort `details` by `variantId`; do not join or serialize the Customer entity or employee password hash.
-- [ ] Ensure money serializes as fixed-scale decimal strings and timestamps as ISO 8601 UTC strings.
-- [ ] Inspect response projections to confirm IDs, quantities, counts, page, and limit remain JSON integers and absent note/packing fields serialize as null.
-- [ ] Import `AuthModule` once and register the new controller/service; reuse `EmployeeJwtGuard`, do not create a duplicate provider.
-- [ ] Run `npm run build` in `backend/`.
+- [x] Add pagination DTO validation: use `@Type(() => Number)` before `@IsInt`, require page 1..2,147,483,647 and limit 1..100 (default 1/20), and limit optional status to `pending`, `packed`, or `cancelled`.
+- [x] Add `GET /admin/orders`, guarded by `EmployeeJwtGuard`, with deterministic newest-first pagination and `{ items, page, limit, total }`; list only order header summary fields and detail count, not line/address data.
+- [x] Count order lines in a separate batched query so detail joins do not alter list pagination. Return JSON integer counts.
+- [x] Add route ID parsing that accepts only decimal digits and safe integers 1..2,147,483,647; malformed, zero, and out-of-range IDs return not found before reaching PostgreSQL.
+- [x] Add `GET /admin/orders/:orderId` returning only the explicit approved order, detail, variant/product, and nullable packing fields; sort `details` by `variantId`; do not join or serialize the Customer entity or employee password hash.
+- [x] Ensure money serializes as fixed-scale decimal strings and timestamps as ISO 8601 UTC strings.
+- [x] Inspect response projections to confirm IDs, quantities, counts, page, and limit remain JSON integers and absent note/packing fields serialize as null.
+- [x] Import `AuthModule` once and register the new controller/service; reuse `EmployeeJwtGuard`, do not create a duplicate provider.
+- [x] Run `npm run build` in `backend/`.
 
 ### Task 3: Add the atomic packing action
 
