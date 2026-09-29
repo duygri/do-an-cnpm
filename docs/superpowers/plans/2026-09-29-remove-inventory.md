@@ -46,9 +46,9 @@
 - Delete: `backend/src/inventory/dto/create-stock-adjustment.dto.ts`
 - Delete: `backend/src/inventory/dto/get-stock-balance.dto.ts`
 
-- [ ] Unregister `InventoryModule` from the root application module so `/inventory/...` routes are no longer available.
-- [ ] Delete the inventory source directory and verify no other runtime module or TypeORM registration references `InventoryMovement`, `InventoryService`, or `InventoryModule`.
-- [ ] Keep Suppliers and Imports modules registered.
+- [x] Unregister `InventoryModule` from the root application module so `/inventory/...` routes are no longer available.
+- [x] Delete the inventory source directory and verify no other runtime module or TypeORM registration references `InventoryMovement`, `InventoryService`, or `InventoryModule`.
+- [x] Keep Suppliers and Imports modules registered.
 
 ### Task 4: Drop the inventory ledger with a forward migration
 
