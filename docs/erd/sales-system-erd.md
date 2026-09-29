@@ -1,6 +1,6 @@
 # Sales system ERD (corrected)
 
-This Mermaid diagram is the editable, corrected model. The adjacent PNG is retained as the originally supplied image. Physical `sales_order` replaces the ambiguous/reserved table name `Order` in PostgreSQL.
+This Mermaid diagram is the editable, current model. The adjacent PNG is retained as a historical reference only and is not the current ERD; it includes outdated `Packing.weight` and `packing_fee` fields that are outside the approved MVP. Physical `sales_order` replaces the ambiguous/reserved table name `Order` in PostgreSQL.
 
 ```mermaid
 erDiagram
