@@ -191,6 +191,10 @@ export class CreatePromotionsVouchers1790740000000
       );
     }
 
+    await queryRunner.query('LOCK TABLE "promotion" IN ACCESS EXCLUSIVE MODE');
+    await queryRunner.query(
+      'LOCK TABLE "promotion_detail" IN ACCESS EXCLUSIVE MODE',
+    );
     await queryRunner.query(
       'LOCK TABLE "sales_order" IN ACCESS EXCLUSIVE MODE',
     );
