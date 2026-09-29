@@ -12,8 +12,10 @@ import {
 } from 'class-validator';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const MONEY_PATTERN = /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/;
-const POSITIVE_MONEY_PATTERN = /^(?=.*[1-9])(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/;
+const MONEY_PATTERN =
+  /^(?=0*(?:[1-9]\d{0,21})?(?:\.|$))\d+(?:\.\d{1,2})?(?![\s\S])/;
+const POSITIVE_MONEY_PATTERN =
+  /^(?=.*[1-9])(?=0*(?:[1-9]\d{0,21})?(?:\.|$))\d+(?:\.\d{1,2})?(?![\s\S])/;
 
 const trimString = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;

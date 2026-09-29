@@ -18,8 +18,8 @@ import {
   PromotionDetailType,
 } from './entities/promotion-detail.entity';
 
-const MONEY_PATTERN = /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/;
-const POSITIVE_MONEY_PATTERN = /^(?=.*[1-9])(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/;
+const MONEY_PATTERN =
+  /^(?=0*(?:[1-9]\d{0,21})?(?:\.|$))\d+(?:\.\d{1,2})?(?![\s\S])/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DUPLICATE_VOUCHER_CODE_CONSTRAINT = 'UQ_promotion_detail_code';
 
@@ -299,12 +299,12 @@ export class PromotionsService {
         'Voucher type must be fixed or percentage.',
       );
     }
-    if (!POSITIVE_MONEY_PATTERN.test(values.discountValue)) {
-      throw new BadRequestException(
-        'discountValue must be a positive decimal string with at most two fractional digits.',
-      );
-    }
-    if (values.type === 'percentage' && Number(values.discountValue) > 100) {
+    const discountCents = this.parseMoneyCents(
+      values.discountValue,
+      'discountValue',
+      false,
+    );
+    if (values.type === 'percentage' && discountCents > 10_000n) {
       throw new BadRequestException(
         'Percentage discountValue cannot exceed 100.',
       );
@@ -322,19 +322,14 @@ export class PromotionsService {
         'Voucher startDate must be on or before endDate.',
       );
     }
-    if (!MONEY_PATTERN.test(values.minPrice)) {
-      throw new BadRequestException(
-        'minPrice must be a nonnegative decimal string with at most two fractional digits.',
-      );
-    }
-    if (
-      values.maxDiscount !== null &&
-      (!POSITIVE_MONEY_PATTERN.test(values.maxDiscount) ||
-        values.type !== 'percentage')
-    ) {
-      throw new BadRequestException(
-        'maxDiscount must be positive and can only be set for percentage vouchers.',
-      );
+    this.parseMoneyCents(values.minPrice, 'minPrice', true);
+    if (values.maxDiscount !== null) {
+      if (values.type !== 'percentage') {
+        throw new BadRequestException(
+          'maxDiscount can only be set for percentage vouchers.',
+        );
+      }
+      this.parseMoneyCents(values.maxDiscount, 'maxDiscount', false);
     }
     if (
       !Number.isInteger(values.quantity) ||
@@ -351,6 +346,34 @@ export class PromotionsService {
     if (year < 1 || month < 1 || month > 12) return false;
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
     return day >= 1 && day <= daysInMonth;
+  }
+
+  private parseMoneyCents(
+    value: string,
+    fieldName: string,
+    allowZero: boolean,
+  ): bigint {
+    if (!MONEY_PATTERN.test(value)) {
+      throw new BadRequestException(
+        `${fieldName} must fit numeric(24,2) and have at most two fractional digits.`,
+      );
+    }
+
+    const [integerPart, fractionalPart = ''] = value.split('.');
+    const significantIntegerPart = integerPart.replace(/^0+/, '') || '0';
+    if (significantIntegerPart.length > 22) {
+      throw new BadRequestException(
+        `${fieldName} exceeds the numeric(24,2) range.`,
+      );
+    }
+
+    const cents =
+      BigInt(significantIntegerPart) * 100n +
+      BigInt(fractionalPart.padEnd(2, '0'));
+    if (!allowZero && cents === 0n) {
+      throw new BadRequestException(`${fieldName} must be positive.`);
+    }
+    return cents;
   }
 
   private isEmptyPatch(input: object): boolean {
