@@ -63,10 +63,9 @@ export class CreatePromotionsVouchers1790740000000
             isGenerated: true,
             generationStrategy: 'increment',
           },
-          { name: 'promotion_id', type: 'integer', isNullable: true },
+          { name: 'promotion_id', type: 'integer' },
           { name: 'code', type: 'varchar', length: '64' },
           { name: 'name', type: 'varchar', length: '120' },
-          { name: 'description', type: 'text', isNullable: true },
           { name: 'type', type: 'varchar', length: '20' },
           {
             name: 'discount_value',

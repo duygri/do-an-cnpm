@@ -48,17 +48,14 @@ export class PromotionDetail {
   @PrimaryGeneratedColumn({ name: 'voucher_id', type: 'integer' })
   voucherId!: number;
 
-  @Column({ name: 'promotion_id', type: 'integer', nullable: true })
-  promotionId!: number | null;
+  @Column({ name: 'promotion_id', type: 'integer' })
+  promotionId!: number;
 
   @Column({ type: 'varchar', length: 64 })
   code!: string;
 
   @Column({ type: 'varchar', length: 120 })
   name!: string;
-
-  @Column({ type: 'text', nullable: true })
-  description!: string | null;
 
   @Column({ type: 'varchar', length: 20 })
   type!: PromotionDetailType;
@@ -96,7 +93,7 @@ export class PromotionDetail {
   status!: PromotionDetailStatus;
 
   @ManyToOne(() => Promotion, (promotion) => promotion.details, {
-    nullable: true,
+    nullable: false,
     onDelete: 'RESTRICT',
   })
   @JoinColumn({
@@ -104,5 +101,5 @@ export class PromotionDetail {
     referencedColumnName: 'promotionId',
     foreignKeyConstraintName: 'FK_promotion_detail_promotion',
   })
-  promotion!: Promotion | null;
+  promotion!: Promotion;
 }
