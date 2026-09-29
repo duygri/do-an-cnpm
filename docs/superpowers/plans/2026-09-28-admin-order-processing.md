@@ -66,10 +66,10 @@
 - Modify: `backend/README.md`
 - Modify: `docs/superpowers/specs/2026-09-28-admin-order-processing-design.md`
 
-- [ ] Document staff order list/detail/pack routes, exact response fields, decimal/date JSON formats, JSON integer and null serialization rules, validation errors, status rules, and employee guard behavior.
-- [ ] Update ERD to include packing cardinality, optional type, packed statuses, unique order FK, employee relation, and no weight/packing-fee fields.
-- [ ] State in both docs that stock is deducted at order placement and packing does not add inventory movements; shipping fee is separate from packing.
-- [ ] Run `git diff --check` and compare README, ERD, entity, and migration field names/cardinalities.
+- [x] Document staff order list/detail/pack routes, exact response fields, decimal/date JSON formats, JSON integer and null serialization rules, validation errors, status rules, and employee guard behavior.
+- [x] Update ERD to include packing cardinality, optional type, packed statuses, unique order FK, employee relation, and no weight/packing-fee fields.
+- [x] State in both docs that stock is deducted at order placement and packing does not add inventory movements; shipping fee is separate from packing.
+- [x] Run `git diff --check` and compare README, ERD, entity, and migration field names/cardinalities.
 
 ### Task 5: Verify migration and prepare integration
 
