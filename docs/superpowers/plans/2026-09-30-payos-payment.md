@@ -92,11 +92,11 @@ Import `ScheduleModule.forRoot()` once in `AppModule` and register the payment m
 
 - [ ] **Step 1: Validate payment selection and idempotency input**
 
-Accept optional `paymentMethod` (`cod` or `payos`), defaulting to COD. Read `Idempotency-Key` from the request header for PayOS. Validate the key's length/character set and reject missing PayOS keys; allow legacy COD requests without one.
+Accept optional `paymentMethod` (`cod` or `payos`), defaulting to COD. Read and validate `Idempotency-Key` for PayOS, rejecting missing keys and invalid length/characters. Ignore this header for COD so existing COD persistence and behavior remain unchanged.
 
 - [ ] **Step 2: Canonicalize and resolve retries**
 
-Create a deterministic SHA-256 fingerprint from payment method, trimmed recipient/shipping fields, normalized voucher code, and variant/quantity lines sorted by variant ID. Before creating an order, look up the customer's key. Return/reconcile the same order for a matching fingerprint; return `409` if the key was reused with different request data.
+Create a deterministic SHA-256 fingerprint from payment method, trimmed recipient/shipping fields, normalized voucher code, and variant/quantity lines sorted by variant ID. Before creating an order, look up the customer's key. Recheck it inside the transaction and, for voucher orders, after acquiring the voucher/promotion row locks but before redemption-count validation, so a concurrent retry cannot fail as “voucher exhausted” before recognizing its original order. Keep the unique customer/key index as the final race guard. Return/reconcile the same order for a matching fingerprint; return `409` if the key was reused with different request data.
 
 - [ ] **Step 3: Enforce PayOS money rules before persisting**
 
@@ -106,7 +106,7 @@ Before saving a positive-total PayOS order or payment attempt, verify required P
 
 - [ ] **Step 4: Keep database creation atomic**
 
-In the existing order transaction, persist payment method and idempotency data with the order/details. For a positive PayOS total, insert a `creating` payment attempt whose provider order code is the new order ID, expiry is exactly 15 minutes after creation, and setup lease prevents concurrent create calls. Preserve the existing voucher row locks and redemption-count semantics.
+In the existing order transaction, persist payment method and PayOS idempotency data with the order/details. For a positive PayOS total, insert a `creating` payment attempt whose provider order code is the new order ID and expiry is exactly 15 minutes after creation. Claim/reclaim the setup lease under a row lock and only when the stored lease has elapsed. Bound the PayOS create request timeout/retries so the maximum request duration is shorter than the lease. Preserve the existing voucher row locks and redemption-count semantics.
 
 - [ ] **Step 5: Create or reuse the provider link after commit**
 
@@ -158,7 +158,7 @@ Run an every-minute job for `creating` attempts whose setup lease elapsed and un
 
 - [ ] **Step 3: Expire pending links safely**
 
-For pending attempts past `expires_at`, fetch PayOS state, record full payment if confirmed, otherwise cancel the link. Only after PayOS confirms cancelled/not-payable and zero paid may one transaction lock/recheck both rows and set order/attempt cancelled/expired. A worker/webhook race must never let a stale cancellation release voucher use after the order became paid.
+For pending attempts past `expires_at` that have a locally saved checkout URL, fetch PayOS state, record full payment if confirmed, otherwise cancel the link. Only after PayOS confirms that known link is cancelled/not-payable and zero paid may one transaction lock/recheck both rows and set order/attempt cancelled/expired. Orphan links with no locally saved checkout URL are handled as `reconciliation_required` in Step 2 and must keep the order/voucher reserved even if PayOS confirms them unpaid/cancelled. A worker/webhook race must never let a stale cancellation release voucher use after the order became paid.
 
 - [ ] **Step 4: Keep unresolved or partially paid orders reserved**
 
