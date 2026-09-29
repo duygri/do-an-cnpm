@@ -55,11 +55,11 @@
 **Files:**
 - Create: `backend/src/database/migrations/1790720000000-remove-inventory-ledger.ts`
 
-- [ ] Leave applied historical migrations unchanged. Require an active transaction before migration work; do not set a per-migration transaction override.
-- [ ] In `up`, drop `inventory_movement`, removing its ledger rows, indexes, constraints, and foreign keys. Keep `supplier`, `stock_import`, and `import_detail` unchanged.
-- [ ] In `down`, recreate the ledger schema as it exists after all current migrations: all columns including nullable `employee_id`, `import_id`, `customer_id`, and `order_id`; variant, employee, import-detail, customer, and composite order-detail foreign keys; quantity/kind/direction-kind checks plus `source` and `actor` checks added `NOT VALID`; and all seven current indexes: `IDX_inventory_movement_variant_effective`, `IDX_inventory_movement_employee_id`, `UQ_inventory_movement_opening_variant`, `UQ_inventory_movement_import_variant`, `IDX_inventory_movement_customer_id`, `UQ_inventory_movement_sale_order_line`, and `UQ_inventory_movement_sale_cancellation_order_line`.
-- [ ] Do not restore any ledger rows in `down`; add a clear migration comment that row history was permanently removed by `up`.
-- [ ] Review both directions statically. Do not execute rollback as a test.
+- [x] Leave applied historical migrations unchanged. Require an active transaction before migration work; do not set a per-migration transaction override.
+- [x] In `up`, drop `inventory_movement`, removing its ledger rows, indexes, constraints, and foreign keys. Keep `supplier`, `stock_import`, and `import_detail` unchanged.
+- [x] In `down`, recreate the ledger schema as it exists after all current migrations: all columns including nullable `employee_id`, `import_id`, `customer_id`, and `order_id`; variant, employee, import-detail, customer, and composite order-detail foreign keys; quantity/kind/direction-kind checks plus `source` and `actor` checks added `NOT VALID`; and all seven current indexes: `IDX_inventory_movement_variant_effective`, `IDX_inventory_movement_employee_id`, `UQ_inventory_movement_opening_variant`, `UQ_inventory_movement_import_variant`, `IDX_inventory_movement_customer_id`, `UQ_inventory_movement_sale_order_line`, and `UQ_inventory_movement_sale_cancellation_order_line`.
+- [x] Do not restore any ledger rows in `down`; add a clear migration comment that row history was permanently removed by `up`.
+- [x] Review both directions statically. Do not execute rollback as a test.
 
 ### Task 5: Align ERD, README, and historical design documents
 
