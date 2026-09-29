@@ -1,21 +1,31 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { SalesOrder } from '../orders/entities/sales-order.entity';
 import { PaymentAttempt } from './entities/payment-attempt.entity';
 import { PAYMENT_PROVIDER, PAYOS_SETUP_LEASE_MS } from './payment-provider';
-import type { PaymentProvider, PaymentProviderLink } from './payment-provider';
+import type {
+  PaymentProvider,
+  PaymentProviderLink,
+  VerifiedPaymentWebhook,
+} from './payment-provider';
 
 const MAX_SAFE_VND = BigInt(Number.MAX_SAFE_INTEGER);
+const REFERENCE_CONFLICT_REASON =
+  'Provider reference is already assigned to another payment attempt.';
 
 type PaymentState = { order: SalesOrder; attempt: PaymentAttempt };
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @Inject(PAYMENT_PROVIDER)
     private readonly provider: PaymentProvider,
@@ -24,6 +34,156 @@ export class PaymentsService {
 
   isConfigured(): boolean {
     return this.provider.isConfigured();
+  }
+
+  /** Verifies a public PayOS callback and reconciles it against provider state. */
+  async handleWebhook(payload: unknown): Promise<{ success: true }> {
+    let event: VerifiedPaymentWebhook;
+    try {
+      event = await this.provider.verifyWebhook(payload);
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      throw new BadRequestException(
+        'Invalid PayOS webhook signature or payload.',
+      );
+    }
+
+    if (
+      !event.success ||
+      event.code !== '00' ||
+      event.data.code !== '00' ||
+      event.data.currency !== 'VND' ||
+      !Number.isSafeInteger(event.data.orderCode) ||
+      event.data.orderCode <= 0 ||
+      !Number.isSafeInteger(event.data.amount) ||
+      event.data.amount <= 0 ||
+      typeof event.data.reference !== 'string' ||
+      event.data.reference.length === 0 ||
+      event.data.reference.length > 255 ||
+      typeof event.data.paymentLinkId !== 'string' ||
+      event.data.paymentLinkId.length === 0 ||
+      event.data.paymentLinkId.length > 255
+    ) {
+      this.logWebhookOutcome(event, 'non_success_or_invalid_candidate');
+      return this.acknowledgeWebhook();
+    }
+
+    const state = await this.loadStateByProviderOrderCode(event.data.orderCode);
+    if (!state) {
+      this.logWebhookOutcome(event, 'provider_order_code_unknown');
+      return this.acknowledgeWebhook();
+    }
+
+    let expectedAmount: number;
+    try {
+      expectedAmount = this.toWholeVnd(state.attempt.amount);
+    } catch {
+      this.logWebhookOutcome(event, 'local_attempt_amount_invalid');
+      return this.acknowledgeWebhook();
+    }
+
+    if (
+      state.order.paymentMethod !== 'payos' ||
+      state.attempt.provider !== 'payos' ||
+      state.attempt.providerOrderCode !== event.data.orderCode ||
+      (state.attempt.providerPaymentLinkId !== null &&
+        state.attempt.providerPaymentLinkId !== event.data.paymentLinkId) ||
+      event.data.amount !== expectedAmount
+    ) {
+      this.logWebhookOutcome(event, 'local_order_attempt_mismatch');
+      return this.acknowledgeWebhook();
+    }
+
+    if (
+      state.order.paymentStatus === 'paid' &&
+      state.attempt.status === 'paid' &&
+      state.attempt.providerReference === event.data.reference
+    ) {
+      return this.acknowledgeWebhook();
+    }
+
+    let link: PaymentProviderLink | null;
+    try {
+      link = await this.provider.getLink(event.data.orderCode);
+    } catch {
+      // Return a retryable error. No payment state changes until PayOS can be queried.
+      throw this.unavailable();
+    }
+
+    if (!link) {
+      if (state.attempt.providerPaymentLinkId === null) {
+        this.logWebhookOutcome(
+          event,
+          'provider_link_not_confirmed_for_orphan_attempt',
+        );
+        return this.acknowledgeWebhook();
+      }
+      await this.flagWebhookForReview(
+        state,
+        event,
+        null,
+        'PayOS confirmed webhook could not be reconciled because the payment link was not found.',
+      );
+      this.logWebhookOutcome(event, 'provider_payment_link_not_found');
+      return this.acknowledgeWebhook();
+    }
+
+    if (
+      state.attempt.providerPaymentLinkId === null &&
+      (link.orderCode !== event.data.orderCode ||
+        link.linkId !== event.data.paymentLinkId)
+    ) {
+      this.logWebhookOutcome(
+        event,
+        'provider_link_not_confirmed_for_orphan_attempt',
+      );
+      return this.acknowledgeWebhook();
+    }
+
+    const aggregateIsValid =
+      Number.isSafeInteger(link.amountPaid) &&
+      link.amountPaid >= 0 &&
+      Number.isSafeInteger(link.amountRemaining) &&
+      link.amountRemaining >= 0;
+    const providerIdentityMatches =
+      link.orderCode === state.attempt.providerOrderCode &&
+      link.linkId === event.data.paymentLinkId &&
+      link.amount === expectedAmount;
+    const eventReferenceMatchesProvider =
+      link.transactionReferences.length === 0 ||
+      link.transactionReferences.includes(event.data.reference);
+
+    if (
+      providerIdentityMatches &&
+      aggregateIsValid &&
+      eventReferenceMatchesProvider &&
+      link.status === 'PAID' &&
+      link.amountPaid === expectedAmount &&
+      link.amountRemaining === 0
+    ) {
+      const outcome = await this.applyFullPayment(
+        state.order.orderId,
+        link,
+        event.data.reference,
+      );
+      if (outcome === 'attention') {
+        this.logWebhookOutcome(event, 'full_payment_requires_reconciliation');
+      }
+      return this.acknowledgeWebhook();
+    }
+
+    const reason =
+      providerIdentityMatches && eventReferenceMatchesProvider
+        ? 'PayOS reported a successful webhook but its aggregate payment is incomplete or inconsistent.'
+        : 'PayOS webhook and payment-link details do not match the local payment attempt.';
+    await this.flagWebhookForReview(state, event, link, reason);
+    this.logWebhookOutcome(
+      event,
+      providerIdentityMatches && eventReferenceMatchesProvider
+        ? 'provider_aggregate_inconsistent'
+        : 'provider_payment_link_mismatch',
+    );
+    return this.acknowledgeWebhook();
   }
 
   /** Starts a new link, or safely resumes the single attempt for an existing order. */
@@ -355,6 +515,7 @@ export class PaymentsService {
   private async applyFullPayment(
     orderId: number,
     link: PaymentProviderLink,
+    webhookReference?: string,
   ): Promise<'paid' | 'attention'> {
     return this.dataSource.transaction(async (manager) => {
       const state = await this.lockState(manager, orderId);
@@ -375,10 +536,12 @@ export class PaymentsService {
           state,
           link,
           'PayOS full-payment reconciliation did not match the local attempt.',
+          webhookReference,
         );
       }
 
-      const reference = link.transactionReferences[0] ?? null;
+      const reference =
+        webhookReference ?? link.transactionReferences[0] ?? null;
       if (
         state.order.status === 'pending' &&
         state.order.paymentStatus === 'unpaid' &&
@@ -386,10 +549,29 @@ export class PaymentsService {
           state.attempt.status,
         )
       ) {
+        if (
+          reference &&
+          (await this.referenceBelongsToAnotherAttempt(
+            manager,
+            state.attempt.paymentAttemptId,
+            reference,
+          ))
+        ) {
+          return this.flagForReview(
+            manager,
+            state,
+            link,
+            REFERENCE_CONFLICT_REASON,
+            reference,
+          );
+        }
         state.order.paymentStatus = 'paid';
         state.order.paymentConfirmedAt = new Date();
         state.order.paymentConfirmedByEmployeeId = null;
         state.attempt.status = 'paid';
+        if (state.attempt.providerPaymentLinkId === null) {
+          state.attempt.checkoutUrl = null;
+        }
         state.attempt.providerPaymentLinkId = link.linkId;
         state.attempt.providerReference = reference;
         state.attempt.observedAmountPaid = String(link.amountPaid);
@@ -406,6 +588,42 @@ export class PaymentsService {
         state.attempt.status === 'paid' &&
         (state.attempt.providerReference === reference || reference === null)
       ) {
+        if (state.attempt.providerPaymentLinkId === null) {
+          state.attempt.providerPaymentLinkId = link.linkId;
+          state.attempt.checkoutUrl = null;
+          await manager.getRepository(PaymentAttempt).save(state.attempt);
+        }
+        return 'paid';
+      }
+
+      if (
+        state.order.paymentStatus === 'paid' &&
+        state.attempt.status === 'paid' &&
+        state.attempt.providerReference === null &&
+        reference !== null
+      ) {
+        if (
+          await this.referenceBelongsToAnotherAttempt(
+            manager,
+            state.attempt.paymentAttemptId,
+            reference,
+          )
+        ) {
+          return this.flagForReview(
+            manager,
+            state,
+            link,
+            REFERENCE_CONFLICT_REASON,
+            reference,
+          );
+        }
+        state.attempt.providerReference = reference;
+        if (state.attempt.providerPaymentLinkId === null) {
+          state.attempt.providerPaymentLinkId = link.linkId;
+          state.attempt.checkoutUrl = null;
+        }
+        state.attempt.observedAmountPaid = String(link.amountPaid);
+        await manager.getRepository(PaymentAttempt).save(state.attempt);
         return 'paid';
       }
 
@@ -414,6 +632,7 @@ export class PaymentsService {
         state,
         link,
         'PayOS reports a full payment for an order that is no longer eligible for settlement.',
+        webhookReference,
       );
     });
   }
@@ -438,9 +657,22 @@ export class PaymentsService {
       state.attempt.status = 'reconciliation_required';
       if (link) {
         state.attempt.providerPaymentLinkId = link.linkId || null;
-        state.attempt.observedAmountPaid = String(link.amountPaid);
-        state.attempt.providerReference =
-          link.transactionReferences[0] ?? state.attempt.providerReference;
+        if (Number.isSafeInteger(link.amountPaid) && link.amountPaid >= 0) {
+          state.attempt.observedAmountPaid = String(link.amountPaid);
+        }
+        const reference = link.transactionReferences[0];
+        if (reference) {
+          const referenceConflict = await this.referenceBelongsToAnotherAttempt(
+            manager,
+            state.attempt.paymentAttemptId,
+            reference,
+          );
+          if (referenceConflict) {
+            reason = `${reason} ${REFERENCE_CONFLICT_REASON}`;
+          } else {
+            state.attempt.providerReference = reference;
+          }
+        }
       }
       state.attempt.reconciliationReason = reason;
       state.attempt.reconciliationAt = new Date();
@@ -453,16 +685,174 @@ export class PaymentsService {
     state: PaymentState,
     link: PaymentProviderLink,
     reason: string,
+    referenceOverride?: string | null,
   ): Promise<'attention'> {
     state.attempt.status = 'reconciliation_required';
-    state.attempt.providerPaymentLinkId = link.linkId || null;
-    state.attempt.providerReference =
-      link.transactionReferences[0] ?? state.attempt.providerReference;
-    state.attempt.observedAmountPaid = String(link.amountPaid);
+    if (
+      state.attempt.providerPaymentLinkId === null &&
+      link.orderCode === state.attempt.providerOrderCode
+    ) {
+      state.attempt.checkoutUrl = null;
+      state.attempt.providerPaymentLinkId = link.linkId || null;
+    }
+    const providerReference =
+      referenceOverride ?? link.transactionReferences[0] ?? null;
+    if (providerReference) {
+      const referenceConflict = await this.referenceBelongsToAnotherAttempt(
+        manager,
+        state.attempt.paymentAttemptId,
+        providerReference,
+      );
+      if (referenceConflict) {
+        if (!reason.includes(REFERENCE_CONFLICT_REASON)) {
+          reason = `${reason} ${REFERENCE_CONFLICT_REASON}`;
+        }
+      } else {
+        state.attempt.providerReference = providerReference;
+      }
+    }
+    if (Number.isSafeInteger(link.amountPaid) && link.amountPaid >= 0) {
+      state.attempt.observedAmountPaid = String(link.amountPaid);
+    }
     state.attempt.reconciliationReason = reason;
     state.attempt.reconciliationAt = new Date();
     await manager.getRepository(PaymentAttempt).save(state.attempt);
     return 'attention';
+  }
+
+  private async flagWebhookForReview(
+    originalState: PaymentState,
+    event: VerifiedPaymentWebhook,
+    link: PaymentProviderLink | null,
+    reason: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const state = await this.lockState(manager, originalState.order.orderId);
+      const localLinkIdentityMatches =
+        state?.attempt.providerPaymentLinkId === event.data.paymentLinkId ||
+        (state?.attempt.providerPaymentLinkId === null &&
+          originalState.attempt.providerPaymentLinkId === null);
+      if (
+        !state ||
+        state.attempt.paymentAttemptId !==
+          originalState.attempt.paymentAttemptId ||
+        state.order.paymentMethod !== 'payos' ||
+        state.attempt.provider !== 'payos' ||
+        state.attempt.providerOrderCode !== event.data.orderCode ||
+        !localLinkIdentityMatches ||
+        state.attempt.amount !== originalState.attempt.amount
+      ) {
+        return;
+      }
+
+      if (
+        state.order.paymentStatus === 'paid' &&
+        state.attempt.status === 'paid' &&
+        state.attempt.providerReference === event.data.reference
+      ) {
+        return;
+      }
+
+      state.attempt.status = 'reconciliation_required';
+      const providerLinkMatchesEvent =
+        link?.orderCode === event.data.orderCode &&
+        link.linkId === event.data.paymentLinkId;
+      if (providerLinkMatchesEvent) {
+        state.attempt.providerPaymentLinkId = link.linkId;
+        if (originalState.attempt.providerPaymentLinkId === null) {
+          state.attempt.checkoutUrl = null;
+        }
+      }
+      if (
+        link &&
+        Number.isSafeInteger(link.amountPaid) &&
+        link.amountPaid >= 0
+      ) {
+        state.attempt.observedAmountPaid = String(link.amountPaid);
+      }
+
+      const referenceConflict = await this.referenceBelongsToAnotherAttempt(
+        manager,
+        state.attempt.paymentAttemptId,
+        event.data.reference,
+      );
+      if (!referenceConflict) {
+        state.attempt.providerReference = event.data.reference;
+      } else {
+        reason = `${reason} ${REFERENCE_CONFLICT_REASON}`;
+      }
+      state.attempt.reconciliationReason = reason;
+      state.attempt.reconciliationAt = new Date();
+      await manager.getRepository(PaymentAttempt).save(state.attempt);
+    });
+  }
+
+  private async referenceBelongsToAnotherAttempt(
+    manager: EntityManager,
+    paymentAttemptId: number,
+    reference: string,
+  ): Promise<boolean> {
+    await manager.query('SELECT pg_advisory_xact_lock(hashtext($1), 9137)', [
+      reference,
+    ]);
+    const existing = await manager
+      .getRepository(PaymentAttempt)
+      .createQueryBuilder('otherAttempt')
+      .where('otherAttempt.providerReference = :reference', { reference })
+      .andWhere('otherAttempt.paymentAttemptId <> :paymentAttemptId', {
+        paymentAttemptId,
+      })
+      .getOne();
+    return existing !== null;
+  }
+
+  private async loadStateByProviderOrderCode(
+    orderCode: number,
+  ): Promise<PaymentState | null> {
+    const order = await this.dataSource
+      .getRepository(SalesOrder)
+      .createQueryBuilder('order')
+      .innerJoinAndSelect('order.paymentAttempt', 'attempt')
+      .where('attempt.providerOrderCode = :orderCode', { orderCode })
+      .getOne();
+    if (!order || !order.paymentAttempt) return null;
+    return { order, attempt: order.paymentAttempt };
+  }
+
+  private acknowledgeWebhook(): { success: true } {
+    return { success: true };
+  }
+
+  private logWebhookOutcome(
+    event: VerifiedPaymentWebhook,
+    reason: string,
+  ): void {
+    this.logger.warn(
+      JSON.stringify({
+        orderCode: Number.isSafeInteger(event.data.orderCode)
+          ? event.data.orderCode
+          : null,
+        paymentLinkId:
+          typeof event.data.paymentLinkId === 'string' &&
+          event.data.paymentLinkId.length <= 255
+            ? event.data.paymentLinkId
+            : null,
+        reference:
+          typeof event.data.reference === 'string' &&
+          event.data.reference.length <= 255
+            ? event.data.reference
+            : null,
+        amount: Number.isSafeInteger(event.data.amount)
+          ? event.data.amount
+          : null,
+        currency:
+          typeof event.data.currency === 'string' &&
+          event.data.currency.length <= 16
+            ? event.data.currency
+            : null,
+        reason,
+      }),
+    );
   }
 
   private async expireIfDueAndUnlinked(orderId: number): Promise<void> {
