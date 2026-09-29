@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
-import { InventoryModule } from '../inventory/inventory.module';
 import { Supplier } from '../suppliers/entities/supplier.entity';
 import { ImportDetail } from './entities/import-detail.entity';
 import { StockImport } from './entities/stock-import.entity';
@@ -11,7 +10,6 @@ import { ImportsService } from './imports.service';
 @Module({
   imports: [
     AuthModule,
-    InventoryModule,
     TypeOrmModule.forFeature([Supplier, StockImport, ImportDetail]),
   ],
   controllers: [ImportsController],

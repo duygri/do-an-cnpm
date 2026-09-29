@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { EmployeeProfile } from '../auth/auth.types';
 import { ProductVariant } from '../catalog/entities/product-variant.entity';
-import { InventoryService } from '../inventory/inventory.service';
 import { Supplier } from '../suppliers/entities/supplier.entity';
 import { CreateImportDto } from './dto/create-import.dto';
 import { ImportDetail } from './entities/import-detail.entity';
@@ -18,7 +17,6 @@ import { StockImport } from './entities/stock-import.entity';
 export class ImportsService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly inventory: InventoryService,
     @InjectRepository(StockImport)
     private readonly imports: Repository<StockImport>,
   ) {}
@@ -78,7 +76,6 @@ export class ImportsService {
             variantIds: sortedVariantIds,
           })
           .orderBy('variant.variantId', 'ASC')
-          .setLock('pessimistic_write')
           .getMany();
 
         if (variants.length !== variantIds.length) {
@@ -128,16 +125,6 @@ export class ImportsService {
             }),
         );
         await manager.getRepository(ImportDetail).save(details);
-        await this.inventory.createImportMovements(
-          manager,
-          stockImport.importId,
-          employee.employeeId,
-          importDate,
-          input.details.map(({ variantId, quantity }) => ({
-            variantId,
-            quantity,
-          })),
-        );
 
         return stockImport.importId;
       });
@@ -158,7 +145,7 @@ export class ImportsService {
           }
           if (driverError.code === '23505') {
             throw new ConflictException(
-              'Phiếu nhập bị trùng biến thể hoặc đã ghi nhận biến động kho.',
+              'Biến thể sản phẩm bị trùng trong phiếu nhập.',
             );
           }
         }
