@@ -13,6 +13,7 @@ import {
 import { Customer } from '../../customers/entities/customer.entity';
 import { OrderDetail } from './order-detail.entity';
 import { Packing } from './packing.entity';
+import { PromotionDetail } from '../../promotions/entities/promotion-detail.entity';
 
 export type SalesOrderPaymentMethod = 'cod';
 export type SalesOrderPaymentStatus = 'unpaid' | 'paid';
@@ -41,6 +42,7 @@ export type SalesOrderStatus = 'pending' | 'packed' | 'cancelled';
 @Index('IDX_sales_order_customer_id', ['customerId'])
 @Index('IDX_sales_order_order_date', ['orderDate'])
 @Index('IDX_sales_order_status_order_date', ['status', 'orderDate'])
+@Index('IDX_sales_order_voucher_id_status', ['voucherId', 'status'])
 export class SalesOrder {
   @PrimaryGeneratedColumn({ name: 'order_id', type: 'integer' })
   orderId!: number;
@@ -50,6 +52,9 @@ export class SalesOrder {
 
   @Column({ name: 'customer_id', type: 'integer' })
   customerId!: number;
+
+  @Column({ name: 'voucher_id', type: 'integer', nullable: true })
+  voucherId!: number | null;
 
   @Column({ name: 'recipient_name', type: 'varchar', length: 120 })
   recipientName!: string;
@@ -132,4 +137,12 @@ export class SalesOrder {
 
   @OneToOne(() => Packing, (packing) => packing.order, { cascade: false })
   packing!: Packing | null;
+
+  @ManyToOne(() => PromotionDetail, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({
+    name: 'voucher_id',
+    referencedColumnName: 'voucherId',
+    foreignKeyConstraintName: 'FK_sales_order_voucher',
+  })
+  voucher!: PromotionDetail | null;
 }
