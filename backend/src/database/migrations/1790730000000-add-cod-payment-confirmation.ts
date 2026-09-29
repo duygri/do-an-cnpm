@@ -77,10 +77,15 @@ export class AddCodPaymentConfirmation1790730000000 implements MigrationInterfac
       'LOCK TABLE "sales_order" IN ACCESS EXCLUSIVE MODE',
     );
 
-    const paidRows: Array<{ paidCount: string }> = await queryRunner.query(
-      'SELECT COUNT(*) AS "paidCount" FROM "sales_order" WHERE "payment_status" = \'paid\'',
+    const paidRows: unknown = await queryRunner.query(
+      'SELECT 1 FROM "sales_order" WHERE "payment_status" = \'paid\' LIMIT 1',
     );
-    if (Number(paidRows[0]?.paidCount ?? 0) > 0) {
+    if (!Array.isArray(paidRows)) {
+      throw new Error(
+        'Cannot verify whether paid orders exist; COD payment confirmation rollback was stopped.',
+      );
+    }
+    if (paidRows.length > 0) {
       throw new Error(
         'Cannot roll back COD payment confirmation while paid orders exist; paid confirmations must be preserved.',
       );
