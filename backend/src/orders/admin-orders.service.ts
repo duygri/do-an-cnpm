@@ -43,6 +43,12 @@ interface AdminOrderDetailRow {
   packingEmployeeId: number | null;
   paymentConfirmedAt: Date | string | null;
   paymentConfirmedByEmployeeId: number | null;
+  paymentAttemptStatus: string | null;
+  paymentProviderReference: string | null;
+  paymentObservedAmountPaid: string | null;
+  paymentReconciliationReason: string | null;
+  paymentReconciliationAt: Date | string | null;
+  paymentProviderLinkWithoutCheckoutUrl: boolean;
 }
 
 @Injectable()
@@ -159,6 +165,15 @@ export class AdminOrdersService {
         throw new ConflictException('Only pending orders can be packed.');
       }
 
+      if (
+        order.paymentMethod === 'payos' &&
+        order.paymentStatus !== 'paid'
+      ) {
+        throw new ConflictException(
+          'PayOS orders must be paid before they can be packed.',
+        );
+      }
+
       await manager
         .getRepository(Packing)
         .createQueryBuilder()
@@ -196,13 +211,19 @@ export class AdminOrdersService {
         throw new NotFoundException('Order not found.');
       }
 
+      if (order.paymentMethod === 'payos') {
+        throw new ConflictException(
+          'PayOS orders can only be marked as paid by provider reconciliation.',
+        );
+      }
+
       if (order.status !== 'packed') {
         throw new ConflictException(
           'Only packed orders can be marked as paid.',
         );
       }
 
-      if (order.paymentMethod !== 'cod') {
+      if (order.paymentMethod !== 'cod' && order.paymentMethod !== null) {
         throw new ConflictException('Only COD orders can be marked as paid.');
       }
 
@@ -235,6 +256,7 @@ export class AdminOrdersService {
       .leftJoin('detail.variant', 'variant')
       .leftJoin('variant.product', 'product')
       .leftJoin('order.packing', 'packing')
+      .leftJoin('order.paymentAttempt', 'paymentAttempt')
       .select('order.orderId', 'orderId')
       .addSelect('order.orderDate', 'orderDate')
       .addSelect('order.customerId', 'customerId')
@@ -268,6 +290,27 @@ export class AdminOrdersService {
       .addSelect('packing.status', 'packingStatus')
       .addSelect('packing.note', 'packingNote')
       .addSelect('packing.employeeId', 'packingEmployeeId')
+      .addSelect('paymentAttempt.status', 'paymentAttemptStatus')
+      .addSelect(
+        'paymentAttempt.providerReference',
+        'paymentProviderReference',
+      )
+      .addSelect(
+        'paymentAttempt.observedAmountPaid',
+        'paymentObservedAmountPaid',
+      )
+      .addSelect(
+        'paymentAttempt.reconciliationReason',
+        'paymentReconciliationReason',
+      )
+      .addSelect(
+        'paymentAttempt.reconciliationAt',
+        'paymentReconciliationAt',
+      )
+      .addSelect(
+        'CASE WHEN paymentAttempt.providerPaymentLinkId IS NOT NULL AND paymentAttempt.checkoutUrl IS NULL THEN TRUE ELSE FALSE END',
+        'paymentProviderLinkWithoutCheckoutUrl',
+      )
       .where('order.orderId = :orderId', { orderId })
       .orderBy('detail.variantId', 'ASC')
       .getRawMany<AdminOrderDetailRow>();
@@ -318,8 +361,30 @@ export class AdminOrdersService {
       discountAmount: this.toFixedMoney(order.discountAmount),
       shippingFee: this.toFixedMoney(order.shippingFee),
       totalAmount: this.toFixedMoney(order.totalAmount),
-      paymentMethod: order.paymentMethod,
+      paymentMethod: order.paymentMethod ?? 'cod',
       paymentStatus: order.paymentStatus,
+      paymentAttentionRequired:
+        order.paymentAttemptStatus === 'reconciliation_required' ||
+        order.paymentProviderLinkWithoutCheckoutUrl ||
+        order.paymentReconciliationReason !== null,
+      paymentAttempt:
+        order.paymentAttemptStatus === null
+          ? null
+          : {
+              status: order.paymentAttemptStatus,
+              providerReference: order.paymentProviderReference,
+              observedAmountPaid:
+                order.paymentObservedAmountPaid === null
+                  ? null
+                  : this.toFixedMoney(order.paymentObservedAmountPaid),
+              reconciliationReason: order.paymentReconciliationReason,
+              reconciliationAt:
+                order.paymentReconciliationAt === null
+                  ? null
+                  : this.toIsoUtc(order.paymentReconciliationAt),
+              checkoutUrlMissing:
+                order.paymentProviderLinkWithoutCheckoutUrl,
+            },
       paymentConfirmedAt:
         order.paymentConfirmedAt === null
           ? null
