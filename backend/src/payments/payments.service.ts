@@ -190,7 +190,7 @@ export class PaymentsService {
 
   /** Starts a new link, or safely resumes the single attempt for an existing order. */
   async startOrResume(orderId: number, isNewOrder: boolean): Promise<void> {
-    let state = await this.loadState(orderId);
+    const state = await this.loadState(orderId);
     if (!state || state.order.paymentMethod !== 'payos') return;
     if (
       state.order.paymentStatus === 'paid' ||
@@ -361,8 +361,7 @@ export class PaymentsService {
           JSON.stringify({
             orderId: dueAttempt.orderId,
             outcome: 'payos_reconciliation_retry',
-            error:
-              error instanceof Error ? error.name : 'UnknownProviderError',
+            error: error instanceof Error ? error.name : 'UnknownProviderError',
           }),
         );
       }
@@ -472,7 +471,9 @@ export class PaymentsService {
   }
 
   private isNonPayableStatus(status: PaymentProviderLink['status']): boolean {
-    return status === 'CANCELLED' || status === 'EXPIRED' || status === 'FAILED';
+    return (
+      status === 'CANCELLED' || status === 'EXPIRED' || status === 'FAILED'
+    );
   }
 
   private terminalAttemptStatus(
@@ -505,9 +506,7 @@ export class PaymentsService {
         return null;
       }
 
-      state.attempt.setupLeaseExpiresAt = new Date(
-        now + PAYOS_SETUP_LEASE_MS,
-      );
+      state.attempt.setupLeaseExpiresAt = new Date(now + PAYOS_SETUP_LEASE_MS);
       await manager.getRepository(PaymentAttempt).save(state.attempt);
       return state;
     });
@@ -670,8 +669,7 @@ export class PaymentsService {
 
     const isUnpaidWholeLink =
       link.amountPaid === 0 && link.amountRemaining === expectedAmount;
-    const beforeDeadline =
-      claimed.attempt.expiresAt.getTime() > Date.now();
+    const beforeDeadline = claimed.attempt.expiresAt.getTime() > Date.now();
     if (
       beforeDeadline &&
       isUnpaidWholeLink &&
@@ -792,7 +790,8 @@ export class PaymentsService {
     if (!match) return true;
     try {
       const cents =
-        BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0');
+        BigInt(match[1]) * 100n +
+        BigInt((match[2] ?? '').padEnd(2, '0') || '0');
       return cents > 0n;
     } catch {
       return true;
@@ -822,8 +821,7 @@ export class PaymentsService {
     const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(observedAmount);
     if (!match) return true;
     const observedCents =
-      BigInt(match[1]) * 100n +
-      BigInt((match[2] ?? '').padEnd(2, '0') || '0');
+      BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0');
     return observedCents > BigInt(expectedAmountVnd) * 100n;
   }
 
@@ -847,7 +845,8 @@ export class PaymentsService {
       const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(prior);
       if (!match) return;
       const priorCents =
-        BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0');
+        BigInt(match[1]) * 100n +
+        BigInt((match[2] ?? '').padEnd(2, '0') || '0');
       if (BigInt(amountPaid) * 100n < priorCents) return;
     }
 

@@ -165,10 +165,7 @@ export class AdminOrdersService {
         throw new ConflictException('Only pending orders can be packed.');
       }
 
-      if (
-        order.paymentMethod === 'payos' &&
-        order.paymentStatus !== 'paid'
-      ) {
+      if (order.paymentMethod === 'payos' && order.paymentStatus !== 'paid') {
         throw new ConflictException(
           'PayOS orders must be paid before they can be packed.',
         );
@@ -291,10 +288,7 @@ export class AdminOrdersService {
       .addSelect('packing.note', 'packingNote')
       .addSelect('packing.employeeId', 'packingEmployeeId')
       .addSelect('paymentAttempt.status', 'paymentAttemptStatus')
-      .addSelect(
-        'paymentAttempt.providerReference',
-        'paymentProviderReference',
-      )
+      .addSelect('paymentAttempt.providerReference', 'paymentProviderReference')
       .addSelect(
         'paymentAttempt.observedAmountPaid',
         'paymentObservedAmountPaid',
@@ -303,10 +297,7 @@ export class AdminOrdersService {
         'paymentAttempt.reconciliationReason',
         'paymentReconciliationReason',
       )
-      .addSelect(
-        'paymentAttempt.reconciliationAt',
-        'paymentReconciliationAt',
-      )
+      .addSelect('paymentAttempt.reconciliationAt', 'paymentReconciliationAt')
       .addSelect(
         'CASE WHEN paymentAttempt.providerPaymentLinkId IS NOT NULL AND paymentAttempt.checkoutUrl IS NULL THEN TRUE ELSE FALSE END',
         'paymentProviderLinkWithoutCheckoutUrl',
@@ -382,8 +373,7 @@ export class AdminOrdersService {
                 order.paymentReconciliationAt === null
                   ? null
                   : this.toIsoUtc(order.paymentReconciliationAt),
-              checkoutUrlMissing:
-                order.paymentProviderLinkWithoutCheckoutUrl,
+              checkoutUrlMissing: order.paymentProviderLinkWithoutCheckoutUrl,
             },
       paymentConfirmedAt:
         order.paymentConfirmedAt === null
