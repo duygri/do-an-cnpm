@@ -49,9 +49,11 @@ npm run db:migrate
 npm run db:create-admin
 ```
 
-3. Đăng nhập bằng `POST /auth/employee/login` với JSON gồm `email` và `password`. API trả JWT Bearer có thời hạn 15 phút; gửi token ở `Authorization: Bearer <token>` khi gọi `GET /auth/employee/profile`.
+Migration gán role `admin` cho nhân viên cũ có `LOWER(TRIM(position)) = 'admin'`; các nhân viên cũ khác nhận `unassigned`. Lệnh `db:create-admin` tạo tài khoản active với cả `position = 'admin'` và role `admin`. Tài khoản nhân viên mới sau đó được admin tạo qua API quản lý nhân viên.
 
-API không có đăng ký admin công khai. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được.
+3. Đăng nhập bằng `POST /auth/employee/login` với JSON gồm `email` và `password`. API trả JWT Bearer có thời hạn 15 phút cùng hồ sơ `employee` gồm `employeeId`, `name`, `email`, `position`, `role`; gửi token ở `Authorization: Bearer <token>` khi gọi `GET /auth/employee/profile` để đọc lại role hiện tại.
+
+API không có đăng ký admin công khai. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được. Nhân viên active ở mọi role, kể cả `unassigned`, có thể đăng nhập và xem hồ sơ của chính mình.
 
 ## Tài khoản khách hàng
 
@@ -59,11 +61,30 @@ Khách có thể tạo tài khoản và đăng nhập bằng `POST /auth/custome
 
 Phản hồi đăng nhập/đăng ký có `access_token`, `token_type`, `expires_in` và `customer` với các trường `customerId`, `name`, `email`, `dateOfBirth`, `phone`, `address`, `gender`. Gửi token ở header `Authorization: Bearer <token>` để gọi `GET /auth/customer/profile` hoặc `PATCH /auth/customer/profile`. PATCH chỉ nhận `name`, `dateOfBirth`, `phone`, `address`, `gender`; bỏ qua trường để giữ nguyên, gửi `null` để xóa trường cho phép null. Email và mật khẩu không cập nhật qua API hồ sơ.
 
-JWT có phân biệt loại chủ thể. Customer token không truy cập được các API quản trị; token nhân viên cũ chưa có claim loại chủ thể vẫn được nhận đến khi hết hạn 15 phút hiện tại.
+JWT có phân biệt loại chủ thể. Customer token không truy cập được các API nhân viên; employee token không truy cập được các API customer. Token nhân viên cũ chưa có claim loại chủ thể vẫn được nhận đến khi hết hạn 15 phút hiện tại. Role được đọc từ PostgreSQL ở mỗi request, không lấy từ JWT claim; thay đổi role có hiệu lực ở request tiếp theo. Token thiếu/sai/hết hạn, sai actor hoặc nhân viên inactive trả `401 Unauthorized`. Employee token hợp lệ của nhân viên active nhưng thiếu role của route trả `403 Forbidden`.
+
+### Vai trò nhân viên và API quản lý nhân viên
+
+| Role | Quyền API |
+| --- | --- |
+| `admin` | Toàn bộ API nhân viên và mọi module bên dưới, gồm quản lý nhân viên. |
+| `catalog_manager` | `/categories`, `/products` và `/products/:productId/variants` (kèm route chi tiết). |
+| `promotion_manager` | `/promotions` và `/promotions/:promotionId/vouchers` (kèm route chi tiết). |
+| `order_staff` | `/admin/orders`, đóng gói, xác nhận COD và `/admin/orders/:orderId/invoice`. |
+| `purchasing_staff` | `/suppliers` và `/imports`. |
+| `unassigned` | Chỉ `/auth/employee/profile`; không được gọi API quản trị nghiệp vụ cho đến khi admin gán role. |
+
+`position` là chức danh mô tả, không cấp quyền. Role được kiểm tra trên server qua employee-role guard; admin mặc nhiên được phép ở mọi API có yêu cầu role nhân viên. Nhân viên có thể đăng nhập nhưng chưa được gán quyền module vẫn chỉ xem được profile.
+
+Các route quản trị nhân viên chỉ dành cho role `admin`:
+
+- `GET /admin/employees?page=1&limit=20`: danh sách theo `employeeId` tăng dần, phân trang với `page` mặc định 1 (tối đa 2,147,483,647), `limit` mặc định 20 (tối đa 100). Phản hồi `{ items, page, limit, total }`; mỗi item chỉ có `employeeId`, `name`, `email`, `phone`, `position`, `role`, `status`.
+- `POST /admin/employees`: tạo nhân viên với `name`, email hợp lệ, mật khẩu 12–128 ký tự, `position` và role tường minh; `phone` tùy chọn. Email được trim/lowercase, mật khẩu được hash bằng password service hiện có, tài khoản mới có `status: active`. Response chỉ gồm projection an toàn như trên; email trùng sau chuẩn hóa trả `409`.
+- `PATCH /admin/employees/:employeeId`: cập nhật `role` và/hoặc `status` (`active`/`inactive`); body phải có ít nhất một trong hai trường. Không xóa hồ sơ hay sửa password qua route này. Không thể tự hạ quyền/tự khóa tài khoản hoặc hạ quyền/khóa quản trị viên active cuối cùng; các thay đổi này được kiểm tra và ghi trong cùng transaction. Response không chứa `passwordHash`.
 
 ## API danh mục
 
-Các endpoint dưới đây đều yêu cầu JWT của nhân viên trong header `Authorization: Bearer <token>`:
+Các endpoint dưới đây yêu cầu JWT nhân viên active có role `catalog_manager` hoặc `admin` trong header `Authorization: Bearer <token>`:
 
 - `GET /categories`: danh sách danh mục.
 - `GET /categories/:categoryId`: chi tiết danh mục.
@@ -73,7 +94,7 @@ Các endpoint dưới đây đều yêu cầu JWT của nhân viên trong header
 
 ## API sản phẩm và biến thể
 
-Các endpoint này cũng yêu cầu JWT nhân viên:
+Các endpoint này cũng yêu cầu JWT nhân viên active có role `catalog_manager` hoặc `admin`:
 
 - `GET /products` và `GET /products/:productId`: danh sách hoặc chi tiết sản phẩm.
 - `POST /products`: tạo sản phẩm với `name`, `categoryId` và các trường tùy chọn `description`, `brand`, `status`.
@@ -94,7 +115,7 @@ Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả 
 
 ## API chương trình khuyến mãi và voucher
 
-Các route quản lý dưới đây yêu cầu JWT của nhân viên đang `active` trong header `Authorization: Bearer <token>`. Mọi nhân viên active đã xác thực đều có thể dùng API; hiện chưa có phân quyền theo vai trò. Token thiếu, sai, hết hạn hoặc nhân viên không còn active trả `401 Unauthorized`.
+Các route quản lý dưới đây yêu cầu JWT của nhân viên active có role `promotion_manager` hoặc `admin` trong header `Authorization: Bearer <token>`. Employee hợp lệ nhưng thiếu role trả `403 Forbidden`; lỗi xác thực hoặc nhân viên không còn active trả `401 Unauthorized`.
 
 - `GET /promotions` và `GET /promotions/:promotionId`: liệt kê hoặc xem chương trình theo `promotionId` tăng dần. Phản hồi có `promotionId`, `name`, `description`, `startDate`, `endDate`, `status`.
 - `POST /promotions`: tạo chương trình với `name`, `startDate`, `endDate`; `description` và `status` là tùy chọn. Ví dụ: `{ "name": "Tết 2027", "description": "Khuyến mãi Tết", "startDate": "2027-01-01", "endDate": "2027-02-28", "status": "active" }`.
@@ -163,12 +184,12 @@ Voucher không tồn tại/không khả dụng, inactive, ngoài ngày hiệu l�
 
 ## API quản trị đơn hàng và đóng gói
 
-Các route dưới đây yêu cầu JWT nhân viên đang `active` trong header `Authorization: Bearer <token>`. Hệ thống hiện chưa có phân quyền theo vai trò: mọi nhân viên active đã xác thực đều dùng được các route quản trị. Token thiếu/sai/hết hạn hoặc nhân viên không còn active trả `401 Unauthorized`.
+Các route dưới đây yêu cầu JWT của nhân viên active có role `order_staff` hoặc `admin` trong header `Authorization: Bearer <token>`. Employee hợp lệ nhưng thiếu role trả `403 Forbidden`; lỗi xác thực hoặc nhân viên không còn active trả `401 Unauthorized`.
 
 - `GET /admin/orders?page=1&limit=20&status=pending`: danh sách theo `orderDate DESC, orderId DESC`. `page` mặc định 1, nhận số nguyên từ 1 đến 2,147,483,647; `limit` mặc định 20, nhận số nguyên từ 1 đến 100. `status` tùy chọn, chỉ nhận `pending`, `packed`, `cancelled`. Phản hồi có dạng `{ "items": [...], "page": 1, "limit": 20, "total": 1 }`; mỗi item chỉ gồm `orderId`, `orderDate`, `customerId`, `recipientName`, `status`, `paymentStatus`, `voucherCode`, `discountAmount`, `totalAmount`, `detailCount`. Danh sách không bao gồm địa chỉ hoặc dòng hàng. Trang hợp lệ nhưng vượt trang cuối trả danh sách `items` rỗng và `total` thực tế.
 - `GET /admin/orders/:orderId`: trả `orderId`, `orderDate`, `customerId`, `voucherCode`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `paymentConfirmedAt`, `paymentConfirmedByEmployeeId`, `paymentAttentionRequired`, `paymentAttempt`, `status`, `note`, `details`, `packing`. `voucherCode` là `null` khi không dùng voucher. `paymentConfirmedAt` và `paymentConfirmedByEmployeeId` là `null` trước khi xác nhận thanh toán. `paymentAttentionRequired` báo cần admin rà soát trạng thái giao dịch. `paymentAttempt` là `null` khi đơn không có PayOS attempt (COD hoặc tổng PayOS bằng 0); với attempt gồm `status`, `providerReference`, `observedAmountPaid`, `reconciliationReason`, `reconciliationAt`, `checkoutUrlMissing`. Endpoint không trả `checkoutUrl`, key, fingerprint hoặc thông tin chữ ký. `details` sắp theo `variantId`; mỗi dòng có `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, `subtotal`. `size` và `color` có thể là `null`. `packing` là `null` nếu đơn chưa đóng gói; nếu có thì gồm `packingId`, `packingDate`, `packingType`, `status`, `note`, `employeeId`.
 - `POST /admin/orders/:orderId/pack`: body nhận `packingType` tùy chọn (`"bag"` hoặc `"box"`) và `note` tùy chọn (chuỗi tối đa 1000 ký tự). Ví dụ: `{ "packingType": "box", "note": "Đóng gói cẩn thận" }`. Chỉ đơn `pending` được gói; đơn PayOS phải `paid` trước khi gói. Có thể bỏ qua hai trường hoặc gửi `null` cho chúng (`@IsOptional` xem `null` như trường bị bỏ qua); chuỗi được trim, ghi chú rỗng sau khi trim trở thành `null`. Giá trị `note` không phải chuỗi và khác `null` trả `400 Bad Request`. Phản hồi HTTP `200` chứa cùng dạng đơn hàng với route chi tiết và thông tin đóng gói vừa tạo. Server lấy `employeeId`, thời gian và trạng thái từ phiên đăng nhập/server, không nhận các giá trị này từ client.
-- `POST /admin/orders/:orderId/mark-paid`: không nhận body. Chỉ nhân viên có JWT hợp lệ và đang `active` mới dùng được. Chỉ xác nhận được đơn `packed`, chưa thanh toán, có phương thức `cod` hoặc `null` trên dòng dữ liệu cũ; trước khi xác nhận, nhân viên phải thực sự nhận đủ `totalAmount` bằng tiền mặt. Đóng gói không đồng nghĩa với đã thu tiền. Thành công trả HTTP `200` với chi tiết đơn quản trị đã cập nhật: `paymentStatus: "paid"`, `paymentConfirmedAt` lấy từ `CURRENT_TIMESTAMP` của PostgreSQL và `paymentConfirmedByEmployeeId` lấy từ JWT nhân viên. Đơn vẫn ở trạng thái `packed`. Đơn `pending`/`cancelled`, dùng PayOS hoặc đã thanh toán trả `409 Conflict`; ID sai định dạng, ngoài phạm vi hoặc không tồn tại trả `404 Not Found`. Phản hồi đơn hàng của khách không chứa `paymentConfirmedAt` hoặc `paymentConfirmedByEmployeeId`.
+- `POST /admin/orders/:orderId/mark-paid`: không nhận body. Chỉ nhân viên có role `order_staff` hoặc `admin` cùng JWT hợp lệ và đang `active` mới dùng được. Chỉ xác nhận được đơn `packed`, chưa thanh toán, có phương thức `cod` hoặc `null` trên dòng dữ liệu cũ; trước khi xác nhận, nhân viên phải thực sự nhận đủ `totalAmount` bằng tiền mặt. Đóng gói không đồng nghĩa với đã thu tiền. Thành công trả HTTP `200` với chi tiết đơn quản trị đã cập nhật: `paymentStatus: "paid"`, `paymentConfirmedAt` lấy từ `CURRENT_TIMESTAMP` của PostgreSQL và `paymentConfirmedByEmployeeId` lấy từ JWT nhân viên. Đơn vẫn ở trạng thái `packed`. Đơn `pending`/`cancelled`, dùng PayOS hoặc đã thanh toán trả `409 Conflict`; ID sai định dạng, ngoài phạm vi hoặc không tồn tại trả `404 Not Found`. Phản hồi đơn hàng của khách không chứa `paymentConfirmedAt` hoặc `paymentConfirmedByEmployeeId`.
 
 Trong mọi phản hồi quản trị đơn, ID, số lượng, số dòng, `page`, `limit`, `total`, `detailCount` là JSON integer; tiền là chuỗi thập phân có đúng hai chữ số sau dấu chấm; thời gian là chuỗi ISO 8601 theo UTC. `GET /admin/orders` không trả `paymentMethod`; `GET /admin/orders/:orderId` luôn trả `paymentMethod` là `cod` hoặc `payos` (giá trị null trên đơn legacy được chuẩn hóa thành `cod`). Ghi chú đơn, `size` và `color` có thể là JSON `null` khi chưa có. `packing` là `null` trước khi đơn được đóng gói; khi `packing` là object, chỉ `packingType` và `note` có thể là `null`, còn `packingId`, `packingDate`, `status` và `employeeId` luôn hiện diện và có giá trị. API chỉ chọn các trường cần thiết, không trả entity khách hàng hay `password_hash`.
 
@@ -185,11 +206,11 @@ PayOS checkout được khởi tạo bởi `POST /orders` có `paymentMethod: "p
 - Nếu PayOS đã tạo link nhưng phản hồi tạo link timeout và hệ thống không lưu được checkout URL, đơn được giữ `pending` cùng lượt voucher để admin rà soát, kể cả khi lần đối soát sau đó thấy link unpaid/cancelled. Không tự tạo link thay thế, tự hủy đơn hoặc cho khách hủy trong tình huống thiếu URL này. Admin xem cờ `paymentAttentionRequired`, trạng thái attempt, reference, số tiền quan sát được, lý do và thời điểm rà soát tại `GET /admin/orders/:orderId`; URL thanh toán không hiển thị trong API admin.
 - Khi PayOS đang được đối soát hoặc API chưa thể xác định kết quả, lần tạo/retry có thể trả `503 Service Unavailable`. Các yêu cầu tới PayOS có timeout 20 giây, không tự retry tại SDK. Khách gửi lại cùng `Idempotency-Key` và cùng nội dung đơn để tiếp tục; cùng key với payload khác trả `409`. Không dùng query parameters của URL return/cancel hoặc lời chuyển hướng trình duyệt làm bằng chứng đã thanh toán.
 
-Đơn PayOS đã xác nhận thanh toán mới được đóng gói qua `POST /admin/orders/:orderId/pack`. Employee không thể xác nhận PayOS qua `POST /admin/orders/:orderId/mark-paid`. COD tiếp tục dùng quy trình cũ: nhân viên gói đơn, nhận tiền mặt, rồi xác nhận đã thu tiền. Webhook cần endpoint HTTPS có thể truy cập từ PayOS; khi phát triển local, dùng tunnel HTTPS tạm thời tới API thay vì cấu hình `localhost` làm callback.
+Đơn PayOS đã xác nhận thanh toán mới được đóng gói qua `POST /admin/orders/:orderId/pack`. Chỉ `order_staff` hoặc `admin` thực hiện được route admin; employee khác không thể xác nhận PayOS qua `POST /admin/orders/:orderId/mark-paid`. COD tiếp tục dùng quy trình cũ: nhân viên gói đơn, nhận tiền mặt, rồi xác nhận đã thu tiền. Webhook cần endpoint HTTPS có thể truy cập từ PayOS; khi phát triển local, dùng tunnel HTTPS tạm thời tới API thay vì cấu hình `localhost` làm callback.
 
 ## API nhà cung cấp
 
-Các endpoint đều yêu cầu JWT nhân viên:
+Các endpoint đều yêu cầu JWT nhân viên active có role `purchasing_staff` hoặc `admin`:
 
 - `GET /suppliers` và `GET /suppliers/:supplierId`: danh sách hoặc chi tiết.
 - `POST /suppliers`: tạo với `name` và tùy chọn `address`, `email`.
@@ -198,7 +219,7 @@ Các endpoint đều yêu cầu JWT nhân viên:
 
 ## API phiếu nhập
 
-Các endpoint đều yêu cầu JWT nhân viên:
+Các endpoint đều yêu cầu JWT nhân viên active có role `purchasing_staff` hoặc `admin`:
 
 - `GET /imports` và `GET /imports/:importId`: danh sách hoặc chi tiết phiếu nhập.
 - `POST /imports`: tạo phiếu với `supplierId`, tùy chọn `note`, và 1–100 dòng `details`. Mỗi dòng có `variantId`, `quantity` nguyên dương và `unitPrice` dạng chuỗi thập phân tối đa hai chữ số, ví dụ:
@@ -212,6 +233,12 @@ Các endpoint đều yêu cầu JWT nhân viên:
 ```
 
 API lấy `employeeId` từ JWT, tính subtotal/tổng tiền phía server, rồi lưu phiếu và chi tiết trong cùng transaction. Số lượng phiếu nhập chỉ là lịch sử chứng từ mua hàng; chúng không làm tăng số lượng khả dụng, vì hệ thống không ghi nhận hay tính tồn kho. Không thể sửa/xóa phiếu nhập.
+
+## API hóa đơn
+
+- `GET /orders/:orderId/invoice`: customer JWT; chỉ xem hóa đơn của chính khách hàng.
+- `GET /admin/orders/:orderId/invoice`: employee JWT active có role `order_staff` hoặc `admin`; role khác nhận `403 Forbidden`.
+- Cả hai trả `invoiceId`, `orderId`, `issuedDate`, `totalAmount`, `status`. Chưa phát hành hoặc hóa đơn nằm ngoài phạm vi khách hàng trả `404`; hóa đơn được tạo cùng giao dịch xác nhận paid và tối đa một hóa đơn gắn với một đơn.
 
 ## Lệnh hữu ích
 

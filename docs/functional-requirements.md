@@ -16,7 +16,7 @@
 Hệ thống bán hàng trực tuyến cho phép:
 
 - **Khách hàng**: đăng ký tài khoản, duyệt sản phẩm, đặt hàng và quản lý đơn hàng cá nhân.
-- **Nhân viên**: quản lý danh mục, sản phẩm, biến thể, nhà cung cấp, phiếu nhập hàng, xử lý và đóng gói đơn hàng.
+- **Nhân viên**: đăng nhập, xem hồ sơ và thực hiện chức năng theo vai trò được quản trị viên gán; `position` chỉ mô tả chức danh.
 
 ### 1.1. Các tác nhân (Actors)
 
@@ -24,7 +24,7 @@ Hệ thống bán hàng trực tuyến cho phép:
 | --------------- | ---------------------------------------------------------------------- |
 | **Khách vãng lai** | Người truy cập chưa đăng nhập; chỉ xem storefront công khai.        |
 | **Khách hàng**  | Người dùng đã đăng ký/đăng nhập; đặt hàng, xem và hủy đơn hàng.     |
-| **Nhân viên**   | Người quản trị hệ thống; quản lý sản phẩm, đơn hàng, nhập hàng.     |
+| **Nhân viên**   | Người dùng nội bộ có một vai trò phân quyền; có thể chỉ xem hồ sơ nếu chưa được gán vai trò nghiệp vụ. |
 
 ### 1.2. Sơ đồ tổng quan các module
 
@@ -53,9 +53,9 @@ graph LR
 | **Mô tả**      | Nhân viên đăng nhập bằng email và mật khẩu để nhận JWT. |
 | **Tác nhân**    | Nhân viên |
 | **Điều kiện tiên quyết** | Tài khoản nhân viên đã tồn tại và có `status = active`. |
-| **Luồng chính** | 1. Nhân viên gửi `POST /auth/employee/login` với `email` và `password`.<br>2. Hệ thống xác minh email tồn tại, mật khẩu đúng, trạng thái `active`.<br>3. Trả JWT Bearer token có thời hạn 15 phút. |
+| **Luồng chính** | 1. Nhân viên gửi `POST /auth/employee/login` với `email` và `password`.<br>2. Hệ thống xác minh email tồn tại, mật khẩu đúng, trạng thái `active`.<br>3. Trả JWT Bearer token có thời hạn 15 phút cùng hồ sơ nhân viên chứa vai trò hiện tại. |
 | **Luồng ngoại lệ** | – Email/mật khẩu sai → `401 Unauthorized`.<br>– Nhân viên bị khóa (`status ≠ active`) → `401 Unauthorized`. |
-| **Kết quả**     | Nhân viên nhận được `access_token`, `token_type`, `expires_in`. |
+| **Kết quả**     | Nhân viên nhận được `access_token`, `token_type`, `expires_in` và hồ sơ gồm vai trò. Vai trò được đọc từ cơ sở dữ liệu khi xác thực yêu cầu, không tin vào claim vai trò trong JWT. |
 
 ### FR-AUTH-02: Đăng ký khách hàng
 
@@ -101,23 +101,48 @@ graph LR
 
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
-| **Mô tả**      | Nhân viên xem thông tin cá nhân từ token. |
+| **Mô tả**      | Nhân viên xem thông tin cá nhân sau khi xác thực Bearer token. |
 | **Tác nhân**    | Nhân viên (đã đăng nhập) |
 | **Luồng chính** | 1. Gửi `GET /auth/employee/profile` với Bearer token. |
-| **Kết quả**     | Trả thông tin nhân viên. |
+| **Kết quả**     | Trả hồ sơ nhân viên gồm `employeeId`, `name`, `email`, `position`, `role`; mọi nhân viên active, kể cả `unassigned`, được xem hồ sơ của chính mình. |
 
 ### FR-AUTH-07: Phân biệt loại token
 
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
 | **Mô tả**      | JWT có phân biệt loại chủ thể (nhân viên / khách hàng). |
-| **Quy tắc**     | – Customer token KHÔNG truy cập API quản trị.<br>– Employee token KHÔNG truy cập API khách hàng.<br>– Token thiếu/sai/hết hạn → `401 Unauthorized`. |
+| **Quy tắc**     | – Customer token KHÔNG truy cập API nhân viên; employee token KHÔNG truy cập API khách hàng.<br>– Token thiếu, sai, hết hạn, sai loại chủ thể hoặc nhân viên không active → `401 Unauthorized`.<br>– Nhân viên active nhưng thiếu vai trò bắt buộc → `403 Forbidden`.<br>– Vai trò được nạp từ cơ sở dữ liệu mỗi yêu cầu; cập nhật vai trò có hiệu lực ngay và không dựa vào JWT claim. |
+
+### FR-AUTH-08: Quản lý tài khoản và quyền nhân viên
+
+| Thuộc tính | Mô tả |
+| --- | --- |
+| **Tác nhân** | Quản trị viên (`admin`) |
+| **Endpoint** | `GET /admin/employees?page=1&limit=20`, `POST /admin/employees`, `PATCH /admin/employees/:employeeId` |
+| **Quy tắc truy cập** | Chỉ nhân viên active có role `admin`; nhân viên đã xác thực nhưng thiếu role trả `403 Forbidden`. |
+| **Hành vi** | GET trả danh sách phân trang và các trường an toàn `employeeId`, `name`, `email`, `phone`, `position`, `role`, `status`. POST tạo nhân viên với tên, email, mật khẩu, chức danh, role tường minh và phone tùy chọn. PATCH chỉ cập nhật `role` và/hoặc `status` (`active`/`inactive`). Không endpoint nào trả password hash. |
+| **Ràng buộc** | Không được tự hạ quyền/vô hiệu hóa chính mình hoặc hạ quyền/vô hiệu hóa quản trị viên active cuối cùng; kiểm tra và cập nhật phải nguyên tử. `position` là chức danh mô tả, không quyết định quyền. |
+
+### Mô hình vai trò nhân viên
+
+`admin` bao gồm mọi quyền nghiệp vụ và quản lý nhân viên. Vai trò khác chỉ có quyền module tương ứng; nhân viên `unassigned` chỉ được đăng nhập và xem hồ sơ cá nhân cho tới khi admin gán role.
+
+| Vai trò | Quyền nghiệp vụ |
+| --- | --- |
+| `admin` | Mọi API nhân viên, bao gồm danh mục, sản phẩm/biến thể, chương trình/voucher, đơn/đóng gói/xác nhận COD/hóa đơn quản trị, nhà cung cấp/phiếu nhập và quản lý nhân viên. |
+| `catalog_manager` | `GET/POST/PATCH/DELETE /categories`, `/products`, `/products/:productId/variants` và các route chi tiết tương ứng. |
+| `promotion_manager` | `GET/POST/PATCH /promotions` và `/promotions/:promotionId/vouchers` cùng route chi tiết voucher. |
+| `order_staff` | `GET /admin/orders`, `GET /admin/orders/:orderId`, `POST /admin/orders/:orderId/pack`, `POST /admin/orders/:orderId/mark-paid`, `GET /admin/orders/:orderId/invoice`. |
+| `purchasing_staff` | `GET/POST/PATCH/DELETE /suppliers` cùng route chi tiết và `GET/POST /imports` cùng route chi tiết. |
+| `unassigned` | Chỉ `GET /auth/employee/profile`; không truy cập các API quản trị nghiệp vụ. |
+
+Storefront là API công khai chỉ đọc; khách hàng dùng customer JWT cho hồ sơ, đơn hàng và hóa đơn thuộc đơn của mình. Webhook PayOS là callback công khai được xác thực chữ ký, không dùng JWT nhân viên hoặc khách hàng.
 
 ---
 
 ## 3. Nhóm chức năng: Quản lý Danh mục (Category Management)
 
-> **Phân quyền**: Tất cả yêu cầu JWT nhân viên.
+> **Phân quyền**: JWT nhân viên active có role `catalog_manager` hoặc `admin`.
 
 ### FR-CAT-01: Xem danh sách danh mục
 
@@ -164,7 +189,7 @@ graph LR
 
 ## 4. Nhóm chức năng: Quản lý Sản phẩm & Biến thể (Product & Variant Management)
 
-> **Phân quyền**: Tất cả yêu cầu JWT nhân viên.
+> **Phân quyền**: JWT nhân viên active có role `catalog_manager` hoặc `admin`.
 
 ### FR-PRD-01: Xem danh sách sản phẩm
 
@@ -303,7 +328,7 @@ graph LR
 
 ## 7. Nhóm chức năng: Quản trị Đơn hàng – Nhân viên (Admin Order Management)
 
-> **Phân quyền**: Yêu cầu JWT nhân viên active. Chưa có phân quyền theo vai trò.
+> **Phân quyền**: JWT nhân viên active có role `order_staff` hoặc `admin` cho danh sách, chi tiết, đóng gói và xác nhận COD. Nhân viên active khác role nhận `403 Forbidden`.
 
 ### FR-ADM-01: Xem danh sách đơn hàng (admin)
 
@@ -336,14 +361,14 @@ graph LR
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
 | **Endpoint**    | `POST /admin/orders/:orderId/mark-paid` |
-| **Quy tắc nghiệp vụ** | Chỉ nhân viên active được xác nhận đơn COD đang `packed` và `unpaid`, sau khi đã nhận đủ tiền. PayOS không được xác nhận qua endpoint này. Đơn pending/cancelled, đã thanh toán hoặc PayOS → `409 Conflict`. Cập nhật thanh toán và phát hành hóa đơn trong cùng transaction. |
+| **Quy tắc nghiệp vụ** | Chỉ nhân viên active có role `order_staff` hoặc `admin` được xác nhận đơn COD đang `packed` và `unpaid`, sau khi đã nhận đủ tiền. PayOS không được xác nhận qua endpoint này. Đơn pending/cancelled, đã thanh toán hoặc PayOS → `409 Conflict`. Cập nhật thanh toán và phát hành hóa đơn trong cùng transaction. |
 | **Kết quả**     | Đơn trả `paymentStatus = "paid"`, thời gian và nhân viên xác nhận. |
 
 ---
 
 ## 8. Nhóm chức năng: Quản lý Nhà cung cấp (Supplier Management)
 
-> **Phân quyền**: Yêu cầu JWT nhân viên.
+> **Phân quyền**: JWT nhân viên active có role `purchasing_staff` hoặc `admin`.
 
 ### FR-SUP-01: Xem danh sách nhà cung cấp
 
@@ -381,7 +406,7 @@ graph LR
 
 ## 9. Nhóm chức năng: Quản lý Phiếu nhập (Stock Import Management)
 
-> **Phân quyền**: Yêu cầu JWT nhân viên.
+> **Phân quyền**: JWT nhân viên active có role `purchasing_staff` hoặc `admin`.
 
 ### FR-IMP-01: Xem danh sách phiếu nhập
 
@@ -415,8 +440,8 @@ graph LR
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
 | **Mô tả**      | Hệ thống phát hành một hóa đơn khi đơn được xác nhận đã thanh toán và cho phép chủ đơn/nhân viên tra cứu. |
-| **Endpoint**    | `GET /orders/:orderId/invoice` (customer JWT); `GET /admin/orders/:orderId/invoice` (employee JWT). |
-| **Quy tắc nghiệp vụ** | – Hóa đơn được phát hành cùng transaction xác nhận đơn paid: COD qua `POST /admin/orders/:orderId/mark-paid`; PayOS sau webhook/đối soát xác nhận đủ tiền; đơn PayOS tổng 0 được phát hành ngay.<br>– Chưa thanh toán hoặc chỉ mới đóng gói thì chưa có hóa đơn; route trả `404`.<br>– Mỗi đơn tối đa một hóa đơn; `totalAmount` là snapshot bất biến tại thời điểm phát hành, trạng thái hiện tại là `issued`.<br>– Khách chỉ xem hóa đơn của đơn mình; đơn/hóa đơn không tồn tại hoặc thuộc khách khác đều trả `404`. Nhân viên active xem được qua route admin. |
+| **Endpoint**    | `GET /orders/:orderId/invoice` (customer JWT); `GET /admin/orders/:orderId/invoice` (`order_staff` hoặc `admin`). |
+| **Quy tắc nghiệp vụ** | – Hóa đơn được phát hành cùng transaction xác nhận đơn paid: COD qua `POST /admin/orders/:orderId/mark-paid`; PayOS sau webhook/đối soát xác nhận đủ tiền; đơn PayOS tổng 0 được phát hành ngay.<br>– Chưa thanh toán hoặc chỉ mới đóng gói thì chưa có hóa đơn; route trả `404`.<br>– Mỗi đơn tối đa một hóa đơn; `totalAmount` là snapshot bất biến tại thời điểm phát hành, trạng thái hiện tại là `issued`.<br>– Khách chỉ xem hóa đơn của đơn mình; đơn/hóa đơn không tồn tại hoặc thuộc khách khác đều trả `404`. Route admin chỉ dành cho nhân viên active có role `order_staff` hoặc `admin`; thiếu role trả `403`. |
 | **Kết quả**     | `{ invoiceId, orderId, issuedDate, totalAmount, status }`. |
 
 ---
@@ -427,7 +452,7 @@ graph LR
 
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
-| **Mô tả**      | Nhân viên active tạo, xem, cập nhật chương trình qua `GET/POST /promotions`, `GET/PATCH /promotions/:promotionId`. Chưa có xóa; chuyển `status` sang `inactive` để ngừng dùng. |
+| **Mô tả**      | Nhân viên active có role `promotion_manager` hoặc `admin` tạo, xem, cập nhật chương trình qua `GET/POST /promotions`, `GET/PATCH /promotions/:promotionId`. Chưa có xóa; chuyển `status` sang `inactive` để ngừng dùng. |
 | **Dữ liệu**    | `promotionId`, `name`, `description`, `startDate`, `endDate`, `status`. |
 | **Quy tắc nghiệp vụ** | Tên tối đa 120 ký tự, mô tả tùy chọn tối đa 5000 ký tự; ngày theo `YYYY-MM-DD`, start không sau end; status `active`/`inactive`, mặc định `active`. |
 
@@ -435,7 +460,7 @@ graph LR
 
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
-| **Mô tả**      | Nhân viên active quản lý voucher theo campaign qua `GET/POST /promotions/:promotionId/vouchers` và `GET/PATCH /promotions/:promotionId/vouchers/:voucherId`. Chưa có xóa hoặc sửa code. |
+| **Mô tả**      | Nhân viên active có role `promotion_manager` hoặc `admin` quản lý voucher theo campaign qua `GET/POST /promotions/:promotionId/vouchers` và `GET/PATCH /promotions/:promotionId/vouchers/:voucherId`. Chưa có xóa hoặc sửa code. |
 | **Dữ liệu**    | `voucherId`, `code` (unique), `name`, `type`, `discountValue`, `startDate`, `endDate`, `minPrice`, `maxDiscount`, `quantity`, `status`, `promotionId`. |
 | **Quan hệ**     | Voucher có thể áp dụng cho đơn hàng qua `SALES_ORDER.voucher_id`. |
 | **Quy tắc nghiệp vụ** | Code được trim/chuyển uppercase, chỉ nhận ASCII chữ/số/`-`/`_`, duy nhất toàn hệ thống; type là `fixed` hoặc `percentage`. Campaign và voucher đều phải active và còn hiệu lực ngày hiện tại. `minPrice` tính trên tổng hàng trước giảm; percentage làm tròn half-up tới cent, có thể giới hạn bởi `maxDiscount`; giảm không vượt tổng hàng. `quantity` là lượt dùng chung toàn hệ thống, không giới hạn theo khách. |
@@ -517,27 +542,22 @@ stateDiagram-v2
 
 ## 13. Ma trận phân quyền (Authorization Matrix)
 
-| Chức năng                         | Khách vãng lai | Khách hàng | Nhân viên |
-| --------------------------------- | :------------: | :--------: | :-------: |
-| Xem storefront                    |       ✅       |     ✅     |    ✅     |
-| Đăng ký tài khoản khách          |       ✅       |     ❌     |    ❌     |
-| Đăng nhập khách                   |       ✅       |     ❌     |    ❌     |
-| Xem/cập nhật hồ sơ khách         |       ❌       |     ✅     |    ❌     |
-| Tạo đơn hàng                     |       ❌       |     ✅     |    ❌     |
-| Xem/hủy đơn hàng (cá nhân)       |       ❌       |     ✅     |    ❌     |
-| Đăng nhập nhân viên               |       ❌       |     ❌     |    ✅     |
-| Quản lý danh mục                  |       ❌       |     ❌     |    ✅     |
-| Quản lý sản phẩm & biến thể      |       ❌       |     ❌     |    ✅     |
-| Quản lý nhà cung cấp             |       ❌       |     ❌     |    ✅     |
-| Quản lý phiếu nhập               |       ❌       |     ❌     |    ✅     |
-| Xem/đóng gói đơn hàng (admin)    |       ❌       |     ❌     |    ✅     |
-| Xác nhận đã thu COD (đơn packed) |       ❌       |     ❌     |    ✅     |
-| Quản lý chương trình/voucher     |       ❌       |     ❌     |    ✅     |
-| Xem hóa đơn cá nhân              |       ❌       |     ✅*    |    ❌     |
-| Xem hóa đơn mọi đơn (admin)      |       ❌       |     ❌     |    ✅     |
-| Gửi webhook PayOS                |       ✅*      |     ✅*    |    ✅*    |
+| Chức năng | Khách vãng lai | Khách hàng | `catalog_manager` | `promotion_manager` | `order_staff` | `purchasing_staff` | `admin` | `unassigned` |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Xem storefront công khai | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Đăng ký/đăng nhập khách | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Xem/cập nhật hồ sơ khách | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Tạo/xem/hủy đơn của mình | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Xem hóa đơn đơn của mình | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Đăng nhập và xem hồ sơ nhân viên | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Quản lý danh mục, sản phẩm, biến thể | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Quản lý chương trình và voucher | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Xem/đóng gói đơn; xác nhận COD; xem hóa đơn quản trị | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Quản lý nhà cung cấp và phiếu nhập | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| Quản lý tài khoản, vai trò, trạng thái nhân viên | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Gửi webhook PayOS (chữ ký hợp lệ) | ✅* | ✅* | ✅* | ✅* | ✅* | ✅* | ✅* | ✅* |
 
-`*` Tra cứu hóa đơn chỉ được phép với đơn thuộc khách đã đăng nhập; webhook PayOS là callback máy chủ công khai, được bảo vệ bằng xác minh chữ ký thay vì JWT.
+`*` Endpoint webhook PayOS công khai về mạng nhưng chỉ xử lý callback có chữ ký hợp lệ; quyền truy cập không dựa vào actor JWT. Role `admin` được bao gồm trong mọi module nhân viên. Nhân viên active thiếu role cần thiết nhận `403 Forbidden`; token thiếu/sai/hết hạn, sai loại chủ thể hoặc nhân viên inactive nhận `401 Unauthorized`. Vai trò được đọc từ database mỗi yêu cầu; `position` chỉ là chức danh mô tả.
 
 ---
 

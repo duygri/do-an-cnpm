@@ -13,7 +13,7 @@ Create one internal invoice record for each order after the order is confirmed p
 - An unpaid, cancelled, or unconfirmed order has no invoice.
 - Enforce at most one invoice per order. Keep the order total as a snapshot at issue time.
 - Backfill invoices for orders already marked paid when the migration runs, using their recorded payment confirmation timestamp.
-- Expose a read-only invoice summary to the owning customer and to authenticated employees. No frontend, manual issue action, tax fields, refund, or invoice cancellation flow is included.
+- Expose a read-only invoice summary to the owning customer and to active employees with role `order_staff` or `admin` on the admin route. No frontend, manual issue action, tax fields, refund, or invoice cancellation flow is included.
 
 ## Data model
 
@@ -22,7 +22,7 @@ Create one internal invoice record for each order after the order is confirmed p
 ## API
 
 - `GET /orders/:orderId/invoice`: customer JWT; only returns the authenticated customer's invoice.
-- `GET /admin/orders/:orderId/invoice`: active employee JWT.
+- `GET /admin/orders/:orderId/invoice`: active employee JWT with role `order_staff` or `admin`; an active employee without the role receives `403 Forbidden`. See the [employee role authorization matrix](2026-10-01-employee-role-authorization-design.md).
 - Both return `invoiceId`, `orderId`, `issuedDate`, `totalAmount`, and `status`. If an invoice is not issued or is outside the caller's access, return `404`.
 
 ## Transaction boundaries

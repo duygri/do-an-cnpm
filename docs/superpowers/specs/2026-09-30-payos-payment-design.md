@@ -54,6 +54,7 @@ The worker and webhook use row locks and recheck local state before writing. Aft
 
 ## Employee order processing
 
+- Admin order list/detail, packing, and COD confirmation routes require an active employee with role `order_staff` or `admin`; see the [employee role authorization matrix](2026-10-01-employee-role-authorization-design.md). A valid active employee without this role receives `403 Forbidden`.
 - `POST /admin/orders/:orderId/pack` continues to permit pending unpaid COD orders.
 - Packing a PayOS order requires `payment_status = paid`; reject unpaid PayOS orders with `409 Conflict`.
 - `POST /admin/orders/:orderId/mark-paid` remains available only for COD orders. Employees cannot manually override PayOS state.
@@ -108,5 +109,5 @@ The webhook route must be reachable over HTTPS for a deployed environment and re
 - Only a verified, provider-reconciled, amount-matched PayOS success webhook marks a PayOS order paid; invalid, mismatched, or duplicate events cannot corrupt local state, and late confirmed payment on a cancelled order is durably flagged for operator reconciliation.
 - Customer cancellation and automatic expiry release voucher quota for known links with a locally saved URL only after PayOS confirms the link is no longer payable. Orphan links without a locally saved checkout URL remain pending and reserved for administrator review even if confirmed unpaid/cancelled.
 - PayOS outage or ambiguous provider state does not incorrectly cancel an order or release its voucher reservation. Retrying a PayOS create request with the same idempotency key returns the same order and does not consume another voucher use. If a provider link exists but its checkout URL was never persisted, the order is flagged for administrator reconciliation and remains pending with the voucher reserved; retry returns `503`, customer cancellation is disallowed, the URL is never inferred, and no replacement link is created. Scheduler/webhook reconciliation can still settle a later verified full payment.
-- Employees can pack paid PayOS orders; they cannot pack unpaid PayOS orders or manually mark PayOS orders paid. COD workflow remains intact.
+- Active `order_staff` or `admin` employees can pack paid PayOS orders; they cannot pack unpaid PayOS orders or manually mark PayOS orders paid. COD workflow remains intact.
 - The migration, entities, API behavior, environment docs, and ERD agree. No frontend files change.

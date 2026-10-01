@@ -18,7 +18,7 @@ Out of scope: per-customer redemption limits, stacking codes, a standalone vouch
 
 ## API and access
 
-All promotion and voucher management routes require the existing active-employee JWT guard. Customer order creation keeps its customer JWT guard.
+All promotion and voucher management routes require an active employee with role `promotion_manager` or `admin`. An authenticated employee without either role receives `403 Forbidden`; authentication failures remain `401 Unauthorized`. The shared mapping is in the [employee role authorization matrix](2026-10-01-employee-role-authorization-design.md). Customer order creation keeps its customer JWT guard.
 
 - `GET /promotions`: list promotions.
 - `GET /promotions/:promotionId`: read one promotion.
@@ -30,7 +30,7 @@ All promotion and voucher management routes require the existing active-employee
 - `PATCH /promotions/:promotionId/vouchers/:voucherId`: update any supplied subset of `name`, `type`, `discountValue`, `startDate`, `endDate`, `minPrice`, `maxDiscount`, `quantity`, and `status`. `code` is immutable.
 - Extend `POST /orders` with optional `voucherCode`.
 
-There are no `DELETE` routes. Employees deactivate a promotion or voucher by setting `status` to `inactive`. The voucher's campaign and code remain available to explain existing orders. Missing management resources return `404`; malformed input returns `400`; duplicate codes and attempts to reduce `quantity` below current redemptions return `409`.
+There are no `DELETE` routes. Authorized `promotion_manager` or `admin` employees deactivate a promotion or voucher by setting `status` to `inactive`. The voucher's campaign and code remain available to explain existing orders. Missing management resources return `404`; malformed input returns `400`; duplicate codes and attempts to reduce `quantity` below current redemptions return `409`.
 
 If `voucherCode` is omitted, order creation keeps `voucherId = null` and `discountAmount = 0.00`. An invalid, inactive, not-yet-valid, expired, exhausted, or minimum-not-met code returns `400` with a message identifying why it cannot be applied. The request writes no order or order details on failure.
 
@@ -79,7 +79,7 @@ The `down` migration must run in a transaction and acquire an `ACCESS EXCLUSIVE`
 
 ## Acceptance criteria
 
-- Active employees can create/list/read/update promotions and their vouchers; codes are unique after normalization and cannot be edited or hard-deleted.
+- Active `promotion_manager` and `admin` employees can create/list/read/update promotions and their vouchers; codes are unique after normalization and cannot be edited or hard-deleted.
 - Customer order requests can apply at most one active, in-date voucher and cannot override the server's calculated discount or total.
 - Fixed and percentage discounts, minimum subtotal, optional percentage cap, and cent rounding follow the rules above.
 - Voucher redemption caps cannot be exceeded by concurrent order creation; pending cancellation releases one use and repeated cancellation cannot release another.

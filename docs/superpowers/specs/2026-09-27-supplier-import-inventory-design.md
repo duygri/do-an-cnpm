@@ -35,7 +35,7 @@ Inventory movement and its source document are written in the same database tran
 
 ## API and access
 
-All endpoints require an employee JWT, consistent with the existing admin catalog API.
+The current supplier and import routes require an active employee JWT with role `purchasing_staff` or `admin`. The shared role mapping and `401`/`403` behavior are defined in the [employee role authorization matrix](2026-10-01-employee-role-authorization-design.md). Inventory endpoints in this historical design are superseded by the no-inventory decision and are not part of the current API.
 
 - `GET/POST /suppliers`, `GET/PATCH/DELETE /suppliers/:supplierId`
 - `GET /imports`, `GET /imports/:importId`, `POST /imports`
@@ -56,5 +56,5 @@ Customer/order/payment/packing/invoice APIs, public product browsing, product im
 - Creating an import saves its header, details, and inbound inventory movements together or saves none of them.
 - Opening balances, import movements, and stock-count adjustments are auditable and transactionally consistent.
 - Period balance API returns opening quantity plus inbound movements minus outbound movements.
-- Supplier/import/inventory routes require an employee JWT and are documented in the backend README.
+- Supplier/import routes require `purchasing_staff` or `admin` and are documented in the backend README. The historical inventory routes are not current MVP endpoints.
 - Existing migrations and records remain intact; schema changes use a new reversible migration.
