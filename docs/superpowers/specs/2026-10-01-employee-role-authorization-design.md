@@ -72,13 +72,18 @@ Add a dedicated `/admin/employees` controller/module:
 - `POST /admin/employees` creates an employee with name, unique normalized
   email, password, optional phone, descriptive position, and an explicit role.
   Hash the password using the existing password service. Apply the existing
-  12–128 character password rule.
+  12–128 character password rule. Return only employee ID, name, email, phone,
+  position, role, and status.
 - `PATCH /admin/employees/:employeeId` updates role and active/inactive status.
-  It does not delete employee history or accept a password hash.
+  It does not delete employee history or accept a password hash. Return only
+  employee ID, name, email, phone, position, role, and status.
 - Prevent an administrator from deactivating or demoting their own account and
   prevent deactivating or demoting the last active administrator. Perform the
   last-admin check and update atomically so concurrent admin updates cannot
-  remove the final active administrator.
+  remove the final active administrator. Serialize employee role/status
+  mutations with one transaction-scoped PostgreSQL advisory lock shared by all
+  `/admin/employees` mutations. Acquire the lock before reading the active-admin
+  count, then perform the check and update in the same transaction.
 - Keep the existing `db:create-admin` bootstrap command and make it explicitly
   create role `admin`.
 
@@ -111,7 +116,8 @@ or hard deletion is included in this MVP.
 - SQL/database check constraints protect role values even if an API validation
   path is bypassed.
 - Employee list responses are explicit projections and must not serialize the
-  TypeORM entity or password hash.
+  TypeORM entity or password hash. Create/update responses use the same safe
+  projection and never include `passwordHash`.
 
 ## Verification criteria
 
