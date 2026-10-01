@@ -10,11 +10,14 @@ import {
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { EmployeeJwtGuard } from '../auth/employee-jwt.guard';
+import { EmployeeRolesGuard } from '../auth/employee-roles.guard';
+import { EmployeeRoles } from '../auth/employee-roles.decorator';
 import { CreateImportDto } from './dto/create-import.dto';
 import { ImportsService } from './imports.service';
 
 @Controller('imports')
-@UseGuards(EmployeeJwtGuard)
+@UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
+@EmployeeRoles('purchasing_staff')
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 

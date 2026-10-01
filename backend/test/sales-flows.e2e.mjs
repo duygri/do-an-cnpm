@@ -28,22 +28,43 @@ const require = createRequire(import.meta.url);
 const { Client } = require('pg');
 const { PasswordService } = require('../dist/auth/password.service.js');
 
-const employeeEmail = `employee-${randomUUID()}@example.com`;
 const employeePassword = 'Employee-Test-Password-2026!';
-const unassignedEmployeeEmail = `unassigned-${randomUUID()}@example.com`;
-const unassignedEmployeePassword = 'Unassigned-Test-Password-2026!';
 const customerPassword = 'Customer-Test-Password-2026!';
 const employeeName = 'Test Employee';
+const employeeRoles = [
+  'admin',
+  'catalog_manager',
+  'promotion_manager',
+  'order_staff',
+  'purchasing_staff',
+  'unassigned',
+];
+const employeeAccessRoutes = [
+  { path: '/categories', roles: ['catalog_manager'] },
+  { path: '/products', roles: ['catalog_manager'] },
+  { path: '/products/PRODUCT_ID/variants', roles: ['catalog_manager'] },
+  { path: '/promotions', roles: ['promotion_manager'] },
+  {
+    path: '/promotions/PROMOTION_ID/vouchers',
+    roles: ['promotion_manager'],
+  },
+  { path: '/admin/orders', roles: ['order_staff'] },
+  { path: '/suppliers', roles: ['purchasing_staff'] },
+  { path: '/imports', roles: ['purchasing_staff'] },
+];
 
 let childProcess;
 let serverOutput = '';
 let baseUrl;
 let employeeToken;
 let unassignedEmployeeToken;
+const employeeTokens = {};
+const employeeLogins = {};
 let adminEmployeeLogin;
 let unassignedEmployeeLogin;
 let customerOneToken;
 let customerTwoToken;
+let productId;
 let productVariantId;
 let promotionId;
 
@@ -219,40 +240,28 @@ before(async () => {
   const rootResponse = await api('/');
   assert.equal(rootResponse.status, 200);
 
-  await seedEmployee({
-    email: employeeEmail,
-    password: employeePassword,
-    role: 'admin',
-  });
-  await seedEmployee({
-    email: unassignedEmployeeEmail,
-    password: unassignedEmployeePassword,
-    role: 'unassigned',
-  });
-  adminEmployeeLogin = await api('/auth/employee/login', {
-    method: 'POST',
-    body: { email: employeeEmail, password: employeePassword },
-  });
-  assert.equal(
-    adminEmployeeLogin.status,
-    200,
-    JSON.stringify(adminEmployeeLogin.body),
-  );
-  employeeToken = adminEmployeeLogin.body.access_token;
+  const employeeCredentials = {};
+  for (const role of employeeRoles) {
+    const email = `employee-${role}-${randomUUID()}@example.com`;
+    employeeCredentials[role] = { email, password: employeePassword };
+    await seedEmployee({ email, password: employeePassword, role });
+  }
 
-  unassignedEmployeeLogin = await api('/auth/employee/login', {
-    method: 'POST',
-    body: {
-      email: unassignedEmployeeEmail,
-      password: unassignedEmployeePassword,
-    },
-  });
-  assert.equal(
-    unassignedEmployeeLogin.status,
-    200,
-    JSON.stringify(unassignedEmployeeLogin.body),
-  );
-  unassignedEmployeeToken = unassignedEmployeeLogin.body.access_token;
+  for (const role of employeeRoles) {
+    const login = await api('/auth/employee/login', {
+      method: 'POST',
+      body: employeeCredentials[role],
+    });
+    assert.equal(login.status, 200, `${role}: ${JSON.stringify(login.body)}`);
+    assert.equal(login.body.employee.role, role);
+    employeeLogins[role] = login;
+    employeeTokens[role] = login.body.access_token;
+  }
+
+  adminEmployeeLogin = employeeLogins.admin;
+  unassignedEmployeeLogin = employeeLogins.unassigned;
+  employeeToken = employeeTokens.admin;
+  unassignedEmployeeToken = employeeTokens.unassigned;
 
   customerOneToken = await registerCustomer('Customer One');
   customerTwoToken = await registerCustomer('Customer Two');
@@ -274,8 +283,9 @@ before(async () => {
     },
   });
   assert.equal(product.status, 201, JSON.stringify(product.body));
+  productId = product.body.productId;
 
-  const variant = await api(`/products/${product.body.productId}/variants`, {
+  const variant = await api(`/products/${productId}/variants`, {
     method: 'POST',
     token: employeeToken,
     body: { size: 'M', color: 'Black', price: 1000 },
@@ -331,6 +341,33 @@ test('returns database employee roles on login and profile', async () => {
     JSON.stringify(unassignedProfile.body),
   );
   assert.equal(unassignedProfile.body.role, 'unassigned');
+});
+
+test('enforces employee role access for each business module', async () => {
+  for (const route of employeeAccessRoutes) {
+    const pathname = route.path
+      .replace('PRODUCT_ID', String(productId))
+      .replace('PROMOTION_ID', String(promotionId));
+
+    for (const role of employeeRoles) {
+      const response = await api(pathname, { token: employeeTokens[role] });
+      const expectedStatus = role === 'admin' || route.roles.includes(role) ? 200 : 403;
+      assert.equal(
+        response.status,
+        expectedStatus,
+        `${role} ${pathname}: expected ${expectedStatus}, got ${response.status} (${JSON.stringify(response.body)})`,
+      );
+    }
+
+    const customerResponse = await api(pathname, { token: customerOneToken });
+    assert.equal(
+      customerResponse.status,
+      401,
+      `customer ${pathname}: ${JSON.stringify(customerResponse.body)}`,
+    );
+  }
+
+  assert.equal((await api('/store/products')).status, 200);
 });
 
 test('creates orders from server prices and hides another customer’s order', async () => {
@@ -427,8 +464,20 @@ test('issues one invoice only after COD payment and enforces invoice ownership',
   const adminInvoice = await api(`/admin/orders/${orderId}/invoice`, {
     token: employeeToken,
   });
+  const orderStaffInvoice = await api(`/admin/orders/${orderId}/invoice`, {
+    token: employeeTokens.order_staff,
+  });
+  const catalogManagerInvoice = await api(`/admin/orders/${orderId}/invoice`, {
+    token: employeeTokens.catalog_manager,
+  });
   assert.equal(customerInvoice.status, 200, JSON.stringify(customerInvoice.body));
   assert.equal(adminInvoice.status, 200, JSON.stringify(adminInvoice.body));
+  assert.equal(
+    orderStaffInvoice.status,
+    200,
+    JSON.stringify(orderStaffInvoice.body),
+  );
+  assert.equal(catalogManagerInvoice.status, 403);
   assert.equal(customerInvoice.body.status, 'issued');
   assert.equal(customerInvoice.body.totalAmount, '1000.00');
   assert.equal(adminInvoice.body.invoiceId, customerInvoice.body.invoiceId);

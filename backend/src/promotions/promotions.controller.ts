@@ -9,6 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EmployeeJwtGuard } from '../auth/employee-jwt.guard';
+import { EmployeeRolesGuard } from '../auth/employee-roles.guard';
+import { EmployeeRoles } from '../auth/employee-roles.decorator';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { CreateVoucherDto } from './dto/create-voucher.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
@@ -16,7 +18,8 @@ import { UpdateVoucherDto } from './dto/update-voucher.dto';
 import { PromotionsService } from './promotions.service';
 
 @Controller('promotions')
-@UseGuards(EmployeeJwtGuard)
+@UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
+@EmployeeRoles('promotion_manager')
 export class PromotionsController {
   constructor(private readonly promotions: PromotionsService) {}
 

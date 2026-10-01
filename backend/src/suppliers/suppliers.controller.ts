@@ -12,12 +12,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EmployeeJwtGuard } from '../auth/employee-jwt.guard';
+import { EmployeeRolesGuard } from '../auth/employee-roles.guard';
+import { EmployeeRoles } from '../auth/employee-roles.decorator';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { SuppliersService } from './suppliers.service';
 
 @Controller('suppliers')
-@UseGuards(EmployeeJwtGuard)
+@UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
+@EmployeeRoles('purchasing_staff')
 export class SuppliersController {
   constructor(private readonly suppliers: SuppliersService) {}
 

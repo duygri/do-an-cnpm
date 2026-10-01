@@ -11,13 +11,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EmployeeJwtGuard } from '../auth/employee-jwt.guard';
+import { EmployeeRolesGuard } from '../auth/employee-roles.guard';
+import { EmployeeRoles } from '../auth/employee-roles.decorator';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { GetAdminOrdersDto } from './dto/get-admin-orders.dto';
 import { PackOrderDto } from './dto/pack-order.dto';
 import { AdminOrdersService } from './admin-orders.service';
 
 @Controller('admin/orders')
-@UseGuards(EmployeeJwtGuard)
+@UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
+@EmployeeRoles('order_staff')
 export class AdminOrdersController {
   constructor(private readonly orders: AdminOrdersService) {}
 
