@@ -145,9 +145,10 @@ Tất cả route đơn hàng yêu cầu customer JWT trong header `Authorization
 }
 ```
 
-  Khi chọn `paymentMethod: "payos"`, gửi thêm header `Idempotency-Key` dài 1–255 ký tự, chỉ gồm chữ ASCII, số và `. _ ~ : -`. Cùng khách hàng, cùng key và cùng nội dung đơn trả lại đơn đã tạo; dùng lại key với nội dung khác trả `409 Conflict`. Gửi lại đúng request cùng key để tiếp tục một lần tạo link chưa xác định; không tự tạo đơn mới hoặc đổi key trong khi trạng thái cũ đang được rà soát. COD không yêu cầu key và hiện giữ luồng tạo đơn cũ.
+Khi chọn `paymentMethod: "payos"`, gửi thêm header `Idempotency-Key` dài 1–255 ký tự, chỉ gồm chữ ASCII, số và `. _ ~ : -`. Cùng khách hàng, cùng key và cùng nội dung đơn trả lại đơn đã tạo; dùng lại key với nội dung khác trả `409 Conflict`. Gửi lại đúng request cùng key để tiếp tục một lần tạo link chưa xác định; không tự tạo đơn mới hoặc đổi key trong khi trạng thái cũ đang được rà soát. COD không yêu cầu key và hiện giữ luồng tạo đơn cũ.
 
-  Server lấy khách hàng từ JWT, kiểm tra sản phẩm còn hoạt động và biến thể hợp lệ, rồi tính giá từng dòng và tổng tiền. Số lượng đặt không được đối chiếu với số hàng khả dụng, vì hệ thống không theo dõi tồn kho. `voucherCode` là tùy chọn; nếu gửi, khách chỉ áp dụng được một mã. `paymentMethod` cũng tùy chọn và chỉ nhận `cod` hoặc `payos`; mặc định là `cod`. Khách chọn phương thức này nhưng không thể gửi/ghi đè giá, tổng tiền, giảm giá, phí giao hàng, trạng thái thanh toán hay trạng thái đơn. Không dùng voucher thì đơn mới có `voucherId: null`, `voucherCode: null`, `discountAmount: "0.00"`; mọi đơn mới có `shippingFee: "0.00"` và `status: "pending"`. Đơn COD bắt đầu `paymentStatus: "unpaid"`; đơn PayOS có tổng bằng 0 được đánh dấu `paid` ngay, còn đơn PayOS có tổng lớn hơn 0 bắt đầu `unpaid` và tạo payment attempt. Tạo đơn, chi tiết và payment attempt được ghi nguyên tử. Phản hồi tạo đơn gồm `orderId`, `orderDate`, `customerId`, `voucherId`, `voucherCode`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `status`, `note` và `details` (mỗi dòng có `orderId`, `variantId`, `quantity`, `unitPrice`, `subtotal`). Với đơn PayOS đang chờ và có URL đã lưu, phản hồi chi tiết khách còn có `checkoutUrl` và `paymentExpiresAt`; các trường thanh toán nội bộ không được trả. `voucherId` và `voucherCode` là `null` khi không dùng voucher.
+Server lấy khách hàng từ JWT, kiểm tra sản phẩm còn hoạt động và biến thể hợp lệ, rồi tính giá từng dòng và tổng tiền. Số lượng đặt không được đối chiếu với số hàng khả dụng, vì hệ thống không theo dõi tồn kho. `voucherCode` là tùy chọn; nếu gửi, khách chỉ áp dụng được một mã. `paymentMethod` cũng tùy chọn và chỉ nhận `cod` hoặc `payos`; mặc định là `cod`. Khách chọn phương thức này nhưng không thể gửi/ghi đè giá, tổng tiền, giảm giá, phí giao hàng, trạng thái thanh toán hay trạng thái đơn. Không dùng voucher thì đơn mới có `voucherId: null`, `voucherCode: null`, `discountAmount: "0.00"`; mọi đơn mới có `shippingFee: "0.00"` và `status: "pending"`. Đơn COD bắt đầu `paymentStatus: "unpaid"`; đơn PayOS có tổng bằng 0 được đánh dấu `paid` ngay, còn đơn PayOS có tổng lớn hơn 0 bắt đầu `unpaid` và tạo payment attempt. Tạo đơn, chi tiết và payment attempt được ghi nguyên tử. Phản hồi tạo đơn gồm `orderId`, `orderDate`, `customerId`, `voucherId`, `voucherCode`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `status`, `note` và `details` (mỗi dòng có `orderId`, `variantId`, `quantity`, `unitPrice`, `subtotal`). Với đơn PayOS đang chờ và có URL đã lưu, phản hồi chi tiết khách còn có `checkoutUrl` và `paymentExpiresAt`; các trường thanh toán nội bộ không được trả. `voucherId` và `voucherCode` là `null` khi không dùng voucher.
+
 - `GET /orders?page=1&limit=20`: liệt kê đơn của khách hiện tại, mới nhất trước. Mặc định `page=1`, `limit=20`; `page` phải từ 1 trở lên, `limit` từ 1 đến tối đa 100. Phản hồi có dạng `{ "items": [...], "page": 1, "limit": 20, "total": 1 }`; mỗi phần tử `items` có các trường đơn hàng ở trên nhưng không gồm `details`.
 - `GET /orders/:orderId`: xem một đơn của khách hiện tại, kèm `details` theo thứ tự `variantId`; phản hồi có các trường như phản hồi tạo đơn.
 - `POST /orders/:orderId/cancel`: hủy đơn đang `pending` của khách hiện tại. Với COD, hủy đơn chỉ đổi trạng thái. Với PayOS có URL đã lưu, server yêu cầu PayOS xác nhận link kết thúc và chưa nhận tiền trước khi hủy; trạng thái chưa rõ, có khoản thanh toán một phần, hoặc link chưa thể đối chiếu thì giữ đơn để xử lý tiếp và không giải phóng lượt voucher. Trả đơn đã cập nhật với `status: "cancelled"` khi hủy thành công. Hủy lại hoặc hủy đơn không còn `pending` trả `409 Conflict`; thao tác không cập nhật tồn kho.
@@ -218,6 +219,19 @@ API lấy `employeeId` từ JWT, tính subtotal/tổng tiền phía server, rồ
 - `npm run lint`: kiểm tra quy tắc lint
 - `npm run format`: định dạng mã nguồn trong `src/`
 - `npm run start:dev`: chạy API ở chế độ theo dõi thay đổi
+- `npm test`: chạy E2E qua HTTP thật cho phân quyền, đơn hàng, voucher và hóa đơn; đồng thời chạy kiểm thử nghiệp vụ PayOS với `FakePaymentProvider` trên PostgreSQL test. Không gọi PayOS thật.
+
+### Chạy E2E an toàn với PostgreSQL test
+
+Tạo trước một database PostgreSQL riêng, ví dụ `sales_system_test`, rồi chạy từ thư mục `backend` trong PowerShell:
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql://<user>:<password>@127.0.0.1:5432/sales_system_test"
+npm test
+Remove-Item Env:TEST_DATABASE_URL
+```
+
+Thay `<user>` và `<password>` bằng thông tin local của bạn; mã hóa ký tự đặc biệt trong URI nếu cần. `TEST_DATABASE_URL` là bắt buộc và database phải có tên kết thúc bằng `_test`. `npm test` sẽ xóa các bảng hiện có trong database đó, chạy lại migrations, rồi tạo dữ liệu kiểm thử. **Không trỏ biến này vào database đang dùng hoặc database chứa dữ liệu cần giữ.** Bộ test không đọc `DATABASE_URL` để chọn database test, không in thông tin kết nối và tắt cấu hình PayOS trong backend con.
 
 ## Mã nguồn
 

@@ -16,7 +16,10 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "db:migrate": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
     "db:migrations": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
-    "db:create-admin": "ts-node src/database/create-admin.ts"
+    "db:create-admin": "ts-node src/database/create-admin.ts",
+    "test": "npm run test:e2e",
+    "test:e2e": "npm run test:prepare && npm run build && node --test --test-concurrency=1 test/sales-flows.e2e.mjs test/payos-flows.e2e.mjs",
+    "test:prepare": "node -r ts-node/register test/prepare-test-db.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
