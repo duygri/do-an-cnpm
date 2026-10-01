@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -25,8 +26,13 @@ export class OrdersController {
   create(
     @Req() request: CustomerAuthenticatedRequest,
     @Body() input: CreateOrderDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.orders.createOrder(input, request.customer.customerId);
+    return this.orders.createOrder(
+      input,
+      request.customer.customerId,
+      idempotencyKey,
+    );
   }
 
   @Get()

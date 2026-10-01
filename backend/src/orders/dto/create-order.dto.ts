@@ -5,17 +5,23 @@ import {
   ArrayUnique,
   IsArray,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
+  Matches,
   Max,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
 const trimString = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
+
+const normalizeVoucherCode = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim().toUpperCase() : value;
 
 const transformIntegerInput = ({ value }: { value: unknown }): unknown => {
   if (typeof value === 'number') {
@@ -44,6 +50,10 @@ export class CreateOrderDetailDto {
 }
 
 export class CreateOrderDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsIn(['cod', 'payos'])
+  paymentMethod?: 'cod' | 'payos';
+
   @Transform(trimString)
   @IsString()
   @Length(1, 120)
@@ -66,6 +76,13 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => CreateOrderDetailDto)
   details!: CreateOrderDetailDto[];
+
+  @Transform(normalizeVoucherCode)
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @Length(1, 64)
+  @Matches(/^[A-Z0-9_-]+$/)
+  voucherCode?: string;
 
   @Transform(trimString)
   @IsOptional()

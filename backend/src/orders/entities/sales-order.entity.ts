@@ -13,8 +13,10 @@ import {
 import { Customer } from '../../customers/entities/customer.entity';
 import { OrderDetail } from './order-detail.entity';
 import { Packing } from './packing.entity';
+import { PromotionDetail } from '../../promotions/entities/promotion-detail.entity';
+import { PaymentAttempt } from '../../payments/entities/payment-attempt.entity';
 
-export type SalesOrderPaymentMethod = 'cod';
+export type SalesOrderPaymentMethod = 'cod' | 'payos';
 export type SalesOrderPaymentStatus = 'unpaid' | 'paid';
 export type SalesOrderStatus = 'pending' | 'packed' | 'cancelled';
 
@@ -28,11 +30,15 @@ export type SalesOrderStatus = 'pending' | 'packed' | 'cancelled';
 )
 @Check(
   'CHK_sales_order_payment_method',
-  '"payment_method" IS NULL OR "payment_method" = \'cod\'',
+  '"payment_method" IS NULL OR "payment_method" IN (\'cod\', \'payos\')',
 )
 @Check(
   'CHK_sales_order_payment_confirmation',
-  `CASE WHEN "payment_status" = 'unpaid' THEN "payment_confirmed_at" IS NULL AND "payment_confirmed_by_employee_id" IS NULL WHEN "payment_status" = 'paid' THEN "payment_method" IS NOT DISTINCT FROM 'cod' AND "payment_confirmed_at" IS NOT NULL AND "payment_confirmed_by_employee_id" IS NOT NULL ELSE FALSE END`,
+  `CASE WHEN "payment_status" = 'unpaid' THEN "payment_confirmed_at" IS NULL AND "payment_confirmed_by_employee_id" IS NULL WHEN "payment_status" = 'paid' AND "payment_method" IS NOT DISTINCT FROM 'cod' THEN "payment_confirmed_at" IS NOT NULL AND "payment_confirmed_by_employee_id" IS NOT NULL WHEN "payment_status" = 'paid' AND "payment_method" = 'payos' THEN "payment_confirmed_at" IS NOT NULL AND "payment_confirmed_by_employee_id" IS NULL ELSE FALSE END`,
+)
+@Check(
+  'CHK_sales_order_idempotency',
+  `("idempotency_key" IS NULL AND "request_fingerprint" IS NULL) OR ("idempotency_key" IS NOT NULL AND "request_fingerprint" IS NOT NULL AND "request_fingerprint" ~ '^[0-9a-f]{64}$')`,
 )
 @Check(
   'CHK_sales_order_status',
@@ -41,6 +47,15 @@ export type SalesOrderStatus = 'pending' | 'packed' | 'cancelled';
 @Index('IDX_sales_order_customer_id', ['customerId'])
 @Index('IDX_sales_order_order_date', ['orderDate'])
 @Index('IDX_sales_order_status_order_date', ['status', 'orderDate'])
+@Index('IDX_sales_order_voucher_id_status', ['voucherId', 'status'])
+@Index(
+  'UQ_sales_order_customer_idempotency_key',
+  ['customerId', 'idempotencyKey'],
+  {
+    unique: true,
+    where: '"idempotency_key" IS NOT NULL',
+  },
+)
 export class SalesOrder {
   @PrimaryGeneratedColumn({ name: 'order_id', type: 'integer' })
   orderId!: number;
@@ -50,6 +65,9 @@ export class SalesOrder {
 
   @Column({ name: 'customer_id', type: 'integer' })
   customerId!: number;
+
+  @Column({ name: 'voucher_id', type: 'integer', nullable: true })
+  voucherId!: number | null;
 
   @Column({ name: 'recipient_name', type: 'varchar', length: 120 })
   recipientName!: string;
@@ -113,6 +131,22 @@ export class SalesOrder {
   })
   paymentConfirmedByEmployeeId!: number | null;
 
+  @Column({
+    name: 'idempotency_key',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  idempotencyKey!: string | null;
+
+  @Column({
+    name: 'request_fingerprint',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  requestFingerprint!: string | null;
+
   @Column({ type: 'varchar', length: 20, default: 'pending' })
   status!: SalesOrderStatus;
 
@@ -132,4 +166,17 @@ export class SalesOrder {
 
   @OneToOne(() => Packing, (packing) => packing.order, { cascade: false })
   packing!: Packing | null;
+
+  @OneToOne(() => PaymentAttempt, (attempt) => attempt.order, {
+    cascade: false,
+  })
+  paymentAttempt!: PaymentAttempt | null;
+
+  @ManyToOne(() => PromotionDetail, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({
+    name: 'voucher_id',
+    referencedColumnName: 'voucherId',
+    foreignKeyConstraintName: 'FK_sales_order_voucher',
+  })
+  voucher!: PromotionDetail | null;
 }

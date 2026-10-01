@@ -4,7 +4,8 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
+import { PromotionDetail } from '../promotions/entities/promotion-detail.entity';
 import { OrderDetail } from './entities/order-detail.entity';
 import { SalesOrder } from './entities/sales-order.entity';
 import { GetAdminOrdersDto } from './dto/get-admin-orders.dto';
@@ -15,6 +16,7 @@ interface AdminOrderDetailRow {
   orderId: number;
   orderDate: Date | string;
   customerId: number;
+  voucherId: number | null;
   recipientName: string;
   recipientPhone: string;
   shippingAddress: string;
@@ -41,6 +43,12 @@ interface AdminOrderDetailRow {
   packingEmployeeId: number | null;
   paymentConfirmedAt: Date | string | null;
   paymentConfirmedByEmployeeId: number | null;
+  paymentAttemptStatus: string | null;
+  paymentProviderReference: string | null;
+  paymentObservedAmountPaid: string | null;
+  paymentReconciliationReason: string | null;
+  paymentReconciliationAt: Date | string | null;
+  paymentProviderLinkWithoutCheckoutUrl: boolean;
 }
 
 @Injectable()
@@ -55,6 +63,8 @@ export class AdminOrdersService {
       recipientName: string;
       status: string;
       paymentStatus: string;
+      voucherCode: string | null;
+      discountAmount: string;
       totalAmount: string;
       detailCount: number;
     }>;
@@ -69,15 +79,21 @@ export class AdminOrdersService {
         orderId: true,
         orderDate: true,
         customerId: true,
+        voucherId: true,
         recipientName: true,
         status: true,
         paymentStatus: true,
+        discountAmount: true,
         totalAmount: true,
       },
       order: { orderDate: 'DESC', orderId: 'DESC' },
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
     });
+
+    const voucherCodes = await this.findVoucherCodes(
+      orders.map((order) => order.voucherId),
+    );
 
     const detailCounts = new Map<number, number>();
     if (orders.length > 0) {
@@ -104,9 +120,14 @@ export class AdminOrdersService {
         orderId: this.toInteger(order.orderId),
         orderDate: this.toIsoUtc(order.orderDate),
         customerId: this.toInteger(order.customerId),
+        voucherCode:
+          order.voucherId === null
+            ? null
+            : this.requireVoucherCode(voucherCodes, order.voucherId),
         recipientName: order.recipientName,
         status: order.status,
         paymentStatus: order.paymentStatus,
+        discountAmount: this.toFixedMoney(order.discountAmount),
         totalAmount: this.toFixedMoney(order.totalAmount),
         detailCount: detailCounts.get(order.orderId) ?? 0,
       })),
@@ -142,6 +163,12 @@ export class AdminOrdersService {
 
       if (order.status !== 'pending') {
         throw new ConflictException('Only pending orders can be packed.');
+      }
+
+      if (order.paymentMethod === 'payos' && order.paymentStatus !== 'paid') {
+        throw new ConflictException(
+          'PayOS orders must be paid before they can be packed.',
+        );
       }
 
       await manager
@@ -181,13 +208,19 @@ export class AdminOrdersService {
         throw new NotFoundException('Order not found.');
       }
 
+      if (order.paymentMethod === 'payos') {
+        throw new ConflictException(
+          'PayOS orders can only be marked as paid by provider reconciliation.',
+        );
+      }
+
       if (order.status !== 'packed') {
         throw new ConflictException(
           'Only packed orders can be marked as paid.',
         );
       }
 
-      if (order.paymentMethod !== 'cod') {
+      if (order.paymentMethod !== 'cod' && order.paymentMethod !== null) {
         throw new ConflictException('Only COD orders can be marked as paid.');
       }
 
@@ -220,9 +253,11 @@ export class AdminOrdersService {
       .leftJoin('detail.variant', 'variant')
       .leftJoin('variant.product', 'product')
       .leftJoin('order.packing', 'packing')
+      .leftJoin('order.paymentAttempt', 'paymentAttempt')
       .select('order.orderId', 'orderId')
       .addSelect('order.orderDate', 'orderDate')
       .addSelect('order.customerId', 'customerId')
+      .addSelect('order.voucherId', 'voucherId')
       .addSelect('order.recipientName', 'recipientName')
       .addSelect('order.recipientPhone', 'recipientPhone')
       .addSelect('order.shippingAddress', 'shippingAddress')
@@ -252,6 +287,21 @@ export class AdminOrdersService {
       .addSelect('packing.status', 'packingStatus')
       .addSelect('packing.note', 'packingNote')
       .addSelect('packing.employeeId', 'packingEmployeeId')
+      .addSelect('paymentAttempt.status', 'paymentAttemptStatus')
+      .addSelect('paymentAttempt.providerReference', 'paymentProviderReference')
+      .addSelect(
+        'paymentAttempt.observedAmountPaid',
+        'paymentObservedAmountPaid',
+      )
+      .addSelect(
+        'paymentAttempt.reconciliationReason',
+        'paymentReconciliationReason',
+      )
+      .addSelect('paymentAttempt.reconciliationAt', 'paymentReconciliationAt')
+      .addSelect(
+        'CASE WHEN paymentAttempt.providerPaymentLinkId IS NOT NULL AND paymentAttempt.checkoutUrl IS NULL THEN TRUE ELSE FALSE END',
+        'paymentProviderLinkWithoutCheckoutUrl',
+      )
       .where('order.orderId = :orderId', { orderId })
       .orderBy('detail.variantId', 'ASC')
       .getRawMany<AdminOrderDetailRow>();
@@ -274,6 +324,11 @@ export class AdminOrdersService {
         subtotal: this.toFixedMoney(row.detailSubtotal!),
       }));
 
+    const voucherCode =
+      order.voucherId === null
+        ? null
+        : await this.findVoucherCode(this.toInteger(order.voucherId));
+
     const packing =
       order.packingId === null
         ? null
@@ -290,14 +345,36 @@ export class AdminOrdersService {
       orderId: this.toInteger(order.orderId),
       orderDate: this.toIsoUtc(order.orderDate),
       customerId: this.toInteger(order.customerId),
+      voucherCode,
       recipientName: order.recipientName,
       recipientPhone: order.recipientPhone,
       shippingAddress: order.shippingAddress,
       discountAmount: this.toFixedMoney(order.discountAmount),
       shippingFee: this.toFixedMoney(order.shippingFee),
       totalAmount: this.toFixedMoney(order.totalAmount),
-      paymentMethod: order.paymentMethod,
+      paymentMethod: order.paymentMethod ?? 'cod',
       paymentStatus: order.paymentStatus,
+      paymentAttentionRequired:
+        order.paymentAttemptStatus === 'reconciliation_required' ||
+        order.paymentProviderLinkWithoutCheckoutUrl ||
+        order.paymentReconciliationReason !== null,
+      paymentAttempt:
+        order.paymentAttemptStatus === null
+          ? null
+          : {
+              status: order.paymentAttemptStatus,
+              providerReference: order.paymentProviderReference,
+              observedAmountPaid:
+                order.paymentObservedAmountPaid === null
+                  ? null
+                  : this.toFixedMoney(order.paymentObservedAmountPaid),
+              reconciliationReason: order.paymentReconciliationReason,
+              reconciliationAt:
+                order.paymentReconciliationAt === null
+                  ? null
+                  : this.toIsoUtc(order.paymentReconciliationAt),
+              checkoutUrlMissing: order.paymentProviderLinkWithoutCheckoutUrl,
+            },
       paymentConfirmedAt:
         order.paymentConfirmedAt === null
           ? null
@@ -328,6 +405,55 @@ export class AdminOrdersService {
     }
 
     return orderId;
+  }
+
+  private async findVoucherCodes(
+    voucherIds: Array<number | null>,
+  ): Promise<Map<number, string>> {
+    const uniqueVoucherIds = [
+      ...new Set(
+        voucherIds.filter(
+          (voucherId): voucherId is number => voucherId !== null,
+        ),
+      ),
+    ];
+    if (uniqueVoucherIds.length === 0) return new Map();
+
+    const vouchers = await this.dataSource.getRepository(PromotionDetail).find({
+      select: { voucherId: true, code: true },
+      where: { voucherId: In(uniqueVoucherIds) },
+    });
+    return new Map(
+      vouchers.map((voucher) => [voucher.voucherId, voucher.code]),
+    );
+  }
+
+  private async findVoucherCode(voucherId: number): Promise<string> {
+    const voucher = await this.dataSource
+      .getRepository(PromotionDetail)
+      .findOne({
+        select: { voucherId: true, code: true },
+        where: { voucherId },
+      });
+    if (!voucher) {
+      throw new InternalServerErrorException(
+        'The order references a voucher that could not be loaded.',
+      );
+    }
+    return voucher.code;
+  }
+
+  private requireVoucherCode(
+    voucherCodes: Map<number, string>,
+    voucherId: number,
+  ): string {
+    const code = voucherCodes.get(voucherId);
+    if (!code) {
+      throw new InternalServerErrorException(
+        'The order references a voucher that could not be loaded.',
+      );
+    }
+    return code;
   }
 
   private toInteger(value: number | null): number {
