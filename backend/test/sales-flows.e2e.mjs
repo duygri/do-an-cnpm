@@ -410,6 +410,120 @@ test('creates orders from server prices and hides another customer’s order', a
   assert.equal((await api('/orders', { token: customerOneToken })).body.total, 1);
 });
 
+test('snapshots catalog identity across customer and admin order responses', async () => {
+  const originalIdentity = {
+    productName: `Snapshot Tee ${randomUUID()}`,
+    size: 'Snapshot-M',
+    color: 'Snapshot-Blue',
+  };
+  const updatedIdentity = {
+    productName: `Renamed Snapshot Tee ${randomUUID()}`,
+    size: 'Snapshot-XL',
+    color: 'Snapshot-Red',
+  };
+
+  const category = await api('/categories', {
+    method: 'POST',
+    token: employeeToken,
+    body: { name: `Snapshot category ${randomUUID()}` },
+  });
+  assert.equal(category.status, 201, JSON.stringify(category.body));
+
+  const product = await api('/products', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: originalIdentity.productName,
+      status: 'active',
+      categoryId: category.body.categoryId,
+    },
+  });
+  assert.equal(product.status, 201, JSON.stringify(product.body));
+
+  const variant = await api(`/products/${product.body.productId}/variants`, {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      size: originalIdentity.size,
+      color: originalIdentity.color,
+      price: 749.5,
+    },
+  });
+  assert.equal(variant.status, 201, JSON.stringify(variant.body));
+
+  const created = await placeOrder(customerOneToken, {
+    details: [{ variantId: variant.body.variantId, quantity: 1 }],
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const orderId = created.body.orderId;
+  const assertPublicIdentity = (detail, identity) => {
+    assert.equal(detail.productName, identity.productName);
+    assert.equal(detail.size, identity.size);
+    assert.equal(detail.color, identity.color);
+    assert.equal(Object.hasOwn(detail, 'productNameSnapshot'), false);
+    assert.equal(Object.hasOwn(detail, 'variantSizeSnapshot'), false);
+    assert.equal(Object.hasOwn(detail, 'variantColorSnapshot'), false);
+  };
+  assertPublicIdentity(created.body.details[0], originalIdentity);
+
+  const updateProduct = await api(`/products/${product.body.productId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { name: updatedIdentity.productName },
+  });
+  assert.equal(updateProduct.status, 200, JSON.stringify(updateProduct.body));
+
+  const updateVariant = await api(
+    `/products/${product.body.productId}/variants/${variant.body.variantId}`,
+    {
+      method: 'PATCH',
+      token: employeeToken,
+      body: { size: updatedIdentity.size, color: updatedIdentity.color },
+    },
+  );
+  assert.equal(updateVariant.status, 200, JSON.stringify(updateVariant.body));
+
+  const customerDetail = await api(`/orders/${orderId}`, {
+    token: customerOneToken,
+  });
+  assert.equal(customerDetail.status, 200, JSON.stringify(customerDetail.body));
+  assertPublicIdentity(customerDetail.body.details[0], originalIdentity);
+
+  const adminDetail = await api(`/admin/orders/${orderId}`, {
+    token: employeeToken,
+  });
+  assert.equal(adminDetail.status, 200, JSON.stringify(adminDetail.body));
+  assertPublicIdentity(adminDetail.body.details[0], originalIdentity);
+
+  const cancelled = await api(`/orders/${orderId}/cancel`, {
+    method: 'POST',
+    token: customerOneToken,
+  });
+  assert.equal(cancelled.status, 200, JSON.stringify(cancelled.body));
+  assert.equal(cancelled.body.status, 'cancelled');
+  assertPublicIdentity(cancelled.body.details[0], originalIdentity);
+
+  const secondOrder = await placeOrder(customerOneToken, {
+    details: [{ variantId: variant.body.variantId, quantity: 1 }],
+  });
+  assert.equal(secondOrder.status, 201, JSON.stringify(secondOrder.body));
+  assertPublicIdentity(secondOrder.body.details[0], updatedIdentity);
+
+  const orderList = await api('/orders', { token: customerOneToken });
+  assert.equal(orderList.status, 200, JSON.stringify(orderList.body));
+  assert.equal(
+    orderList.body.items.some((item) => item.orderId === orderId),
+    true,
+  );
+  assert.equal(
+    orderList.body.items.some((item) => item.orderId === secondOrder.body.orderId),
+    true,
+  );
+  for (const item of orderList.body.items) {
+    assert.equal(Object.hasOwn(item, 'details'), false);
+  }
+});
+
 test('enforces shared voucher limits atomically and releases a reservation on cancellation', async () => {
   const voucherCode = await createVoucher({ quantity: 1, discountValue: '250.00' });
   const [firstAttempt, secondAttempt] = await Promise.all([

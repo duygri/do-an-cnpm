@@ -29,14 +29,31 @@ interface PricedOrderLine {
   quantity: number;
   unitPrice: string;
   subtotal: string;
+  productNameSnapshot: string;
+  variantSizeSnapshot: string | null;
+  variantColorSnapshot: string | null;
 }
+
+type CustomerOrderDetailResponse = Pick<
+  OrderDetail,
+  'orderId' | 'variantId' | 'quantity' | 'unitPrice' | 'subtotal'
+> & {
+  productName: string;
+  size: string | null;
+  color: string | null;
+};
 
 type CustomerOrderResponse = Omit<
   SalesOrder,
-  'paymentAttempt' | 'idempotencyKey' | 'requestFingerprint' | 'paymentMethod'
+  | 'paymentAttempt'
+  | 'idempotencyKey'
+  | 'requestFingerprint'
+  | 'paymentMethod'
+  | 'details'
 > & {
   paymentMethod: Exclude<SalesOrder['paymentMethod'], null>;
   voucherCode: string | null;
+  details?: CustomerOrderDetailResponse[];
   checkoutUrl?: string;
   paymentExpiresAt?: Date;
 };
@@ -152,6 +169,9 @@ export class OrdersService {
             quantity: detail.quantity,
             unitPrice: this.formatCents(unitPriceCents),
             subtotal: this.formatCents(subtotalCents),
+            productNameSnapshot: variant.product.name,
+            variantSizeSnapshot: variant.size,
+            variantColorSnapshot: variant.color,
           });
         }
 
@@ -266,6 +286,9 @@ export class OrdersService {
               quantity: line.quantity,
               unitPrice: line.unitPrice,
               subtotal: line.subtotal,
+              productNameSnapshot: line.productNameSnapshot,
+              variantSizeSnapshot: line.variantSizeSnapshot,
+              variantColorSnapshot: line.variantColorSnapshot,
             }),
           ),
         );
@@ -722,17 +745,34 @@ export class OrdersService {
         ([key]) =>
           key !== 'paymentAttempt' &&
           key !== 'idempotencyKey' &&
-          key !== 'requestFingerprint',
+          key !== 'requestFingerprint' &&
+          key !== 'details',
       ),
     ) as Omit<
       SalesOrder,
-      'paymentAttempt' | 'idempotencyKey' | 'requestFingerprint'
+      | 'paymentAttempt'
+      | 'idempotencyKey'
+      | 'requestFingerprint'
+      | 'details'
     >;
     const response: CustomerOrderResponse = {
       ...customerOrder,
       paymentMethod: order.paymentMethod ?? 'cod',
       voucherCode,
     };
+
+    if (order.details !== undefined) {
+      response.details = order.details.map((detail) => ({
+        orderId: detail.orderId,
+        variantId: detail.variantId,
+        quantity: detail.quantity,
+        unitPrice: detail.unitPrice,
+        subtotal: detail.subtotal,
+        productName: detail.productNameSnapshot,
+        size: detail.variantSizeSnapshot,
+        color: detail.variantColorSnapshot,
+      }));
+    }
 
     if (
       order.paymentMethod === 'payos' &&
