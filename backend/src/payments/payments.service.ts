@@ -17,6 +17,7 @@ import type {
   PaymentProviderLink,
   VerifiedPaymentWebhook,
 } from './payment-provider';
+import { InvoicesService } from '../invoices/invoices.service';
 
 const MAX_SAFE_VND = BigInt(Number.MAX_SAFE_INTEGER);
 const REFERENCE_CONFLICT_REASON =
@@ -32,6 +33,7 @@ export class PaymentsService {
     @Inject(PAYMENT_PROVIDER)
     private readonly provider: PaymentProvider,
     private readonly dataSource: DataSource,
+    private readonly invoices: InvoicesService,
   ) {}
 
   isConfigured(): boolean {
@@ -1248,6 +1250,7 @@ export class PaymentsService {
         state.attempt.reconciliationAt = null;
         await manager.getRepository(SalesOrder).save(state.order);
         await manager.getRepository(PaymentAttempt).save(state.attempt);
+        await this.invoices.issueForPaidOrder(manager, state.order.orderId);
         return 'paid';
       }
 

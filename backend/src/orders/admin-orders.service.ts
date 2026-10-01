@@ -11,6 +11,7 @@ import { SalesOrder } from './entities/sales-order.entity';
 import { GetAdminOrdersDto } from './dto/get-admin-orders.dto';
 import { PackOrderDto } from './dto/pack-order.dto';
 import { Packing } from './entities/packing.entity';
+import { InvoicesService } from '../invoices/invoices.service';
 
 interface AdminOrderDetailRow {
   orderId: number;
@@ -53,7 +54,10 @@ interface AdminOrderDetailRow {
 
 @Injectable()
 export class AdminOrdersService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly invoices: InvoicesService,
+  ) {}
 
   async listOrders(pagination: GetAdminOrdersDto): Promise<{
     items: Array<{
@@ -240,6 +244,8 @@ export class AdminOrdersService {
         })
         .where('orderId = :orderId', { orderId })
         .execute();
+
+      await this.invoices.issueForPaidOrder(manager, orderId);
 
       return this.loadOrder(manager, orderId);
     });

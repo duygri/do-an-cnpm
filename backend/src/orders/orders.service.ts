@@ -18,6 +18,7 @@ import { GetOrdersDto } from './dto/get-orders.dto';
 import { PaymentAttempt } from '../payments/entities/payment-attempt.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { PAYOS_SETUP_LEASE_MS } from '../payments/payment-provider';
+import { InvoicesService } from '../invoices/invoices.service';
 
 const UNIT_PRICE_PRECISION = 12;
 const SUBTOTAL_PRECISION = 22;
@@ -47,6 +48,7 @@ export class OrdersService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly payments: PaymentsService,
+    private readonly invoices: InvoicesService,
   ) {}
 
   async createOrder(
@@ -223,6 +225,10 @@ export class OrdersService {
             requestFingerprint,
           }),
         );
+
+        if (isZeroTotalPayos) {
+          await this.invoices.issueForPaidOrder(manager, order.orderId);
+        }
 
         if (
           paymentMethod === 'payos' &&

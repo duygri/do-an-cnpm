@@ -132,6 +132,13 @@ erDiagram
         int employee_id FK "required, ON DELETE RESTRICT"
         int order_id FK, UK "required, unique, ON DELETE RESTRICT"
     }
+    INVOICE {
+        int invoice_id PK
+        timestamptz issued_date
+        numeric(24,2) total_amount "snapshot at issue time"
+        varchar(20) status "issued"
+        int order_id FK, UK "required, unique, ON DELETE RESTRICT"
+    }
     EMPLOYEE {
         int employee_id PK
         varchar name
@@ -155,6 +162,7 @@ erDiagram
     EMPLOYEE o|--o{ SALES_ORDER : confirms_payment
     SALES_ORDER ||--o| PAYMENT_ATTEMPT : has_payment_attempt
     SALES_ORDER ||--o| PACKING : has
+    SALES_ORDER ||--o| INVOICE : has
     EMPLOYEE ||--o{ PACKING : packs
 ```
 
@@ -175,6 +183,6 @@ erDiagram
 - An active employee may confirm payment only for a packed, unpaid COD order (or a legacy null-method row), after physically receiving the full `total_amount` in cash. Packing does not mean payment was received. Confirmation records PostgreSQL `CURRENT_TIMESTAMP` and the employee ID, changes the payment status to `paid`, and leaves order status `packed`; only one confirmation can succeed. Pending/cancelled, PayOS, and already-paid orders cannot be confirmed by an employee. A PayOS order must be paid before it may be packed. Customer order responses omit the confirmation attribution fields; admin order detail includes them along with safe reconciliation metadata but no checkout URL. The current backend does not support partial-payment settlement or refunds; partial provider amounts remain recorded as reconciliation observations. It does not model a delivery lifecycle.
 - An order has zero or one packing row. Each packing row belongs to exactly one order; the required unique `packing.order_id` FK enforces at most one packing row per order. Each packing row also references exactly one required employee; one employee may pack many orders.
 - MVP packing records the server timestamp, `packed` status, required employee, and optional note; packaging type is nullable and restricted to `bag` or `box`. The order-to-packing relationship is one-to-zero-or-one. It has no package weight or packing fee. `SALES_ORDER.shipping_fee` remains a separate delivery charge.
-- Voucher codes and employee/customer emails are unique. There is no invoice table or invoice API in the current backend.
+- An invoice is an internal paid-order record, not an electronic tax invoice. An order has zero or one invoice; each invoice references exactly one order through a unique restrictive FK. The amount is a snapshot of the order total at issue time. The backend issues it in the same transaction as a confirmed payment (PayOS full settlement, employee confirmation of packed COD, or creation of a zero-total PayOS order). Unpaid and cancelled orders have no invoice. Customers can read only their own invoice summary; active employees can read an order's invoice summary. No manual issue, cancellation, refund, tax-document, or frontend flow is part of this MVP.
 - `IMPORT_DETAIL.quantity` and `ORDER_DETAIL.quantity` are document/order quantities only. They are not combined into an available-stock balance, and this schema does not track inventory movements or balances.
 - Creating an import records its supplier, employee, variants, quantities, and prices as purchase history; it does not replenish a computed stock balance. Creating an order validates active products and variant references but does not check available stock. Cancelling a pending order changes its status only and does not restore or otherwise change stock.
