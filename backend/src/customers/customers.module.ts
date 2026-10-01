@@ -10,6 +10,6 @@ import { CustomersService } from './customers.service';
   imports: [AuthModule, TypeOrmModule.forFeature([Customer])],
   controllers: [CustomersController],
   providers: [CustomerJwtGuard, CustomersService],
-  exports: [CustomerJwtGuard],
+  exports: [CustomerJwtGuard, TypeOrmModule],
 })
 export class CustomersModule {}
