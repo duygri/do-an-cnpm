@@ -102,6 +102,7 @@ async function createAdmin(source: DataSource): Promise<void> {
     phone: null,
     passwordHash: await passwordService.hash(password),
     position: 'admin',
+    role: 'admin',
     status: 'active',
   });
 

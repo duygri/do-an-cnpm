@@ -1,7 +1,9 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import type { EmployeeRole } from '../employee-role';
 
 @Entity({ name: 'employee' })
 @Index('UQ_employee_email', ['email'], { unique: true })
+@Index('IDX_employee_role_status', ['role', 'status'])
 export class Employee {
   @PrimaryGeneratedColumn({ name: 'employee_id', type: 'integer' })
   employeeId!: number;
@@ -20,6 +22,9 @@ export class Employee {
 
   @Column({ type: 'varchar', length: 80 })
   position!: string;
+
+  @Column({ type: 'varchar', length: 30, default: 'unassigned' })
+  role!: EmployeeRole;
 
   @Column({ type: 'varchar', length: 30, default: 'active' })
   status!: string;
