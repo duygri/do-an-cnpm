@@ -96,7 +96,7 @@ npm run build
 node --test --test-name-pattern="snapshots catalog identity" test/sales-flows.e2e.mjs
 ```
 
-Expected: exactly the named test is selected and its new assertions fail because customer details do not yet expose public snapshot fields and admin details still read live catalog values.
+Expected: exactly the named test is selected. Before API implementation, `POST /orders` fails with `500` instead of `201` because the migration's required `product_name_snapshot` is not yet written by the current service. This is the expected missing behavior; keep the real `NOT NULL` constraint in the test database. After persistence is implemented, any remaining red assertion should identify absent customer display fields or admin's use of live catalog values.
 
 - [ ] **Step 3: Add the snapshot fields to the entity and order creation**
 
