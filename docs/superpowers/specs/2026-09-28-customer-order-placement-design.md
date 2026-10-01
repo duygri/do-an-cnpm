@@ -17,7 +17,7 @@ Allow an authenticated customer to place, inspect, list, and cancel their own or
 
 - Require customer authentication and ownership checks for order list, detail, and cancellation.
 - Validate active products and valid variants; calculate and persist order line prices and totals on the server.
-- Snapshot the product name, variant size, and variant color on each order line inside the order-creation transaction.
+- Resolve product name, variant size, and variant color from the current catalog when returning full order details; edits to the catalog can change how older orders are displayed.
 - Keep pending-only customer cancellation, coordinated with employee packing through the sales-order row lock.
 
 This is the historical customer-order placement design; later documents define payment providers, vouchers, internal MVP receipts, and employee packing. Their behavior does not add inventory tracking.
@@ -28,8 +28,8 @@ All routes require a customer JWT via the existing `CustomerJwtGuard`. A custome
 
 - `POST /orders`: accept 1–100 distinct variant lines with positive integer quantities and required delivery snapshot fields `recipientName`, `recipientPhone`, and `shippingAddress`; accept optional `note`, `voucherCode`, and `paymentMethod` as described in the current backend API documentation. Its full-order response includes details with `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`.
 - `GET /orders?page=1&limit=20`: list the caller’s orders newest first, paginated with defaults 1/20 and maximum limit 100. This remains a summary response without order-line details.
-- `GET /orders/:orderId`: return one order and its lines only if it belongs to the caller. Each detail includes `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`; `productName`, `size`, and `color` come from the order-line snapshots.
-- `POST /orders/:orderId/cancel`: cancel the caller’s pending order when permitted by its payment state. Return the updated full order and detail snapshots.
+- `GET /orders/:orderId`: return one order and its lines only if it belongs to the caller. Each detail includes `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`; product and variant descriptions come from the current catalog.
+- `POST /orders/:orderId/cancel`: cancel the caller’s pending order when permitted by its payment state. Return the updated full order and details using current catalog values.
 
 Names are trimmed and must fit the existing customer name length (120); phone is trimmed and must fit 30 characters; shipping address is trimmed and must be non-empty. These recipient values are stored with the order so later profile changes do not rewrite its delivery details. Duplicate variant IDs in one request are rejected.
 
@@ -44,11 +44,11 @@ Order creation runs in one database transaction:
 1. Load the requested variants and their products, then confirm that every variant exists and each parent product is active.
 2. Read the product name, variant size, variant color, and current unit price for each line.
 3. Calculate line subtotals and the merchandise total from server-calculated prices using integer cents/BigInt; all client-supplied money values are ignored or rejected by the request contract.
-4. Save the order and its details, including the three descriptive snapshots, before the transaction commits.
+4. Save the order and its details before the transaction commits. The order detail stores its variant ID and the price charged at purchase.
 
 If a line is invalid, no order or order-detail writes survive. When the request uses a positive-total PayOS payment, its payment attempt is also created in the order transaction. Payment settlement and voucher-use rules remain governed by their respective follow-on designs.
 
-The product-name snapshot is required. Size and color snapshots are nullable and preserve null catalog values. Snapshot fields are immutable through order and catalog APIs. Editing product or variant data later does not change existing order detail responses; a later order captures the then-current catalog values.
+Full customer and admin order detail responses resolve product name, size, and color from the current product and variant rows. These descriptive values may change for older orders after catalog edits; the charged unit price remains stored on the order line.
 
 Order line quantities are document data only. Order creation does not acquire variant locks to coordinate stock, inspect a stock balance, reserve units, or write inventory movements. If any line is invalid, the transaction writes no partial order or details.
 
@@ -58,15 +58,7 @@ Cancellation runs in a transaction, locks the order, verifies ownership and `pen
 
 `sales_order` has a generated integer ID, server timestamp, customer FK, delivery snapshot (`recipient_name`, `recipient_phone`, `shipping_address`), nonnegative `discount_amount`, `shipping_fee`, and `total_amount`, nullable payment method for legacy rows, `payment_status`, `status`, and optional note. Header money fields use `numeric(24,2)`.
 
-`order_detail` uses composite primary key `(order_id, variant_id)`, positive integer quantity, nonnegative `numeric(12,2)` unit-price snapshot, nonnegative `numeric(22,2)` computed subtotal, and restrictive foreign keys to the order and variant. It also stores these catalog identity snapshots:
-
-- `product_name_snapshot varchar(200) NOT NULL`
-- `variant_size_snapshot varchar(50) NULL`
-- `variant_color_snapshot varchar(50) NULL`
-
-At placement, populate the snapshots from the product and variant rows read in the same transaction. The migration backfills existing order lines from the catalog values available when it runs, then requires the product-name snapshot. If catalog fields were changed before migration, their earlier values cannot be recovered; the backfilled values are only the best available record.
-
-The snapshot migration rollback drops only these three columns. It retains order/detail rows, identifiers, quantities, prices, subtotals, totals, and all other schema and data. Snapshot values are intentionally lost on rollback.
+`order_detail` uses composite primary key `(order_id, variant_id)`, positive integer quantity, nonnegative `numeric(12,2)` unit-price snapshot, nonnegative `numeric(22,2)` computed subtotal, and restrictive foreign keys to the order and variant. Product name, size, and color are resolved from the current catalog and are not stored on the order line.
 
 No order-placement migration creates or modifies a stock ledger or balance. Import and order quantities remain document values only.
 
@@ -86,8 +78,8 @@ No order-placement migration creates or modifies a stock ledger or balance. Impo
 ## Acceptance criteria
 
 - Customer JWT is required for customer order routes, and order reads/cancellations are scoped to the authenticated customer.
-- A valid order snapshots recipient details, product name, variant size/color, and current prices; computes totals server-side; and saves order and lines atomically.
-- Customer create/detail/cancel responses expose line fields `productName`, `size`, and `color` from snapshots; `GET /orders` remains a summary.
-- Catalog edits after an order do not alter that order’s displayed product name, size, or color. New orders capture the updated catalog values.
+- A valid order stores recipient details and charged unit prices, computes totals server-side, and saves order and lines atomically.
+- Customer create/detail/cancel responses expose line fields `productName`, `size`, and `color` from the current catalog; `GET /orders` remains a summary.
+- Catalog edits can alter the displayed product name, size, or color on older orders.
 - Order placement does not reserve or deduct stock; import/order quantities remain document data; cancellation changes order state only.
 - Duplicate cancellation, invalid items, and invalid requests cannot create partial order records.

@@ -31,29 +31,6 @@ export class OrderDetail {
   @Column({ type: 'numeric', precision: 22, scale: 2 })
   subtotal!: string;
 
-  @Column({
-    name: 'product_name_snapshot',
-    type: 'varchar',
-    length: 200,
-  })
-  productNameSnapshot!: string;
-
-  @Column({
-    name: 'variant_size_snapshot',
-    type: 'varchar',
-    length: 50,
-    nullable: true,
-  })
-  variantSizeSnapshot!: string | null;
-
-  @Column({
-    name: 'variant_color_snapshot',
-    type: 'varchar',
-    length: 50,
-    nullable: true,
-  })
-  variantColorSnapshot!: string | null;
-
   @ManyToOne(() => SalesOrder, (order) => order.details, {
     nullable: false,
     onDelete: 'RESTRICT',

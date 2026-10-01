@@ -29,9 +29,6 @@ interface PricedOrderLine {
   quantity: number;
   unitPrice: string;
   subtotal: string;
-  productNameSnapshot: string;
-  variantSizeSnapshot: string | null;
-  variantColorSnapshot: string | null;
 }
 
 type CustomerOrderDetailResponse = Pick<
@@ -169,9 +166,6 @@ export class OrdersService {
             quantity: detail.quantity,
             unitPrice: this.formatCents(unitPriceCents),
             subtotal: this.formatCents(subtotalCents),
-            productNameSnapshot: variant.product.name,
-            variantSizeSnapshot: variant.size,
-            variantColorSnapshot: variant.color,
           });
         }
 
@@ -286,9 +280,6 @@ export class OrdersService {
               quantity: line.quantity,
               unitPrice: line.unitPrice,
               subtotal: line.subtotal,
-              productNameSnapshot: line.productNameSnapshot,
-              variantSizeSnapshot: line.variantSizeSnapshot,
-              variantColorSnapshot: line.variantColorSnapshot,
             }),
           ),
         );
@@ -367,6 +358,8 @@ export class OrdersService {
       .getRepository(SalesOrder)
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.details', 'detail')
+      .leftJoinAndSelect('detail.variant', 'variant')
+      .leftJoinAndSelect('variant.product', 'product')
       .leftJoinAndSelect('order.paymentAttempt', 'paymentAttempt')
       .where('order.orderId = :orderId', { orderId })
       .andWhere('order.customerId = :customerId', { customerId })
@@ -427,6 +420,8 @@ export class OrdersService {
       const savedOrder = await orderRepository
         .createQueryBuilder('order')
         .leftJoinAndSelect('order.details', 'detail')
+        .leftJoinAndSelect('detail.variant', 'variant')
+        .leftJoinAndSelect('variant.product', 'product')
         .where('order.orderId = :orderId', { orderId })
         .andWhere('order.customerId = :customerId', { customerId })
         .orderBy('detail.variantId', 'ASC')
@@ -765,9 +760,9 @@ export class OrdersService {
         quantity: detail.quantity,
         unitPrice: detail.unitPrice,
         subtotal: detail.subtotal,
-        productName: detail.productNameSnapshot,
-        size: detail.variantSizeSnapshot,
-        color: detail.variantColorSnapshot,
+        productName: detail.variant.product.name,
+        size: detail.variant.size,
+        color: detail.variant.color,
       }));
     }
 

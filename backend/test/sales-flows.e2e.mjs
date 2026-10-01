@@ -410,16 +410,16 @@ test('creates orders from server prices and hides another customer’s order', a
   assert.equal((await api('/orders', { token: customerOneToken })).body.total, 1);
 });
 
-test('snapshots catalog identity across customer and admin order responses', async () => {
+test('order history reflects current catalog identity', async () => {
   const originalIdentity = {
-    productName: `Snapshot Tee ${randomUUID()}`,
-    size: 'Snapshot-M',
-    color: 'Snapshot-Blue',
+    productName: `Original Tee ${randomUUID()}`,
+    size: 'Original-M',
+    color: 'Original-Blue',
   };
   const updatedIdentity = {
-    productName: `Renamed Snapshot Tee ${randomUUID()}`,
-    size: 'Snapshot-XL',
-    color: 'Snapshot-Red',
+    productName: `Renamed Tee ${randomUUID()}`,
+    size: 'Updated-XL',
+    color: 'Updated-Red',
   };
 
   const category = await api('/categories', {
@@ -460,9 +460,6 @@ test('snapshots catalog identity across customer and admin order responses', asy
     assert.equal(detail.productName, identity.productName);
     assert.equal(detail.size, identity.size);
     assert.equal(detail.color, identity.color);
-    assert.equal(Object.hasOwn(detail, 'productNameSnapshot'), false);
-    assert.equal(Object.hasOwn(detail, 'variantSizeSnapshot'), false);
-    assert.equal(Object.hasOwn(detail, 'variantColorSnapshot'), false);
   };
   assertPublicIdentity(created.body.details[0], originalIdentity);
 
@@ -487,13 +484,13 @@ test('snapshots catalog identity across customer and admin order responses', asy
     token: customerOneToken,
   });
   assert.equal(customerDetail.status, 200, JSON.stringify(customerDetail.body));
-  assertPublicIdentity(customerDetail.body.details[0], originalIdentity);
+  assertPublicIdentity(customerDetail.body.details[0], updatedIdentity);
 
   const adminDetail = await api(`/admin/orders/${orderId}`, {
     token: employeeToken,
   });
   assert.equal(adminDetail.status, 200, JSON.stringify(adminDetail.body));
-  assertPublicIdentity(adminDetail.body.details[0], originalIdentity);
+  assertPublicIdentity(adminDetail.body.details[0], updatedIdentity);
 
   const cancelled = await api(`/orders/${orderId}/cancel`, {
     method: 'POST',
@@ -501,7 +498,7 @@ test('snapshots catalog identity across customer and admin order responses', asy
   });
   assert.equal(cancelled.status, 200, JSON.stringify(cancelled.body));
   assert.equal(cancelled.body.status, 'cancelled');
-  assertPublicIdentity(cancelled.body.details[0], originalIdentity);
+  assertPublicIdentity(cancelled.body.details[0], updatedIdentity);
 
   const secondOrder = await placeOrder(customerOneToken, {
     details: [{ variantId: variant.body.variantId, quantity: 1 }],

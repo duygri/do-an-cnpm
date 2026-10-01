@@ -98,9 +98,6 @@ erDiagram
     ORDER_DETAIL {
         int order_id PK, FK
         int variant_id PK, FK
-        varchar(200) product_name_snapshot "required; name at order placement"
-        varchar(50) variant_size_snapshot "nullable; size at order placement"
-        varchar(50) variant_color_snapshot "nullable; color at order placement"
         int quantity
         numeric unit_price
         numeric subtotal
@@ -172,7 +169,7 @@ erDiagram
 ## Constraints and purchase/order/packing rules
 
 - `ORDER_DETAIL` uses `(order_id, variant_id)` as its primary key; `IMPORT_DETAIL` uses `(import_id, variant_id)`. Each variant occurs once in a document's detail rows.
-- Each order line stores product name, size, and color snapshots captured when the order is placed. Existing rows are backfilled from the catalog values available when the snapshot migration runs; earlier historical values cannot be recovered if the catalog was edited before that migration.
+- Order lines reference the product variant and retain the unit price used at purchase. Order history reads product name, size, and color from the current catalog, so later catalog edits can change how older order lines are displayed.
 - `PROMOTION` requires `start_date <= end_date`; status is `active` or `inactive`. `PROMOTION_DETAIL` belongs to one promotion with a restrictive foreign key; its date range is also ordered, status is `active` or `inactive`, and type is `fixed` or `percentage`. Codes are trimmed and stored uppercase, limited to 64 ASCII letters, digits, hyphens, or underscores, and globally unique (`UQ_promotion_detail_code`). Codes are immutable through the API. A campaign and voucher must both be active and both date ranges must inclusively contain PostgreSQL `CURRENT_DATE` to apply.
 - `PROMOTION_DETAIL.discount_value` and `min_price` are `numeric(24,2)`; discount is positive, minimum is nonnegative, and percentage discount is at most `100.00`. Nullable `max_discount` is positive when set and only allowed for percentage vouchers. `quantity` is a positive integer and caps redemptions across all customers. Promotion indexes cover `(status, start_date, end_date)`; voucher indexes cover `promotion_id` and `(status, start_date, end_date)`.
 - `SALES_ORDER.voucher_id` is nullable and references `PROMOTION_DETAIL.voucher_id` with `ON DELETE RESTRICT`; `IDX_sales_order_voucher_id_status` supports the redemption count by voucher and order status. One order uses zero or one voucher, while one voucher may be referenced by many orders. Historical `voucher_id` and `discount_amount` remain on the order; later voucher edits do not recalculate existing totals. There is no hard-delete route for campaigns or vouchers; deactivate them by changing status.
