@@ -15,12 +15,14 @@ import { AdminOrdersController } from './admin-orders.controller';
 import { AdminOrdersService } from './admin-orders.service';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { InvoicesModule } from '../invoices/invoices.module';
 
 @Module({
   imports: [
     AuthModule,
     CustomersModule,
     PayosPaymentModule,
+    InvoicesModule,
     TypeOrmModule.forFeature([
       SalesOrder,
       OrderDetail,

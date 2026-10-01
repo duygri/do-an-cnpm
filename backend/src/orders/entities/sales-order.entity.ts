@@ -15,6 +15,7 @@ import { OrderDetail } from './order-detail.entity';
 import { Packing } from './packing.entity';
 import { PromotionDetail } from '../../promotions/entities/promotion-detail.entity';
 import { PaymentAttempt } from '../../payments/entities/payment-attempt.entity';
+import { Invoice } from '../../invoices/entities/invoice.entity';
 
 export type SalesOrderPaymentMethod = 'cod' | 'payos';
 export type SalesOrderPaymentStatus = 'unpaid' | 'paid';
@@ -171,6 +172,9 @@ export class SalesOrder {
     cascade: false,
   })
   paymentAttempt!: PaymentAttempt | null;
+
+  @OneToOne(() => Invoice, (invoice) => invoice.order, { cascade: false })
+  invoice!: Invoice | null;
 
   @ManyToOne(() => PromotionDetail, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({

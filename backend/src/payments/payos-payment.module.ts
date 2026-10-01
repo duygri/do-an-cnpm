@@ -8,10 +8,12 @@ import { PAYMENT_PROVIDER } from './payment-provider';
 import { PayosPaymentProvider } from './payos-payment.provider';
 import { PaymentsService } from './payments.service';
 import { PaymentExpiryScheduler } from './payment-expiry.scheduler';
+import { InvoicesModule } from '../invoices/invoices.module';
 
 @Module({
   imports: [
     ConfigModule,
+    InvoicesModule,
     TypeOrmModule.forFeature([SalesOrder, PaymentAttempt]),
   ],
   controllers: [PayosWebhookController],
