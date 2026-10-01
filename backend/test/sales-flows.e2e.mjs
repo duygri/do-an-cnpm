@@ -159,6 +159,16 @@ async function seedEmployee({ email, password, role }) {
   }
 }
 
+async function queryTestDatabase(sql, parameters = []) {
+  const client = new Client({ connectionString: testDatabaseUrl });
+  await client.connect();
+  try {
+    return await client.query(sql, parameters);
+  } finally {
+    await client.end();
+  }
+}
+
 async function api(pathname, options = {}) {
   const headers = {};
   if (options.body !== undefined) headers['content-type'] = 'application/json';
@@ -506,4 +516,315 @@ test('issues one invoice only after COD payment and enforces invoice ownership',
     token: customerOneToken,
   });
   assert.equal(invoiceAgain.body.invoiceId, customerInvoice.body.invoiceId);
+});
+
+test('employee administration endpoints are restricted to administrators', async () => {
+  const employeeId = adminEmployeeLogin.body.employee.employeeId;
+  const requests = [
+    { method: 'GET', pathname: '/admin/employees' },
+    {
+      method: 'POST',
+      pathname: '/admin/employees',
+      body: {
+        name: 'Unauthorized Employee',
+        email: `unauthorized-${randomUUID()}@example.com`,
+        password: employeePassword,
+        position: 'Staff',
+        role: 'unassigned',
+      },
+    },
+    {
+      method: 'PATCH',
+      pathname: `/admin/employees/${employeeId}`,
+      body: { role: 'catalog_manager' },
+    },
+  ];
+
+  for (const role of employeeRoles.filter((candidate) => candidate !== 'admin')) {
+    for (const request of requests) {
+      const response = await api(request.pathname, {
+        method: request.method,
+        token: employeeTokens[role],
+        body: request.body,
+      });
+      assert.equal(
+        response.status,
+        403,
+        `${role} ${request.method} ${request.pathname}: ${JSON.stringify(response.body)}`,
+      );
+    }
+  }
+});
+
+test('administrators can safely create, list, and update employee access', async () => {
+  const email = ` New.Employee-${randomUUID()}@Example.com `;
+  const created = await api('/admin/employees', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: 'New Employee',
+      email,
+      password: 'New-Employee-Password-2026!',
+      phone: '0900000001',
+      position: 'Sales specialist',
+      role: 'catalog_manager',
+    },
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.email, email.trim().toLowerCase());
+  assert.equal(created.body.role, 'catalog_manager');
+  assert.equal(created.body.status, 'active');
+  assert.equal(Object.hasOwn(created.body, 'passwordHash'), false);
+  assert.equal(Object.hasOwn(created.body, 'password_hash'), false);
+
+  const duplicate = await api('/admin/employees', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: 'Duplicate Employee',
+      email: email.trim().toUpperCase(),
+      password: 'New-Employee-Password-2026!',
+      position: 'Sales specialist',
+      role: 'unassigned',
+    },
+  });
+  assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
+
+  const invalidRole = await api('/admin/employees', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: 'Invalid Role',
+      email: `invalid-role-${randomUUID()}@example.com`,
+      password: 'New-Employee-Password-2026!',
+      position: 'Staff',
+      role: 'administrator',
+    },
+  });
+  assert.equal(invalidRole.status, 400, JSON.stringify(invalidRole.body));
+
+  const invalidPassword = await api('/admin/employees', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: 'Short Password',
+      email: `short-password-${randomUUID()}@example.com`,
+      password: 'short-pass',
+      position: 'Staff',
+      role: 'unassigned',
+    },
+  });
+  assert.equal(invalidPassword.status, 400, JSON.stringify(invalidPassword.body));
+
+  const forgedIdentity = await api('/admin/employees', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: 'Forged Employee',
+      email: `forged-${randomUUID()}@example.com`,
+      password: 'New-Employee-Password-2026!',
+      position: 'Staff',
+      role: 'unassigned',
+      employeeId: adminEmployeeLogin.body.employee.employeeId,
+      passwordHash: 'client-controlled-hash',
+    },
+  });
+  assert.equal(forgedIdentity.status, 400, JSON.stringify(forgedIdentity.body));
+
+  const listed = await api('/admin/employees', {
+    token: employeeToken,
+  });
+  assert.equal(listed.status, 200, JSON.stringify(listed.body));
+  assert.equal(listed.body.page, 1);
+  assert.equal(listed.body.limit, 20);
+  assert.ok(listed.body.items.length > 0);
+  for (const listedEmployee of listed.body.items) {
+    assert.equal(Object.hasOwn(listedEmployee, 'passwordHash'), false);
+    assert.equal(Object.hasOwn(listedEmployee, 'password_hash'), false);
+  }
+
+  const limitedList = await api('/admin/employees?page=1&limit=1', {
+    token: employeeToken,
+  });
+  assert.equal(limitedList.status, 200, JSON.stringify(limitedList.body));
+  assert.equal(limitedList.body.limit, 1);
+  assert.equal(limitedList.body.items.length, 1);
+
+  const invalidLimit = await api('/admin/employees?limit=101', {
+    token: employeeToken,
+  });
+  assert.equal(invalidLimit.status, 400, JSON.stringify(invalidLimit.body));
+
+  const employeeLogin = await api('/auth/employee/login', {
+    method: 'POST',
+    body: {
+      email: created.body.email,
+      password: 'New-Employee-Password-2026!',
+    },
+  });
+  assert.equal(employeeLogin.status, 200, JSON.stringify(employeeLogin.body));
+  const employeeTokenWithOldRole = employeeLogin.body.access_token;
+  assert.equal((await api('/categories', { token: employeeTokenWithOldRole })).status, 200);
+
+  const changedRole = await api(`/admin/employees/${created.body.employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { role: 'purchasing_staff' },
+  });
+  assert.equal(changedRole.status, 200, JSON.stringify(changedRole.body));
+  assert.equal(changedRole.body.role, 'purchasing_staff');
+  assert.equal(Object.hasOwn(changedRole.body, 'passwordHash'), false);
+  assert.equal(Object.hasOwn(changedRole.body, 'password_hash'), false);
+  assert.equal(
+    (await api('/categories', { token: employeeTokenWithOldRole })).status,
+    403,
+  );
+  assert.equal(
+    (await api('/suppliers', { token: employeeTokenWithOldRole })).status,
+    200,
+  );
+
+  const invalidStatus = await api(`/admin/employees/${created.body.employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { status: 'deleted' },
+  });
+  assert.equal(invalidStatus.status, 400, JSON.stringify(invalidStatus.body));
+
+  const invalidPatchRole = await api(`/admin/employees/${created.body.employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { role: 'owner' },
+  });
+  assert.equal(invalidPatchRole.status, 400, JSON.stringify(invalidPatchRole.body));
+
+  const noChanges = await api(`/admin/employees/${created.body.employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: {},
+  });
+  assert.equal(noChanges.status, 400, JSON.stringify(noChanges.body));
+
+  const invalidEmployeeId = await api('/admin/employees/not-an-id', {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { role: 'admin' },
+  });
+  assert.equal(invalidEmployeeId.status, 400, JSON.stringify(invalidEmployeeId.body));
+
+  const deactivated = await api(`/admin/employees/${created.body.employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { status: 'inactive' },
+  });
+  assert.equal(deactivated.status, 200, JSON.stringify(deactivated.body));
+  assert.equal(deactivated.body.status, 'inactive');
+  assert.equal(Object.hasOwn(deactivated.body, 'passwordHash'), false);
+  assert.equal(
+    (await api('/auth/employee/profile', { token: employeeTokenWithOldRole })).status,
+    401,
+  );
+});
+
+test('employee access mutations cannot lock out the last administrator', async () => {
+  const employeeId = adminEmployeeLogin.body.employee.employeeId;
+  const initialCount = await queryTestDatabase(
+    `SELECT COUNT(*)::integer AS count
+     FROM employee WHERE role = 'admin' AND status = 'active'`,
+  );
+  assert.equal(initialCount.rows[0].count, 1);
+
+  const selfDemotion = await api(`/admin/employees/${employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { role: 'catalog_manager' },
+  });
+  assert.equal(selfDemotion.status, 409, JSON.stringify(selfDemotion.body));
+
+  const selfDeactivation = await api(`/admin/employees/${employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { status: 'inactive' },
+  });
+  assert.equal(selfDeactivation.status, 409, JSON.stringify(selfDeactivation.body));
+
+  const finalAdminCount = await queryTestDatabase(
+    `SELECT COUNT(*)::integer AS count
+     FROM employee WHERE role = 'admin' AND status = 'active'`,
+  );
+  assert.equal(finalAdminCount.rows[0].count, 1);
+});
+
+test('concurrent administrators cannot demote each other and remove the final admin', async () => {
+  const primaryAdminId = adminEmployeeLogin.body.employee.employeeId;
+  const secondaryAdminEmail = `secondary-admin-${randomUUID()}@example.com`;
+  const secondaryAdminCreated = await api('/admin/employees', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: 'Secondary Administrator',
+      email: secondaryAdminEmail,
+      password: 'Secondary-Admin-Password-2026!',
+      position: 'Operations',
+      role: 'admin',
+    },
+  });
+  assert.equal(
+    secondaryAdminCreated.status,
+    201,
+    JSON.stringify(secondaryAdminCreated.body),
+  );
+
+  const secondaryAdminLogin = await api('/auth/employee/login', {
+    method: 'POST',
+    body: {
+      email: secondaryAdminEmail,
+      password: 'Secondary-Admin-Password-2026!',
+    },
+  });
+  assert.equal(secondaryAdminLogin.status, 200, JSON.stringify(secondaryAdminLogin.body));
+
+  const countBefore = await queryTestDatabase(
+    `SELECT COUNT(*)::integer AS count
+     FROM employee WHERE role = 'admin' AND status = 'active'`,
+  );
+  assert.equal(countBefore.rows[0].count, 2);
+
+  const primaryDemotesSecondary = api(
+    `/admin/employees/${secondaryAdminCreated.body.employeeId}`,
+    {
+      method: 'PATCH',
+      token: employeeToken,
+      body: { role: 'unassigned' },
+    },
+  );
+  const secondaryDemotesPrimary = api(`/admin/employees/${primaryAdminId}`, {
+    method: 'PATCH',
+    token: secondaryAdminLogin.body.access_token,
+    body: { role: 'unassigned' },
+  });
+  const [primaryResult, secondaryResult] = await Promise.all([
+    primaryDemotesSecondary,
+    secondaryDemotesPrimary,
+  ]);
+  const results = [primaryResult, secondaryResult];
+
+  assert.equal(
+    results.filter((result) => result.status === 200).length,
+    1,
+    `exactly one demotion should succeed: ${JSON.stringify(results)}`,
+  );
+  for (const result of results) {
+    assert.ok(
+      [200, 403, 409].includes(result.status),
+      `unexpected concurrent response: ${JSON.stringify(result)}`,
+    );
+  }
+
+  const countAfter = await queryTestDatabase(
+    `SELECT COUNT(*)::integer AS count
+     FROM employee WHERE role = 'admin' AND status = 'active'`,
+  );
+  assert.equal(countAfter.rows[0].count, 1);
 });
