@@ -117,7 +117,12 @@ export class PayosPaymentProvider implements PaymentProvider {
     ).webhooks.verify(webhook);
 
     return {
-      success: webhook.success,
+      // PayOS's confirm-webhook probe may omit the top-level `success` field.
+      // Derive its value from the signed data only after SDK verification.
+      success:
+        typeof webhook.success === 'boolean'
+          ? webhook.success
+          : verified.code === '00',
       code: webhook.code,
       data: {
         orderCode: verified.orderCode,
@@ -220,7 +225,8 @@ export class PayosPaymentProvider implements PaymentProvider {
 
     const candidate = payload as Record<string, unknown>;
     if (
-      typeof candidate.success !== 'boolean' ||
+      (Object.prototype.hasOwnProperty.call(candidate, 'success') &&
+        typeof candidate.success !== 'boolean') ||
       typeof candidate.code !== 'string' ||
       typeof candidate.signature !== 'string' ||
       candidate.signature.length === 0 ||
