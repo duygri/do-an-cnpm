@@ -750,10 +750,7 @@ export class OrdersService {
       ),
     ) as Omit<
       SalesOrder,
-      | 'paymentAttempt'
-      | 'idempotencyKey'
-      | 'requestFingerprint'
-      | 'details'
+      'paymentAttempt' | 'idempotencyKey' | 'requestFingerprint' | 'details'
     >;
     const response: CustomerOrderResponse = {
       ...customerOrder,
