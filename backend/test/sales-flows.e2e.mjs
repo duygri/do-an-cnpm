@@ -30,6 +30,8 @@ const { PasswordService } = require('../dist/auth/password.service.js');
 
 const employeeEmail = `employee-${randomUUID()}@example.com`;
 const employeePassword = 'Employee-Test-Password-2026!';
+const unassignedEmployeeEmail = `unassigned-${randomUUID()}@example.com`;
+const unassignedEmployeePassword = 'Unassigned-Test-Password-2026!';
 const customerPassword = 'Customer-Test-Password-2026!';
 const employeeName = 'Test Employee';
 
@@ -37,6 +39,9 @@ let childProcess;
 let serverOutput = '';
 let baseUrl;
 let employeeToken;
+let unassignedEmployeeToken;
+let adminEmployeeLogin;
+let unassignedEmployeeLogin;
 let customerOneToken;
 let customerTwoToken;
 let productVariantId;
@@ -118,15 +123,15 @@ async function stopBackend() {
   }
 }
 
-async function seedEmployee() {
-  const passwordHash = await new PasswordService().hash(employeePassword);
+async function seedEmployee({ email, password, role }) {
+  const passwordHash = await new PasswordService().hash(password);
   const client = new Client({ connectionString: testDatabaseUrl });
   await client.connect();
   try {
     await client.query(
-      `INSERT INTO employee (name, email, password_hash, position, status)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [employeeName, employeeEmail, passwordHash, 'admin', 'active'],
+      `INSERT INTO employee (name, email, password_hash, position, role, status)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [employeeName, email, passwordHash, 'Staff', role, 'active'],
     );
   } finally {
     await client.end();
@@ -214,13 +219,40 @@ before(async () => {
   const rootResponse = await api('/');
   assert.equal(rootResponse.status, 200);
 
-  await seedEmployee();
-  const employeeLogin = await api('/auth/employee/login', {
+  await seedEmployee({
+    email: employeeEmail,
+    password: employeePassword,
+    role: 'admin',
+  });
+  await seedEmployee({
+    email: unassignedEmployeeEmail,
+    password: unassignedEmployeePassword,
+    role: 'unassigned',
+  });
+  adminEmployeeLogin = await api('/auth/employee/login', {
     method: 'POST',
     body: { email: employeeEmail, password: employeePassword },
   });
-  assert.equal(employeeLogin.status, 200, JSON.stringify(employeeLogin.body));
-  employeeToken = employeeLogin.body.access_token;
+  assert.equal(
+    adminEmployeeLogin.status,
+    200,
+    JSON.stringify(adminEmployeeLogin.body),
+  );
+  employeeToken = adminEmployeeLogin.body.access_token;
+
+  unassignedEmployeeLogin = await api('/auth/employee/login', {
+    method: 'POST',
+    body: {
+      email: unassignedEmployeeEmail,
+      password: unassignedEmployeePassword,
+    },
+  });
+  assert.equal(
+    unassignedEmployeeLogin.status,
+    200,
+    JSON.stringify(unassignedEmployeeLogin.body),
+  );
+  unassignedEmployeeToken = unassignedEmployeeLogin.body.access_token;
 
   customerOneToken = await registerCustomer('Customer One');
   customerTwoToken = await registerCustomer('Customer Two');
@@ -278,6 +310,27 @@ test('enforces customer and employee token boundaries', async () => {
   assert.equal((await api('/auth/employee/profile', { token: customerOneToken })).status, 401);
   assert.equal((await api('/auth/customer/profile', { token: customerOneToken })).status, 200);
   assert.equal((await api('/auth/employee/profile', { token: employeeToken })).status, 200);
+});
+
+test('returns database employee roles on login and profile', async () => {
+  assert.equal(adminEmployeeLogin.body.employee.role, 'admin');
+  assert.equal(unassignedEmployeeLogin.body.employee.role, 'unassigned');
+
+  const adminProfile = await api('/auth/employee/profile', {
+    token: employeeToken,
+  });
+  const unassignedProfile = await api('/auth/employee/profile', {
+    token: unassignedEmployeeToken,
+  });
+
+  assert.equal(adminProfile.status, 200, JSON.stringify(adminProfile.body));
+  assert.equal(adminProfile.body.role, 'admin');
+  assert.equal(
+    unassignedProfile.status,
+    200,
+    JSON.stringify(unassignedProfile.body),
+  );
+  assert.equal(unassignedProfile.body.role, 'unassigned');
 });
 
 test('creates orders from server prices and hides another customer’s order', async () => {

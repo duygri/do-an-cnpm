@@ -6,6 +6,7 @@ import { Employee } from '../employees/entities/employee.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { EmployeeJwtGuard } from './employee-jwt.guard';
+import { EmployeeRolesGuard } from './employee-roles.guard';
 import { PasswordService } from './password.service';
 
 @Module({
@@ -31,7 +32,18 @@ import { PasswordService } from './password.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, EmployeeJwtGuard, PasswordService],
-  exports: [EmployeeJwtGuard, JwtModule, PasswordService, TypeOrmModule],
+  providers: [
+    AuthService,
+    EmployeeJwtGuard,
+    EmployeeRolesGuard,
+    PasswordService,
+  ],
+  exports: [
+    EmployeeJwtGuard,
+    EmployeeRolesGuard,
+    JwtModule,
+    PasswordService,
+    TypeOrmModule,
+  ],
 })
 export class AuthModule {}
