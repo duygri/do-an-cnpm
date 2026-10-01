@@ -1,10 +1,10 @@
-> **Superseded for inventory behavior (2026-09-29).** This is a historical design record; the current decision is [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md). Statements below that an inventory ledger is preserved, order placement deducts stock, or cancellation restores stock are no longer current; packing and cancellation do not change inventory. Keep the employee-authenticated order list/detail contracts, direct `pending` → `packed` workflow, packing MVP fields and transaction/row-lock coordination with pending-only cancellation.
+> **Historical design record, aligned with the approved current inventory policy.** The earlier proposal to preserve a ledger, deduct stock at order placement, or restore stock on cancellation was superseded by [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md). The system does not track inventory; order placement, packing, and cancellation do not reserve, deduct, restore, or otherwise change stock. The employee access, direct `pending` → `packed` workflow, packing MVP fields, and transaction/row-lock coordination with pending-only cancellation remain current.
 
 # Admin Order Processing Design
 
 ## Goal
 
-Let authenticated employees review customer orders and pack an order in one direct action, while preserving the existing stock ledger and customer cancellation rules.
+Let authenticated employees review customer orders and pack an order in one direct action, while preserving customer ownership and pending-only cancellation rules.
 
 ## Scope
 
@@ -21,7 +21,7 @@ This MVP has no separate `confirmed` or `packing` stage. It does not implement s
 All routes require an active employee with role `order_staff` or `admin`. An authenticated active employee without either role receives `403 Forbidden`; missing, invalid, expired, wrong-actor, or inactive employee credentials receive `401 Unauthorized`. The complete mapping is in the [employee role authorization matrix](2026-10-01-employee-role-authorization-design.md). Do not return the customer entity or password hash.
 
 - `GET /admin/orders?page=1&limit=20&status=pending`: list orders newest first by `(orderDate DESC, orderId DESC)`; `status` is optional and accepts only `pending`, `packed`, or `cancelled`. Pagination defaults to page 1 and limit 20; `page` must be an integer from 1 through 2,147,483,647, and `limit` an integer from 1 through 100. A valid page beyond the final page returns an empty `items` array with the actual `total`, not a 404. Return `{ items, page, limit, total }`. Each item has exactly `orderId`, `orderDate`, `customerId`, `recipientName`, `status`, `paymentStatus`, `totalAmount`, and `detailCount`. Do not include delivery address or order lines in the list.
-- `GET /admin/orders/:orderId`: return `{ orderId, orderDate, customerId, recipientName, recipientPhone, shippingAddress, discountAmount, shippingFee, totalAmount, paymentMethod, paymentStatus, status, note, details, packing }`. `details` is sorted by `variantId`; each detail has exactly `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`. `packing` is null or `{ packingId, packingDate, packingType, status, note, employeeId }`. Select only these fields; never serialize the full customer entity.
+- `GET /admin/orders/:orderId`: return `{ orderId, orderDate, customerId, recipientName, recipientPhone, shippingAddress, discountAmount, shippingFee, totalAmount, paymentMethod, paymentStatus, status, note, details, packing }`. `details` is sorted by `variantId`; each detail has exactly `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`. `productName`, `size`, and `color` come from the immutable snapshots on the order detail, not the current catalog. `packing` is null or `{ packingId, packingDate, packingType, status, note, employeeId }`. Select only these fields; never serialize the full customer entity.
 - `POST /admin/orders/:orderId/pack`: accept optional `packingType` (`bag` or `box`) and optional `note`. Neither employee ID, timestamp, packing status, nor sales-order status is client-controlled. Return the same order shape as the detail endpoint with its new packing record.
 
 Malformed or out-of-range order IDs return `404 Not Found`. Non-integer or out-of-range `page`/`limit`, unsupported status values, unknown body fields, unsupported `packingType` values, non-string notes, and notes longer than 1000 characters return `400 Bad Request`. Optional strings are trimmed; an empty note is stored as null.
@@ -40,7 +40,7 @@ Packing runs in one database transaction:
 4. Change the sales-order status to `packed`.
 5. Reload and return the updated order before committing.
 
-The customer cancellation path already locks the same sales-order row before checking `pending`. Therefore packing and cancellation serialize: whichever transaction commits first determines whether the other action is rejected. Packing does not write inventory movements or change stock; stock was deducted at order placement. Once packed, the customer can no longer cancel through the current pending-only cancellation endpoint.
+The customer cancellation path already locks the same sales-order row before checking `pending`. Therefore packing and cancellation serialize: whichever transaction commits first determines whether the other action is rejected. Packing does not write inventory movements or change stock; this system does not track stock. Once packed, the customer can no longer cancel through the current pending-only cancellation endpoint.
 
 ## Data model and migration
 
@@ -61,7 +61,7 @@ The migration's `up` and `down` paths require an active transaction. Assert `que
 
 - Employee role administration is specified separately in the [employee role authorization design](2026-10-01-employee-role-authorization-design.md).
 - Customer-facing shipment/delivery milestones, tracking numbers, carrier integration, weight-based shipping, and shipping-fee calculation.
-- Payment settlement, invoice issuance, vouchers/promotions, employee cancellation/refund, order edits, and inventory changes during packing.
+- Payment settlement, receipt issuance, vouchers/promotions, employee cancellation/refund, order edits, and inventory tracking; the system has no stock model to update during packing.
 - Automated test additions or execution.
 
 ## Acceptance criteria
@@ -71,6 +71,6 @@ The migration's `up` and `down` paths require an active transaction. Assert `que
 - Employee detail contains the delivery snapshot and packing-relevant product/variant data but does not leak `customer.password_hash`.
 - A valid pack request atomically creates one packing record and changes `pending` to `packed`, using the authenticated employee and server time.
 - Duplicate packing, cancelled orders, missing orders, and concurrent customer cancellation cannot create inconsistent packing/order state.
-- Customer cancellation remains restricted to pending orders and retains its stock-restoration transaction behavior.
+- Customer cancellation remains restricted to pending orders; a successful cancellation changes order state only and does not write inventory or alter stock.
 - Migration constraints, entity definitions, ERD, and README agree; the migration can safely refuse rollback when packed orders exist.
 - Backend format, build, and lint pass; all migrations show applied after running the new migration in the authorized local development database.

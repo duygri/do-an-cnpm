@@ -1,91 +1,93 @@
-> **Superseded for inventory behavior (2026-09-29).** This is a historical design record; the current decision is [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md). The stock-availability check, variant locks used only for stock coordination, sale movements at order placement, stock-restoration movements on cancellation, and claims that concurrent orders cannot oversell a tracked balance are no longer current. Keep customer authentication and ownership checks, active-product/valid-variant checks, recipient snapshots, server-calculated prices/totals, order details, and pending-only cancellation; cancellation remains serialized with packing and changes order status only.
+> **Historical phase design, aligned with the approved current policy.** An earlier draft proposed checking stock and writing inventory movements during order placement/cancellation; that proposal was superseded by [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md) and is not current behavior. The system does not track stock. Follow-on payment, voucher, invoice, and employee-packing behavior is specified separately and is not redefined here.
 
 # Customer Order Placement Design
 
 ## Goal
 
-Allow an authenticated customer to place and manage their own sales orders while keeping stock balances correct and auditable.
+Allow an authenticated customer to place, inspect, list, and cancel their own orders while preserving the purchase-time product and variant identity on each order line.
 
-## Inventory policy revision
+## Current inventory policy
 
-This approved order phase supersedes the fulfillment-time stock deduction rule in 2026-09-27-supplier-import-inventory-design.md. A pending order now writes its outbound sale movements immediately and reduces available stock; cancelling a pending order restores stock with sale_cancellation inbound movements. Update the corrected ERD and backend README to show this timing consistently.
+- The system does not track stock balances, inventory movements, reservations, or available quantities.
+- `IMPORT_DETAIL.quantity` and `ORDER_DETAIL.quantity` are values recorded on purchase and order documents. Import quantities do not replenish a computed balance, and order quantities are not compared with available stock.
+- Order placement does not reserve or deduct stock. A permitted cancellation changes the order state only; it does not restore or otherwise mutate stock.
+- Supplier, import, and import-detail records remain as purchase history.
+
 ## Scope
 
-- Add customer-authenticated order creation, order listing/detail, and cancellation while an order is pending.
-- Deduct stock at order placement by writing outbound sale movements atomically with the order.
-- Restore stock on customer cancellation by writing compensating inbound movements; never edit or delete the original sale movement.
-- Extend the existing inventory ledger so customer actions are attributable and order lines are valid movement sources.
-- Add an order migration and update the corrected ERD and backend documentation.
+- Require customer authentication and ownership checks for order list, detail, and cancellation.
+- Validate active products and valid variants; calculate and persist order line prices and totals on the server.
+- Snapshot the product name, variant size, and variant color on each order line inside the order-creation transaction.
+- Keep pending-only customer cancellation, coordinated with employee packing through the sales-order row lock.
 
-This phase does not implement employee order processing/fulfillment, payment processing, vouchers/promotions, shipping-fee calculation, packing, or invoices.
+This is the historical customer-order placement design; later documents define payment providers, vouchers, internal MVP receipts, and employee packing. Their behavior does not add inventory tracking.
 
 ## API and access
 
-All routes below require a customer JWT via the existing `CustomerJwtGuard`. A customer can only list, inspect, or cancel their own orders.
+All routes require a customer JWT via the existing `CustomerJwtGuard`. A customer can only list, inspect, or cancel their own orders.
 
-- `POST /orders`: accept 1–100 distinct variant lines with positive integer quantities and required delivery snapshot fields `recipientName`, `recipientPhone`, and `shippingAddress`; accept an optional `note`.
-- `GET /orders?page=1&limit=20`: list the caller's orders newest first, paginated with defaults 1/20 and maximum limit 100.
-- `GET /orders/:orderId`: return one order and its lines only if it belongs to the caller.
-- `POST /orders/:orderId/cancel`: cancel the caller's pending order. Repeated cancellation or cancellation after the pending state returns a conflict.
+- `POST /orders`: accept 1–100 distinct variant lines with positive integer quantities and required delivery snapshot fields `recipientName`, `recipientPhone`, and `shippingAddress`; accept optional `note`, `voucherCode`, and `paymentMethod` as described in the current backend API documentation. Its full-order response includes details with `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`.
+- `GET /orders?page=1&limit=20`: list the caller’s orders newest first, paginated with defaults 1/20 and maximum limit 100. This remains a summary response without order-line details.
+- `GET /orders/:orderId`: return one order and its lines only if it belongs to the caller. Each detail includes `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`; `productName`, `size`, and `color` come from the order-line snapshots.
+- `POST /orders/:orderId/cancel`: cancel the caller’s pending order when permitted by its payment state. Return the updated full order and detail snapshots.
 
-Names are trimmed and must fit the existing customer name length (120); phone is trimmed and must fit 30 characters; shipping address is trimmed and must be non-empty. The customer supplies these values for each order so later profile changes do not rewrite the delivery details of an existing order. Duplicate variant IDs in one request are rejected.
+Names are trimmed and must fit the existing customer name length (120); phone is trimmed and must fit 30 characters; shipping address is trimmed and must be non-empty. These recipient values are stored with the order so later profile changes do not rewrite its delivery details. Duplicate variant IDs in one request are rejected.
 
-Unknown, inactive, or insufficient-stock variants reject the whole request. Unknown or another customer's order returns not found to avoid exposing order IDs.
+The customer ID comes from the JWT. The server owns all prices, discounts, shipping fees, totals, payment status, and order status; clients cannot provide these fields. `paymentMethod` defaults to COD and may be PayOS. New orders start `pending`; COD starts `unpaid`. A zero-total PayOS order is marked paid locally without creating a provider attempt, while a positive-total PayOS order starts unpaid and creates its payment attempt atomically. Voucher application and payment-specific checks are defined in their follow-on designs and the current backend API documentation.
 
-## Order and inventory behavior
+Unknown, inactive, or invalid variants reject the whole request. Quantities are not checked against a stock balance because none is maintained. An unknown order or another customer’s order returns not found to avoid exposing order IDs.
+
+## Order behavior
 
 Order creation runs in one database transaction:
 
-1. Sort variant IDs and lock their rows in ascending order, using the same row lock used by imports and inventory adjustments.
-2. Confirm every variant exists and its parent product is active.
-3. Compute each current stock balance from ledger movements and reject if any requested quantity exceeds available stock.
-4. Snapshot each variant's current unit price and calculate line subtotals and total using integer cents/BigInt. Prices and totals are always computed by the server.
-5. Save the order, its details, and one outbound `sale` inventory movement per detail with the customer as actor.
+1. Load the requested variants and their products, then confirm that every variant exists and each parent product is active.
+2. Read the product name, variant size, variant color, and current unit price for each line.
+3. Calculate line subtotals and the merchandise total from server-calculated prices using integer cents/BigInt; all client-supplied money values are ignored or rejected by the request contract.
+4. Save the order and its details, including the three descriptive snapshots, before the transaction commits.
 
-No writes survive if any line is invalid or out of stock. Row locks serialize simultaneous order submissions and other stock changes for the same variants.
+If a line is invalid, no order or order-detail writes survive. When the request uses a positive-total PayOS payment, its payment attempt is also created in the order transaction. Payment settlement and voucher-use rules remain governed by their respective follow-on designs.
 
-New orders have status `pending`, payment status `unpaid`, and null payment method, with zero discount and zero shipping fee. Do not add a voucher column or FK until the promotion schema is implemented. The total equals the sum of the saved line subtotals. These fields are server-owned; clients cannot submit totals, prices, discounts, payment status, or shipping fees.
+The product-name snapshot is required. Size and color snapshots are nullable and preserve null catalog values. Snapshot fields are immutable through order and catalog APIs. Editing product or variant data later does not change existing order detail responses; a later order captures the then-current catalog values.
 
-Cancellation also runs in one transaction. Lock the order, confirm ownership and `pending` status, then lock its variant rows in ascending ID order. Add one inbound `sale_cancellation` movement per order detail, attributed to the customer, and change the order status to `cancelled`. Keep the original sale movements and the order details unchanged. A unique order/variant constraint per movement kind prevents duplicate sale or cancellation ledger rows.
+Order line quantities are document data only. Order creation does not acquire variant locks to coordinate stock, inspect a stock balance, reserve units, or write inventory movements. If any line is invalid, the transaction writes no partial order or details.
 
-This phase has no transition from pending to fulfilled; an employee order workflow will be designed later. Payment status remains unpaid until a later payment phase.
+Cancellation runs in a transaction, locks the order, verifies ownership and `pending` state, then updates the order state to `cancelled` when allowed by the payment workflow. For PayOS, a saved link must be confirmed terminal and unpaid before cancellation; uncertain state, partial payment, or a link that cannot be reconciled keeps the order pending and its voucher use for review. Packing and cancellation lock the same order row, so only one state transition can win. A successful cancellation changes the order status, which releases voucher use under its policy; it does not write inventory movements or change stock.
 
 ## Data model and migration
 
-Add `sales_order` with generated integer ID, server timestamp, customer FK, delivery snapshot (`recipient_name`, `recipient_phone`, `shipping_address`), nonnegative `discount_amount`, `shipping_fee`, and `total_amount`, nullable payment method, `payment_status`, `status`, and optional note. Use `numeric(24,2)` for header money fields.
+`sales_order` has a generated integer ID, server timestamp, customer FK, delivery snapshot (`recipient_name`, `recipient_phone`, `shipping_address`), nonnegative `discount_amount`, `shipping_fee`, and `total_amount`, nullable payment method for legacy rows, `payment_status`, `status`, and optional note. Header money fields use `numeric(24,2)`.
 
-Add `order_detail` with composite primary key `(order_id, variant_id)`, positive integer quantity, nonnegative `numeric(12,2)` unit-price snapshot, and nonnegative `numeric(22,2)` computed subtotal. Restrict deletion of customers, variants, and referenced order history.
+`order_detail` uses composite primary key `(order_id, variant_id)`, positive integer quantity, nonnegative `numeric(12,2)` unit-price snapshot, nonnegative `numeric(22,2)` computed subtotal, and restrictive foreign keys to the order and variant. It also stores these catalog identity snapshots:
 
-Extend `inventory_movement` in a new reversible migration:
+- `product_name_snapshot varchar(200) NOT NULL`
+- `variant_size_snapshot varchar(50) NULL`
+- `variant_color_snapshot varchar(50) NULL`
 
-- Add nullable `customer_id` and `order_id`; make `employee_id` nullable while retaining existing employee attribution.
-- Require exactly one of employee/customer as actor. Opening, import, and adjustment movements require an employee; sale and sale-cancellation movements require a customer.
-- Add a composite FK `(order_id, variant_id)` to `order_detail(order_id, variant_id)`.
-- Allow kinds `opening`, `import`, `sale`, `sale_cancellation`, and `adjustment`; constrain opening/import/sale-cancellation to inbound and sale to outbound, while adjustments may be either direction.
-- Enforce that import movements reference only import details, sale and sale-cancellation movements reference only order details, and opening/adjustment movements have no source document.
-- Add partial unique indexes for one sale movement and at most one sale-cancellation movement per order detail, while preserving the existing import movement uniqueness.
+At placement, populate the snapshots from the product and variant rows read in the same transaction. The migration backfills existing order lines from the catalog values available when it runs, then requires the product-name snapshot. If catalog fields were changed before migration, their earlier values cannot be recovered; the backfilled values are only the best available record.
 
-Existing inventory movements remain valid with their employee actor and import source; migration rollback removes order-linked movement rows, drops new constraints and order references, restores the employee actor requirement and previous checks, then drops the order tables. Order data created by this feature is removed by rollback.
+The snapshot migration rollback drops only these three columns. It retains order/detail rows, identifiers, quantities, prices, subtotals, totals, and all other schema and data. Snapshot values are intentionally lost on rollback.
+
+No order-placement migration creates or modifies a stock ledger or balance. Import and order quantities remain document values only.
 
 ## Errors
 
-- Invalid line counts, duplicate variants, invalid quantities, empty recipient fields, or insufficient stock return a client error without partial writes.
-- Missing/inactive variants produce a client error identifying the unavailable item.
+- Invalid line counts, duplicate variants, invalid quantities, or empty recipient fields return a client error without partial writes.
+- Missing or inactive variants produce a client error identifying the unavailable item; the API does not return an out-of-stock error.
 - Unknown or non-pending customer-owned cancellation targets produce not-found or conflict responses as specified above.
-- Database constraints remain the final protection against negative quantities, invalid source links, duplicate source movements, and negative money values.
+- Database constraints remain the final protection against invalid references, duplicate order lines, nonpositive quantities, and invalid money values.
 
 ## Out of scope
 
-- Employee/admin order lists, fulfillment, packing, invoices, customer payment, refunds, voucher validation, shipping calculations, order edits, and customer-visible stock quantities.
-- A separate stock reservation table; stock is decremented immediately when an order is placed.
-- Automated test additions or execution.
+- Employee order lists, packing implementation, detailed payment-provider behavior, voucher rules, receipt issuance, refunds, shipping-fee calculation, and order edits are defined in their follow-on designs.
+- Stock tracking, stock reservations, stock deduction/restoration, inventory movement rows, and customer-visible available-stock quantities are not part of this system’s approved behavior.
+- Frontend implementation.
 
 ## Acceptance criteria
 
-- Customer JWT is required for all order routes, and order reads/cancellations are scoped to the authenticated customer.
-- A valid order snapshots delivery information and current prices, computes totals server-side, and writes order, details, and outbound movements atomically.
-- Concurrent orders for the same variants cannot make stock negative.
-- A pending order cancellation changes the status and writes compensating inbound movements atomically without modifying prior ledger rows.
-- Duplicate cancellation, invalid items, and out-of-stock requests cannot create duplicate or partial order/movement records.
-- The migration is reversible and preserves existing import/opening/adjustment ledger behavior.
-- The corrected ERD and backend README document the order API, order states, stock deduction and cancellation rules.
+- Customer JWT is required for customer order routes, and order reads/cancellations are scoped to the authenticated customer.
+- A valid order snapshots recipient details, product name, variant size/color, and current prices; computes totals server-side; and saves order and lines atomically.
+- Customer create/detail/cancel responses expose line fields `productName`, `size`, and `color` from snapshots; `GET /orders` remains a summary.
+- Catalog edits after an order do not alter that order’s displayed product name, size, or color. New orders capture the updated catalog values.
+- Order placement does not reserve or deduct stock; import/order quantities remain document data; cancellation changes order state only.
+- Duplicate cancellation, invalid items, and invalid requests cannot create partial order records.

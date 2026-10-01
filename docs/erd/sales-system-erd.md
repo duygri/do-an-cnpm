@@ -98,6 +98,9 @@ erDiagram
     ORDER_DETAIL {
         int order_id PK, FK
         int variant_id PK, FK
+        varchar(200) product_name_snapshot "required; name at order placement"
+        varchar(50) variant_size_snapshot "nullable; size at order placement"
+        varchar(50) variant_color_snapshot "nullable; color at order placement"
         int quantity
         numeric unit_price
         numeric subtotal
@@ -135,7 +138,7 @@ erDiagram
     INVOICE {
         int invoice_id PK
         timestamptz issued_date
-        numeric(24,2) total_amount "snapshot at issue time"
+        numeric(24,2) total_amount "snapshot at issue time; internal MVP receipt"
         varchar(20) status "issued"
         int order_id FK, UK "required, unique, ON DELETE RESTRICT"
     }
@@ -169,6 +172,7 @@ erDiagram
 ## Constraints and purchase/order/packing rules
 
 - `ORDER_DETAIL` uses `(order_id, variant_id)` as its primary key; `IMPORT_DETAIL` uses `(import_id, variant_id)`. Each variant occurs once in a document's detail rows.
+- Each order line stores product name, size, and color snapshots captured when the order is placed. Existing rows are backfilled from the catalog values available when the snapshot migration runs; earlier historical values cannot be recovered if the catalog was edited before that migration.
 - `PROMOTION` requires `start_date <= end_date`; status is `active` or `inactive`. `PROMOTION_DETAIL` belongs to one promotion with a restrictive foreign key; its date range is also ordered, status is `active` or `inactive`, and type is `fixed` or `percentage`. Codes are trimmed and stored uppercase, limited to 64 ASCII letters, digits, hyphens, or underscores, and globally unique (`UQ_promotion_detail_code`). Codes are immutable through the API. A campaign and voucher must both be active and both date ranges must inclusively contain PostgreSQL `CURRENT_DATE` to apply.
 - `PROMOTION_DETAIL.discount_value` and `min_price` are `numeric(24,2)`; discount is positive, minimum is nonnegative, and percentage discount is at most `100.00`. Nullable `max_discount` is positive when set and only allowed for percentage vouchers. `quantity` is a positive integer and caps redemptions across all customers. Promotion indexes cover `(status, start_date, end_date)`; voucher indexes cover `promotion_id` and `(status, start_date, end_date)`.
 - `SALES_ORDER.voucher_id` is nullable and references `PROMOTION_DETAIL.voucher_id` with `ON DELETE RESTRICT`; `IDX_sales_order_voucher_id_status` supports the redemption count by voucher and order status. One order uses zero or one voucher, while one voucher may be referenced by many orders. Historical `voucher_id` and `discount_amount` remain on the order; later voucher edits do not recalculate existing totals. There is no hard-delete route for campaigns or vouchers; deactivate them by changing status.
@@ -183,6 +187,6 @@ erDiagram
 - An active employee may confirm payment only for a packed, unpaid COD order (or a legacy null-method row), after physically receiving the full `total_amount` in cash. Packing does not mean payment was received. Confirmation records PostgreSQL `CURRENT_TIMESTAMP` and the employee ID, changes the payment status to `paid`, and leaves order status `packed`; only one confirmation can succeed. Pending/cancelled, PayOS, and already-paid orders cannot be confirmed by an employee. A PayOS order must be paid before it may be packed. Customer order responses omit the confirmation attribution fields; admin order detail includes them along with safe reconciliation metadata but no checkout URL. The current backend does not support partial-payment settlement or refunds; partial provider amounts remain recorded as reconciliation observations. It does not model a delivery lifecycle.
 - An order has zero or one packing row. Each packing row belongs to exactly one order; the required unique `packing.order_id` FK enforces at most one packing row per order. Each packing row also references exactly one required employee; one employee may pack many orders.
 - MVP packing records the server timestamp, `packed` status, required employee, and optional note; packaging type is nullable and restricted to `bag` or `box`. The order-to-packing relationship is one-to-zero-or-one. It has no package weight or packing fee. `SALES_ORDER.shipping_fee` remains a separate delivery charge.
-- An invoice is an internal paid-order record, not an electronic tax invoice. An order has zero or one invoice; each invoice references exactly one order through a unique restrictive FK. The amount is a snapshot of the order total at issue time. The backend issues it in the same transaction as a confirmed payment (PayOS full settlement, employee confirmation of packed COD, or creation of a zero-total PayOS order). Unpaid and cancelled orders have no invoice. Customers can read only their own invoice summary; active employees can read an order's invoice summary. No manual issue, cancellation, refund, tax-document, or frontend flow is part of this MVP.
+- An `INVOICE` row is an internal MVP payment receipt, not an electronic invoice or a legally compliant tax invoice. An order has zero or one invoice; each invoice references exactly one order through a unique restrictive FK. The amount is a snapshot of the order total at issue time. The backend issues it in the same transaction as a confirmed payment (PayOS full settlement, employee confirmation of packed COD, or creation of a zero-total PayOS order). Unpaid and cancelled orders have no invoice. Customers can read only their own invoice summary; active employees can read an order's invoice summary. No manual issue, cancellation, refund, tax-document, or frontend flow is part of this MVP.
 - `IMPORT_DETAIL.quantity` and `ORDER_DETAIL.quantity` are document/order quantities only. They are not combined into an available-stock balance, and this schema does not track inventory movements or balances.
 - Creating an import records its supplier, employee, variants, quantities, and prices as purchase history; it does not replenish a computed stock balance. Creating an order validates active products and variant references but does not check available stock. Cancelling a pending order changes its status only and does not restore or otherwise change stock.
