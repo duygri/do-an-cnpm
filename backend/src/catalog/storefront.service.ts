@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Category } from './entities/category.entity';
 import { Product } from './entities/product.entity';
+import { ProductImage } from './entities/product-image.entity';
 import { GetStoreProductsDto } from './dto/get-store-products.dto';
 
 interface StoreProductRow {
@@ -13,6 +14,7 @@ interface StoreProductRow {
   categoryId: number;
   categoryName: string;
   priceFrom: string | null;
+  primaryImageUrl: string | null;
 }
 
 export interface StoreProductSummary {
@@ -22,6 +24,7 @@ export interface StoreProductSummary {
   brand: string | null;
   category: { categoryId: number; name: string };
   priceFrom: string | null;
+  primaryImageUrl: string | null;
 }
 
 @Injectable()
@@ -62,6 +65,16 @@ export class StorefrontService {
       .addSelect('category.categoryId', 'categoryId')
       .addSelect('category.name', 'categoryName')
       .addSelect('MIN(variant.price)', 'priceFrom')
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('image.imageUrl')
+            .from(ProductImage, 'image')
+            .where('image.productId = product.productId')
+            .andWhere('image.isPrimary = :isPrimary', { isPrimary: true })
+            .limit(1),
+        'primaryImageUrl',
+      )
       .where('product.status = :status', { status: 'active' })
       .groupBy('product.productId')
       .addGroupBy('category.categoryId')
@@ -92,6 +105,7 @@ export class StorefrontService {
         name: row.categoryName,
       },
       priceFrom: row.priceFrom,
+      primaryImageUrl: row.primaryImageUrl,
     }));
 
     return { items, page, limit, total };
@@ -108,8 +122,11 @@ export class StorefrontService {
 
     const product = await this.products.findOne({
       where: { productId, status: 'active' },
-      relations: { category: true, variants: true },
-      order: { variants: { variantId: 'ASC' } },
+      relations: { category: true, variants: true, images: true },
+      order: {
+        variants: { variantId: 'ASC' },
+        images: { sortOrder: 'ASC', productImageId: 'ASC' },
+      },
     });
 
     if (!product) {
@@ -131,6 +148,13 @@ export class StorefrontService {
         size: variant.size,
         color: variant.color,
         price: variant.price,
+      })),
+      images: product.images.map((image) => ({
+        productImageId: image.productImageId,
+        imageUrl: image.imageUrl,
+        altText: image.altText,
+        sortOrder: image.sortOrder,
+        isPrimary: image.isPrimary,
       })),
     };
   }

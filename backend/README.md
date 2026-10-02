@@ -96,20 +96,42 @@ Các endpoint dưới đây yêu cầu JWT nhân viên active có role `catalog_
 
 Các endpoint này cũng yêu cầu JWT nhân viên active có role `catalog_manager` hoặc `admin`:
 
-- `GET /products` và `GET /products/:productId`: danh sách hoặc chi tiết sản phẩm.
-- `POST /products`: tạo sản phẩm với `name`, `categoryId` và các trường tùy chọn `description`, `brand`, `status`.
+- `GET /products` và `GET /products/:productId`: danh sách hoặc chi tiết sản phẩm, kèm ảnh theo `sortOrder`.
+- `POST /products`: tạo sản phẩm với `name`, `categoryId` và các trường tùy chọn `description`, `brand`, `status`, `images`.
 - `PATCH /products/:productId` và `DELETE /products/:productId`: cập nhật hoặc xóa sản phẩm. Xóa bị từ chối nếu còn biến thể.
 - `GET /products/:productId/variants`: liệt kê biến thể.
 - `POST /products/:productId/variants`: thêm biến thể với `price` và tùy chọn `size`, `color`.
 - `PATCH /products/:productId/variants/:variantId` và `DELETE /products/:productId/variants/:variantId`: cập nhật hoặc xóa biến thể thuộc sản phẩm đó.
+
+`images` là danh sách tối đa 12 ảnh URL HTTPS dùng cho demo, không upload hoặc lưu tệp ảnh vào PostgreSQL. Mỗi phần tử nhận `imageUrl` (bắt buộc), `altText`, `sortOrder` và `isPrimary`. Nếu không đánh dấu ảnh chính, ảnh có `sortOrder` thấp nhất sẽ thành ảnh chính; nếu cùng thứ tự thì ưu tiên phần tử xuất hiện trước. Không thể đặt nhiều hơn một ảnh chính. Trong `PATCH`, bỏ `images` thì giữ nguyên danh sách; gửi danh sách mới thì thay toàn bộ; gửi `[]` thì xóa ảnh. Ví dụ dữ liệu giả có thể dùng URL placeholder:
+
+```json
+{
+  "name": "Áo thun demo",
+  "categoryId": 1,
+  "images": [
+    {
+      "imageUrl": "https://placehold.co/600x800/png?text=Front+view",
+      "altText": "Mặt trước áo thun",
+      "sortOrder": 0,
+      "isPrimary": true
+    },
+    {
+      "imageUrl": "https://placehold.co/600x800/png?text=Back+view",
+      "altText": "Mặt sau áo thun",
+      "sortOrder": 1
+    }
+  ]
+}
+```
 
 ## API storefront công khai
 
 Các route này không yêu cầu đăng nhập và chỉ đọc dữ liệu dành cho storefront:
 
 - `GET /store/categories`: danh mục có ít nhất một sản phẩm `active`.
-- `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: lọc theo từ khóa tên/nhãn hiệu/mô tả (không phân biệt hoa thường), danh mục và phân trang. Mặc định `page=1`, `limit=20`; giới hạn tối đa 100. Phản hồi có `items`, `page`, `limit`, `total`. Mỗi item gồm thông tin sản phẩm, danh mục và `priceFrom` là giá biến thể thấp nhất.
-- `GET /store/products/:productId`: chi tiết sản phẩm `active`, danh mục và các biến thể theo thứ tự ID.
+- `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: lọc theo từ khóa tên/nhãn hiệu/mô tả (không phân biệt hoa thường), danh mục và phân trang. Mặc định `page=1`, `limit=20`; giới hạn tối đa 100. Phản hồi có `items`, `page`, `limit`, `total`. Mỗi item gồm thông tin sản phẩm, danh mục, `priceFrom` là giá biến thể thấp nhất và `primaryImageUrl` (nullable nếu chưa có ảnh).
+- `GET /store/products/:productId`: chi tiết sản phẩm `active`, danh mục, các biến thể theo thứ tự ID và danh sách ảnh theo `sortOrder`.
 
 Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả biến thể của sản phẩm đang `active` đều xuất hiện và được tính trong `priceFrom`. Sản phẩm không hoạt động hoặc không tồn tại trả `404`. API storefront không trả số tồn kho. Hệ thống không theo dõi số lượng hàng khả dụng; API đặt hàng chỉ kiểm tra sản phẩm đang hoạt động và biến thể hợp lệ.
 

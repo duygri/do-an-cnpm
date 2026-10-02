@@ -410,6 +410,207 @@ test('creates orders from server prices and hides another customer’s order', a
   assert.equal((await api('/orders', { token: customerOneToken })).body.total, 1);
 });
 
+test('product images are manageable and available in storefront responses', async () => {
+  const category = await api('/categories', {
+    method: 'POST',
+    token: employeeToken,
+    body: { name: `Image Demo ${randomUUID()}` },
+  });
+  assert.equal(category.status, 201, JSON.stringify(category.body));
+
+  const product = await api('/products', {
+    method: 'POST',
+    token: employeeToken,
+    body: {
+      name: `Demo Shirt ${randomUUID()}`,
+      status: 'active',
+      categoryId: category.body.categoryId,
+      images: [
+        {
+          imageUrl: 'https://images.example.test/demo/shirt-back.jpg',
+          altText: 'Back view',
+          sortOrder: 2,
+        },
+        {
+          imageUrl: 'https://images.example.test/demo/shirt-front.jpg',
+          altText: 'Front view',
+          sortOrder: 1,
+          isPrimary: true,
+        },
+      ],
+    },
+  });
+  assert.equal(product.status, 201, JSON.stringify(product.body));
+  const productId = product.body.productId;
+
+  const adminProduct = await api(`/products/${productId}`, {
+    token: employeeToken,
+  });
+  assert.equal(adminProduct.status, 200, JSON.stringify(adminProduct.body));
+  assert.deepEqual(
+    adminProduct.body.images.map(({ altText, sortOrder, isPrimary }) => ({
+      altText,
+      sortOrder,
+      isPrimary,
+    })),
+    [
+      { altText: 'Front view', sortOrder: 1, isPrimary: true },
+      { altText: 'Back view', sortOrder: 2, isPrimary: false },
+    ],
+  );
+
+  const storefrontList = await api(
+    `/store/products?page=1&limit=100&categoryId=${category.body.categoryId}`,
+  );
+  assert.equal(storefrontList.status, 200, JSON.stringify(storefrontList.body));
+  const listedProduct = storefrontList.body.items.find(
+    (item) => item.productId === productId,
+  );
+  assert.equal(
+    listedProduct.primaryImageUrl,
+    'https://images.example.test/demo/shirt-front.jpg',
+  );
+
+  const storefrontDetail = await api(`/store/products/${productId}`);
+  assert.equal(
+    storefrontDetail.status,
+    200,
+    JSON.stringify(storefrontDetail.body),
+  );
+  assert.deepEqual(
+    storefrontDetail.body.images.map((image) => image.imageUrl),
+    [
+      'https://images.example.test/demo/shirt-front.jpg',
+      'https://images.example.test/demo/shirt-back.jpg',
+    ],
+  );
+
+  const choosePrimaryBySortOrder = await api(`/products/${productId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: {
+      images: [
+        {
+          imageUrl: 'https://images.example.test/demo/sort-two.jpg',
+          sortOrder: 2,
+        },
+        {
+          imageUrl: 'https://images.example.test/demo/sort-one.jpg',
+          sortOrder: 1,
+        },
+      ],
+    },
+  });
+  assert.equal(
+    choosePrimaryBySortOrder.status,
+    200,
+    JSON.stringify(choosePrimaryBySortOrder.body),
+  );
+  assert.deepEqual(
+    choosePrimaryBySortOrder.body.images.map(
+      ({ imageUrl, isPrimary, sortOrder }) => ({
+        imageUrl,
+        isPrimary,
+        sortOrder,
+      }),
+    ),
+    [
+      {
+        imageUrl: 'https://images.example.test/demo/sort-one.jpg',
+        isPrimary: true,
+        sortOrder: 1,
+      },
+      {
+        imageUrl: 'https://images.example.test/demo/sort-two.jpg',
+        isPrimary: false,
+        sortOrder: 2,
+      },
+    ],
+  );
+
+  const unrelatedProductUpdate = await api(`/products/${productId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { description: 'Updated without changing image list' },
+  });
+  assert.equal(
+    unrelatedProductUpdate.status,
+    200,
+    JSON.stringify(unrelatedProductUpdate.body),
+  );
+  assert.equal(unrelatedProductUpdate.body.images.length, 2);
+
+  const multiplePrimaryImages = await api(`/products/${productId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: {
+      images: [
+        {
+          imageUrl: 'https://images.example.test/demo/one.jpg',
+          isPrimary: true,
+        },
+        {
+          imageUrl: 'https://images.example.test/demo/two.jpg',
+          isPrimary: true,
+        },
+      ],
+    },
+  });
+  assert.equal(multiplePrimaryImages.status, 400);
+  assert.equal(
+    (await api(`/products/${productId}`, { token: employeeToken })).body.images
+      .length,
+    2,
+  );
+
+  const replacement = await api(`/products/${productId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: {
+      images: [
+        {
+          imageUrl: 'https://images.example.test/demo/shirt-detail.jpg',
+          altText: 'Fabric detail',
+        },
+      ],
+    },
+  });
+  assert.equal(replacement.status, 200, JSON.stringify(replacement.body));
+
+  const updatedDetail = await api(`/store/products/${productId}`);
+  assert.equal(updatedDetail.status, 200, JSON.stringify(updatedDetail.body));
+  assert.deepEqual(
+    updatedDetail.body.images.map(({ imageUrl, isPrimary, sortOrder }) => ({
+      imageUrl,
+      isPrimary,
+      sortOrder,
+    })),
+    [
+      {
+        imageUrl: 'https://images.example.test/demo/shirt-detail.jpg',
+        isPrimary: true,
+        sortOrder: 0,
+      },
+    ],
+  );
+
+  const clearImages = await api(`/products/${productId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { images: [] },
+  });
+  assert.equal(clearImages.status, 200, JSON.stringify(clearImages.body));
+  assert.deepEqual(clearImages.body.images, []);
+  const storefrontAfterClear = await api(
+    `/store/products?page=1&limit=100&categoryId=${category.body.categoryId}`,
+  );
+  assert.equal(
+    storefrontAfterClear.body.items.find((item) => item.productId === productId)
+      .primaryImageUrl,
+    null,
+  );
+});
+
 test('order history reflects current catalog identity', async () => {
   const originalIdentity = {
     productName: `Original Tee ${randomUUID()}`,

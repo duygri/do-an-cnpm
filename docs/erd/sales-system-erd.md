@@ -17,6 +17,14 @@ erDiagram
         varchar status
         int category_id FK
     }
+    PRODUCT_IMAGE {
+        int product_image_id PK
+        int product_id FK
+        varchar(2048) image_url "HTTPS URL; demo image source"
+        varchar(200) alt_text "nullable"
+        int sort_order "nonnegative"
+        boolean is_primary
+    }
     PRODUCT_VARIANT {
         int variant_id PK
         varchar size "nullable"
@@ -149,6 +157,7 @@ erDiagram
         varchar status
     }
     CATEGORY ||--o{ PRODUCT : contains
+    PRODUCT ||--o{ PRODUCT_IMAGE : displays
     PRODUCT ||--o{ PRODUCT_VARIANT : has
     PROMOTION ||--o{ PROMOTION_DETAIL : has
     PROMOTION_DETAIL o|--o{ SALES_ORDER : applied_to
@@ -168,6 +177,7 @@ erDiagram
 
 ## Constraints and purchase/order/packing rules
 
+- `PRODUCT_IMAGE` stores external HTTPS image URLs and optional alt text, not binary image data. A product may have up to 12 images through the API; at most one image per product may be primary. If an API request omits the primary marker, the image with the lowest `sort_order` becomes primary (input order breaks ties). The storefront list returns its primary image URL, and product detail returns the ordered image list. Demo placeholder URLs may be used until real product photography is available.
 - `ORDER_DETAIL` uses `(order_id, variant_id)` as its primary key; `IMPORT_DETAIL` uses `(import_id, variant_id)`. Each variant occurs once in a document's detail rows.
 - Order lines reference the product variant and retain the unit price used at purchase. Order history reads product name, size, and color from the current catalog, so later catalog edits can change how older order lines are displayed.
 - `PROMOTION` requires `start_date <= end_date`; status is `active` or `inactive`. `PROMOTION_DETAIL` belongs to one promotion with a restrictive foreign key; its date range is also ordered, status is `active` or `inactive`, and type is `fixed` or `percentage`. Codes are trimmed and stored uppercase, limited to 64 ASCII letters, digits, hyphens, or underscores, and globally unique (`UQ_promotion_detail_code`). Codes are immutable through the API. A campaign and voucher must both be active and both date ranges must inclusively contain PostgreSQL `CURRENT_DATE` to apply.
