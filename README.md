@@ -14,6 +14,7 @@ Khung dự án website bán hàng dựa trên ERD do nhóm cung cấp.
 
 - [ERD gốc do nhóm cung cấp](docs/erd/sales-system-erd.png)
 - [ERD đã chỉnh sửa, dạng Mermaid](docs/erd/sales-system-erd.md)
+- [Hướng dẫn frontend và ba portal](frontend/README.md)
 - [Hướng dẫn backend](backend/README.md)
 
 ## Trạng thái

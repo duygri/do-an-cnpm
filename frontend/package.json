@@ -1,0 +1,46 @@
+{
+  "name": "sales-system-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": "^22.13.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "npm run dev:user",
+    "dev:user": "vite --config vite.user.config.ts",
+    "dev:staff": "vite --config vite.staff.config.ts",
+    "dev:admin": "vite --config vite.admin.config.ts",
+    "dev:portals": "concurrently --kill-others --names user,staff,admin \"npm:dev:user\" \"npm:dev:staff\" \"npm:dev:admin\"",
+    "build": "npm run build:user && npm run build:staff && npm run build:admin",
+    "build:user": "tsc && vite build --config vite.user.config.ts",
+    "build:staff": "tsc && vite build --config vite.staff.config.ts",
+    "build:admin": "tsc && vite build --config vite.admin.config.ts",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:smoke": "node --test test/portal-smoke.test.mjs"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.2",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.13.1",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^10.0.5",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^5.0.3"
+  }
+}
