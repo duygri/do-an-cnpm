@@ -13,6 +13,7 @@ interface StoreProductRow {
   categoryId: number;
   categoryName: string;
   priceFrom: string | null;
+  primaryImageUrl: string | null;
 }
 
 export interface StoreProductSummary {
@@ -22,6 +23,7 @@ export interface StoreProductSummary {
   brand: string | null;
   category: { categoryId: number; name: string };
   priceFrom: string | null;
+  primaryImageUrl: string | null;
 }
 
 @Injectable()
@@ -55,6 +57,12 @@ export class StorefrontService {
       .createQueryBuilder('product')
       .innerJoin('product.category', 'category')
       .leftJoin('product.variants', 'variant')
+      .leftJoin(
+        'product.images',
+        'primaryImage',
+        'primaryImage.isPrimary = :isPrimary',
+        { isPrimary: true },
+      )
       .select('product.productId', 'productId')
       .addSelect('product.name', 'name')
       .addSelect('product.description', 'description')
@@ -62,6 +70,7 @@ export class StorefrontService {
       .addSelect('category.categoryId', 'categoryId')
       .addSelect('category.name', 'categoryName')
       .addSelect('MIN(variant.price)', 'priceFrom')
+      .addSelect('MAX(primaryImage.imageUrl)', 'primaryImageUrl')
       .where('product.status = :status', { status: 'active' })
       .groupBy('product.productId')
       .addGroupBy('category.categoryId')
@@ -92,6 +101,7 @@ export class StorefrontService {
         name: row.categoryName,
       },
       priceFrom: row.priceFrom,
+      primaryImageUrl: row.primaryImageUrl,
     }));
 
     return { items, page, limit, total };
@@ -108,8 +118,11 @@ export class StorefrontService {
 
     const product = await this.products.findOne({
       where: { productId, status: 'active' },
-      relations: { category: true, variants: true },
-      order: { variants: { variantId: 'ASC' } },
+      relations: { category: true, variants: true, images: true },
+      order: {
+        variants: { variantId: 'ASC' },
+        images: { sortOrder: 'ASC', productImageId: 'ASC' },
+      },
     });
 
     if (!product) {
@@ -131,6 +144,13 @@ export class StorefrontService {
         size: variant.size,
         color: variant.color,
         price: variant.price,
+      })),
+      images: product.images.map((image) => ({
+        productImageId: image.productImageId,
+        imageUrl: image.imageUrl,
+        altText: image.altText,
+        sortOrder: image.sortOrder,
+        isPrimary: image.isPrimary,
       })),
     };
   }

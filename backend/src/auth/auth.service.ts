@@ -40,6 +40,7 @@ export class AuthService {
       name: employee.name,
       email: employee.email,
       position: employee.position,
+      role: employee.role,
     };
 
     return {

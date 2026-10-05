@@ -91,8 +91,7 @@ export class PaymentsService {
       state.attempt.provider !== 'payos' ||
       state.attempt.providerOrderCode !== event.data.orderCode ||
       (state.attempt.providerPaymentLinkId !== null &&
-        state.attempt.providerPaymentLinkId !== event.data.paymentLinkId) ||
-      event.data.amount !== expectedAmount
+        state.attempt.providerPaymentLinkId !== event.data.paymentLinkId)
     ) {
       this.logWebhookOutcome(event, 'local_order_attempt_mismatch');
       return this.acknowledgeWebhook();
@@ -161,6 +160,7 @@ export class PaymentsService {
       providerIdentityMatches &&
       aggregateIsValid &&
       eventReferenceMatchesProvider &&
+      event.data.amount <= expectedAmount &&
       link.status === 'PAID' &&
       link.amountPaid === expectedAmount &&
       link.amountRemaining === 0
@@ -177,9 +177,11 @@ export class PaymentsService {
     }
 
     const reason =
-      providerIdentityMatches && eventReferenceMatchesProvider
-        ? 'PayOS reported a successful webhook but its aggregate payment is incomplete or inconsistent.'
-        : 'PayOS webhook and payment-link details do not match the local payment attempt.';
+      event.data.amount > expectedAmount
+        ? 'PayOS webhook transaction amount exceeds the expected order amount.'
+        : providerIdentityMatches && eventReferenceMatchesProvider
+          ? 'PayOS reported a successful webhook but its aggregate payment is incomplete or inconsistent.'
+          : 'PayOS webhook and payment-link details do not match the local payment attempt.';
     await this.flagWebhookForReview(state, event, link, reason);
     this.logWebhookOutcome(
       event,
@@ -897,12 +899,22 @@ export class PaymentsService {
       created = await this.provider.createLink(input);
     } catch {
       // A create timeout or duplicate order code can mean PayOS created the link.
-      const found = await this.lookupLink(
-        input.orderCode,
-        scheduledReconciliation
-          ? { orderId, stage: 'create_failure_lookup' }
-          : undefined,
-      );
+      let found: PaymentProviderLink | null;
+      try {
+        found = await this.lookupLink(
+          input.orderCode,
+          scheduledReconciliation
+            ? { orderId, stage: 'create_failure_lookup' }
+            : undefined,
+        );
+      } catch {
+        await this.markReconciliationRequired(
+          orderId,
+          'PayOS payment-link creation timed out and the provider state could not be confirmed; administrator review is required.',
+        );
+        throw this.unavailable();
+      }
+
       if (found) {
         const outcome = await this.reconcileFoundLink(orderId, found);
         if (outcome === 'paid') return;

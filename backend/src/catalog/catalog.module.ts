@@ -11,12 +11,13 @@ import { StorefrontController } from './storefront.controller';
 import { StorefrontService } from './storefront.service';
 import { Category } from './entities/category.entity';
 import { Product } from './entities/product.entity';
+import { ProductImage } from './entities/product-image.entity';
 import { ProductVariant } from './entities/product-variant.entity';
 
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([Category, Product, ProductVariant]),
+    TypeOrmModule.forFeature([Category, Product, ProductImage, ProductVariant]),
   ],
   controllers: [
     CategoriesController,

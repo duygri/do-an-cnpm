@@ -7,7 +7,7 @@ Record cash-on-delivery payment for customer orders in the backend. COD is the o
 ## Scope
 
 - Set every newly created order to `paymentMethod: "cod"` and `paymentStatus: "unpaid"` on the server. The customer request cannot choose or set payment fields.
-- Let an active employee record that the full COD amount was received after the order is packed.
+- Let an active employee with role `order_staff` or `admin` record that the full COD amount was received after the order is packed.
 - Store the server confirmation time and the employee who confirmed receipt.
 - Keep the order's fulfillment status `packed` when payment is recorded.
 - Preserve legacy rows whose payment method is `null`; do not infer how historical orders were paid.
@@ -17,7 +17,7 @@ This does not implement online payment, partial payment, refunds, invoices, deli
 
 ## API and access
 
-Add `POST /admin/orders/:orderId/mark-paid`. It requires the existing `EmployeeJwtGuard` and accepts no body. The employee ID comes from the authenticated request; the confirmation timestamp comes from PostgreSQL. It returns the updated admin order detail with `paymentMethod`, `paymentStatus`, `paymentConfirmedAt`, and `paymentConfirmedByEmployeeId`.
+Add `POST /admin/orders/:orderId/mark-paid`. It requires an active employee JWT with role `order_staff` or `admin` and accepts no body. An active employee without either role receives `403`; invalid, wrong-actor, or inactive credentials receive `401`. The employee ID comes from the authenticated request; the confirmation timestamp comes from PostgreSQL. It returns the updated admin order detail with `paymentMethod`, `paymentStatus`, `paymentConfirmedAt`, and `paymentConfirmedByEmployeeId`. The complete role matrix is in the [employee role authorization design](2026-10-01-employee-role-authorization-design.md).
 
 The endpoint returns `404 Not Found` for an invalid or unknown order ID. It returns `409 Conflict` when the order is not packed, the method is not COD, or payment was already confirmed. `packed` only makes the order eligible for confirmation; an employee must call the endpoint after physically receiving the full COD amount. Packing alone never means payment was collected. Payment confirmation does not change `status`, packing data, order lines, prices, or inventory.
 
@@ -52,7 +52,7 @@ Mark the two new entity properties as excluded from ordinary TypeORM selects. Ad
 
 - Customer requests cannot supply or override payment method, status, confirmation time, or employee.
 - New orders are saved as COD and unpaid.
-- Only an active employee can mark a packed, unpaid COD order paid.
+- Only an active employee with role `order_staff` or `admin` can mark a packed, unpaid COD order paid.
 - Payment confirmation is serialized with packing and any competing confirmation through the sales-order row lock.
 - Repeated confirmation and confirmation of pending/cancelled, already-paid, or non-COD orders return `409` without changing data.
 - Admin order detail returns confirmation time and employee; customer order responses do not expose either field.

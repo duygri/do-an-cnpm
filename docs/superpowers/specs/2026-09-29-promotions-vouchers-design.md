@@ -6,7 +6,7 @@ Allow employees to manage promotion campaigns and voucher codes, and allow custo
 
 ## Scope
 
-- Add employee-authenticated CRUD-style read/create/update APIs for promotion campaigns and nested vouchers. Records are deactivated through `status`; there are no hard-delete endpoints.
+- Add role-protected CRUD-style read/create/update APIs for promotion campaigns and nested vouchers; access requires `promotion_manager` or `admin`. Records are deactivated through `status`; there are no hard-delete endpoints.
 - Accept an optional `voucherCode` in customer order creation. Validate the campaign and voucher, calculate the discount on the server, and save the voucher reference and monetary snapshots with the order atomically.
 - Support fixed-amount and percentage discounts, minimum merchandise subtotal, an optional maximum percentage discount, effective date ranges, and a global redemption limit.
 - A voucher may be used multiple times by the same customer, up to the global limit. Each order may use at most one voucher.
@@ -18,7 +18,7 @@ Out of scope: per-customer redemption limits, stacking codes, a standalone vouch
 
 ## API and access
 
-All promotion and voucher management routes require the existing active-employee JWT guard. Customer order creation keeps its customer JWT guard.
+All promotion and voucher management routes require an active employee JWT with role `promotion_manager` or `admin`. An active employee without either role receives `403`; invalid, wrong-actor, or inactive credentials receive `401`. The complete role matrix and employee provisioning rules are in the [employee role authorization design](2026-10-01-employee-role-authorization-design.md). Customer order creation keeps its customer JWT guard.
 
 - `GET /promotions`: list promotions.
 - `GET /promotions/:promotionId`: read one promotion.
@@ -79,7 +79,7 @@ The `down` migration must run in a transaction and acquire an `ACCESS EXCLUSIVE`
 
 ## Acceptance criteria
 
-- Active employees can create/list/read/update promotions and their vouchers; codes are unique after normalization and cannot be edited or hard-deleted.
+- Employees with role `promotion_manager` or `admin` can create/list/read/update promotions and their vouchers; codes are unique after normalization and cannot be edited or hard-deleted.
 - Customer order requests can apply at most one active, in-date voucher and cannot override the server's calculated discount or total.
 - Fixed and percentage discounts, minimum subtotal, optional percentage cap, and cent rounding follow the rules above.
 - Voucher redemption caps cannot be exceeded by concurrent order creation; pending cancellation releases one use and repeated cancellation cannot release another.

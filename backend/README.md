@@ -21,7 +21,7 @@ Sau khi đã cấu hình database, API chạy tại http://localhost:3000.
 
 1. Tạo database PostgreSQL tên `sales_system`.
 2. Sao chép `.env.example` thành `.env` và cập nhật `DATABASE_URL` bằng thông tin PostgreSQL local của bạn.
-3. Chạy migration để tạo schema danh mục, sản phẩm, biến thể, khách hàng, đơn hàng, nhân viên, nhà cung cấp và phiếu nhập:
+3. Chạy migration để tạo schema danh mục, sản phẩm, ảnh sản phẩm, biến thể, khách hàng, đơn hàng, nhân viên, nhà cung cấp và phiếu nhập:
 
 ```powershell
 npm run db:migrate
@@ -49,9 +49,23 @@ npm run db:migrate
 npm run db:create-admin
 ```
 
-3. Đăng nhập bằng `POST /auth/employee/login` với JSON gồm `email` và `password`. API trả JWT Bearer có thời hạn 15 phút; gửi token ở `Authorization: Bearer <token>` khi gọi `GET /auth/employee/profile`.
+3. Đăng nhập bằng `POST /auth/employee/login` với JSON gồm `email` và `password`. API trả JWT Bearer có thời hạn 15 phút cùng hồ sơ `employee` gồm `employeeId`, `name`, `email`, `position`, `role`; `GET /auth/employee/profile` trả cùng hồ sơ an toàn.
 
-API không có đăng ký admin công khai. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được.
+API không có đăng ký admin công khai. Lệnh `db:create-admin` tạo tài khoản bootstrap với `role = admin` và `position = admin`. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được. `position` là chức danh mô tả, không dùng để cấp quyền.
+
+Vai trò hợp lệ: `admin`, `catalog_manager`, `promotion_manager`, `order_staff`, `purchasing_staff`, `unassigned`. `unassigned` được đăng nhập và chỉ xem hồ sơ của mình cho đến khi admin gán vai trò. Vai trò hiện tại được đọc từ database ở mỗi request; JWT không mang role đáng tin cậy, vì vậy thay đổi vai trò có hiệu lực ngay với token còn hạn. `admin` được phép qua mọi API nhân viên; các vai trò chuyên biệt chỉ dùng được miền tương ứng bên dưới.
+
+Token thiếu, sai, hết hạn, sai actor (ví dụ customer token gọi API nhân viên), hoặc nhân viên inactive trả `401 Unauthorized`. Nhân viên active nhưng role không được phép trả `403 Forbidden`.
+
+## API quản lý nhân viên
+
+Mọi route tại `/admin/employees` yêu cầu employee JWT và role `admin`:
+
+- `GET /admin/employees?page=1&limit=20`: danh sách theo `employeeId` tăng dần, phân trang; `page` mặc định 1, `limit` mặc định 20 và tối đa 100. Item chỉ gồm `employeeId`, `name`, `email`, `phone`, `position`, `role`, `status`.
+- `POST /admin/employees`: tạo nhân viên với `name`, `email`, `password`, `position`, `role` bắt buộc; `phone` tùy chọn. Email được trim/lowercase, mật khẩu dài 12–128 ký tự và được băm trước khi lưu. Tài khoản mới có `status: active`. Email đã tồn tại sau chuẩn hóa trả `409 Conflict`.
+- `PATCH /admin/employees/:employeeId`: chỉ nhận `role` và/hoặc `status` (`active`/`inactive`); body rỗng không hợp lệ. Không thể tự hạ quyền/vô hiệu hóa tài khoản hoặc hạ quyền/vô hiệu hóa admin active cuối cùng; vi phạm trả `409 Conflict`.
+
+Các phản hồi chỉ trả `employeeId`, `name`, `email`, `phone`, `position`, `role`, `status`; không bao giờ trả `passwordHash`.
 
 ## Tài khoản khách hàng
 
@@ -63,7 +77,7 @@ JWT có phân biệt loại chủ thể. Customer token không truy cập đư�
 
 ## API danh mục
 
-Các endpoint dưới đây đều yêu cầu JWT của nhân viên trong header `Authorization: Bearer <token>`:
+Các endpoint dưới đây yêu cầu JWT nhân viên có role `catalog_manager` hoặc `admin` trong header `Authorization: Bearer <token>`:
 
 - `GET /categories`: danh sách danh mục.
 - `GET /categories/:categoryId`: chi tiết danh mục.
@@ -73,11 +87,13 @@ Các endpoint dưới đây đều yêu cầu JWT của nhân viên trong header
 
 ## API sản phẩm và biến thể
 
-Các endpoint này cũng yêu cầu JWT nhân viên:
+Các endpoint này cũng yêu cầu JWT nhân viên có role `catalog_manager` hoặc `admin`:
 
-- `GET /products` và `GET /products/:productId`: danh sách hoặc chi tiết sản phẩm.
-- `POST /products`: tạo sản phẩm với `name`, `categoryId` và các trường tùy chọn `description`, `brand`, `status`.
-- `PATCH /products/:productId` và `DELETE /products/:productId`: cập nhật hoặc xóa sản phẩm. Xóa bị từ chối nếu còn biến thể.
+- `GET /products` và `GET /products/:productId`: danh sách hoặc chi tiết sản phẩm, có `images` sắp theo `sortOrder`, rồi `productImageId`. Mỗi ảnh gồm `productImageId`, `productId`, `imageUrl`, `altText`, `sortOrder`, `isPrimary`.
+- `POST /products`: tạo sản phẩm với `name`, `categoryId` và các trường tùy chọn `description`, `brand`, `status`, `images`.
+- `PATCH /products/:productId`: cập nhật sản phẩm. Bỏ qua `images` để giữ danh sách hiện tại; gửi mảng để thay toàn bộ; gửi `[]` để xóa hết ảnh. `POST` bỏ qua `images` hoặc gửi `[]` sẽ tạo sản phẩm không có ảnh.
+- Mỗi ảnh nhận `imageUrl` bắt buộc là URL HTTPS, `altText` tùy chọn tối đa 200 ký tự, `sortOrder` tùy chọn là số nguyên không âm (mặc định theo vị trí trong mảng), và `isPrimary` tùy chọn. Tối đa 12 ảnh/sản phẩm, chỉ được chọn một ảnh chính; nếu không chọn, ảnh có `sortOrder` thấp nhất (hòa thì lấy ảnh đứng trước trong mảng) được chọn. Ảnh chỉ lưu URL, API không tải/tạo tệp ảnh.
+- `DELETE /products/:productId`: xóa sản phẩm. Xóa bị từ chối nếu còn biến thể; ảnh sản phẩm được xóa theo khóa ngoại cascade.
 - `GET /products/:productId/variants`: liệt kê biến thể.
 - `POST /products/:productId/variants`: thêm biến thể với `price` và tùy chọn `size`, `color`.
 - `PATCH /products/:productId/variants/:variantId` và `DELETE /products/:productId/variants/:variantId`: cập nhật hoặc xóa biến thể thuộc sản phẩm đó.
@@ -87,14 +103,14 @@ Các endpoint này cũng yêu cầu JWT nhân viên:
 Các route này không yêu cầu đăng nhập và chỉ đọc dữ liệu dành cho storefront:
 
 - `GET /store/categories`: danh mục có ít nhất một sản phẩm `active`.
-- `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: lọc theo từ khóa tên/nhãn hiệu/mô tả (không phân biệt hoa thường), danh mục và phân trang. Mặc định `page=1`, `limit=20`; giới hạn tối đa 100. Phản hồi có `items`, `page`, `limit`, `total`. Mỗi item gồm thông tin sản phẩm, danh mục và `priceFrom` là giá biến thể thấp nhất.
-- `GET /store/products/:productId`: chi tiết sản phẩm `active`, danh mục và các biến thể theo thứ tự ID.
+- `GET /store/products?page=1&limit=20&q=shirt&categoryId=1`: lọc theo từ khóa tên/nhãn hiệu/mô tả (không phân biệt hoa thường), danh mục và phân trang. Mặc định `page=1`, `limit=20`; giới hạn tối đa 100. Phản hồi có `items`, `page`, `limit`, `total`. Mỗi item gồm thông tin sản phẩm, danh mục, `priceFrom` là giá biến thể thấp nhất và `primaryImageUrl` (URL ảnh chính hoặc `null`).
+- `GET /store/products/:productId`: chi tiết sản phẩm `active`, danh mục, các biến thể theo thứ tự ID và `images` theo `sortOrder`, rồi `productImageId`.
 
 Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả biến thể của sản phẩm đang `active` đều xuất hiện và được tính trong `priceFrom`. Sản phẩm không hoạt động hoặc không tồn tại trả `404`. API storefront không trả số tồn kho. Hệ thống không theo dõi số lượng hàng khả dụng; API đặt hàng chỉ kiểm tra sản phẩm đang hoạt động và biến thể hợp lệ.
 
 ## API chương trình khuyến mãi và voucher
 
-Các route quản lý dưới đây yêu cầu JWT của nhân viên đang `active` trong header `Authorization: Bearer <token>`. Mọi nhân viên active đã xác thực đều có thể dùng API; hiện chưa có phân quyền theo vai trò. Token thiếu, sai, hết hạn hoặc nhân viên không còn active trả `401 Unauthorized`.
+Các route quản lý dưới đây yêu cầu JWT của nhân viên đang `active` và role `promotion_manager` hoặc `admin` trong header `Authorization: Bearer <token>`. Token thiếu/sai/hết hạn, sai actor hoặc nhân viên không còn active trả `401 Unauthorized`; nhân viên active nhưng thiếu role yêu cầu trả `403 Forbidden`.
 
 - `GET /promotions` và `GET /promotions/:promotionId`: liệt kê hoặc xem chương trình theo `promotionId` tăng dần. Phản hồi có `promotionId`, `name`, `description`, `startDate`, `endDate`, `status`.
 - `POST /promotions`: tạo chương trình với `name`, `startDate`, `endDate`; `description` và `status` là tùy chọn. Ví dụ: `{ "name": "Tết 2027", "description": "Khuyến mãi Tết", "startDate": "2027-01-01", "endDate": "2027-02-28", "status": "active" }`.
@@ -145,9 +161,10 @@ Tất cả route đơn hàng yêu cầu customer JWT trong header `Authorization
 }
 ```
 
-  Khi chọn `paymentMethod: "payos"`, gửi thêm header `Idempotency-Key` dài 1–255 ký tự, chỉ gồm chữ ASCII, số và `. _ ~ : -`. Cùng khách hàng, cùng key và cùng nội dung đơn trả lại đơn đã tạo; dùng lại key với nội dung khác trả `409 Conflict`. Gửi lại đúng request cùng key để tiếp tục một lần tạo link chưa xác định; không tự tạo đơn mới hoặc đổi key trong khi trạng thái cũ đang được rà soát. COD không yêu cầu key và hiện giữ luồng tạo đơn cũ.
+Khi chọn `paymentMethod: "payos"`, gửi thêm header `Idempotency-Key` dài 1–255 ký tự, chỉ gồm chữ ASCII, số và `. _ ~ : -`. Cùng khách hàng, cùng key và cùng nội dung đơn trả lại đơn đã tạo; dùng lại key với nội dung khác trả `409 Conflict`. Gửi lại đúng request cùng key để tiếp tục một lần tạo link chưa xác định; không tự tạo đơn mới hoặc đổi key trong khi trạng thái cũ đang được rà soát. COD không yêu cầu key và hiện giữ luồng tạo đơn cũ.
 
-  Server lấy khách hàng từ JWT, kiểm tra sản phẩm còn hoạt động và biến thể hợp lệ, rồi tính giá từng dòng và tổng tiền. Số lượng đặt không được đối chiếu với số hàng khả dụng, vì hệ thống không theo dõi tồn kho. `voucherCode` là tùy chọn; nếu gửi, khách chỉ áp dụng được một mã. `paymentMethod` cũng tùy chọn và chỉ nhận `cod` hoặc `payos`; mặc định là `cod`. Khách chọn phương thức này nhưng không thể gửi/ghi đè giá, tổng tiền, giảm giá, phí giao hàng, trạng thái thanh toán hay trạng thái đơn. Không dùng voucher thì đơn mới có `voucherId: null`, `voucherCode: null`, `discountAmount: "0.00"`; mọi đơn mới có `shippingFee: "0.00"` và `status: "pending"`. Đơn COD bắt đầu `paymentStatus: "unpaid"`; đơn PayOS có tổng bằng 0 được đánh dấu `paid` ngay, còn đơn PayOS có tổng lớn hơn 0 bắt đầu `unpaid` và tạo payment attempt. Tạo đơn, chi tiết và payment attempt được ghi nguyên tử. Phản hồi tạo đơn gồm `orderId`, `orderDate`, `customerId`, `voucherId`, `voucherCode`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `status`, `note` và `details` (mỗi dòng có `orderId`, `variantId`, `quantity`, `unitPrice`, `subtotal`). Với đơn PayOS đang chờ và có URL đã lưu, phản hồi chi tiết khách còn có `checkoutUrl` và `paymentExpiresAt`; các trường thanh toán nội bộ không được trả. `voucherId` và `voucherCode` là `null` khi không dùng voucher.
+Server lấy khách hàng từ JWT, kiểm tra sản phẩm còn hoạt động và biến thể hợp lệ, rồi tính giá từng dòng và tổng tiền. Số lượng đặt không được đối chiếu với số hàng khả dụng, vì hệ thống không theo dõi tồn kho. `voucherCode` là tùy chọn; nếu gửi, khách chỉ áp dụng được một mã. `paymentMethod` cũng tùy chọn và chỉ nhận `cod` hoặc `payos`; mặc định là `cod`. Khách chọn phương thức này nhưng không thể gửi/ghi đè giá, tổng tiền, giảm giá, phí giao hàng, trạng thái thanh toán hay trạng thái đơn. Không dùng voucher thì đơn mới có `voucherId: null`, `voucherCode: null`, `discountAmount: "0.00"`; mọi đơn mới có `shippingFee: "0.00"` và `status: "pending"`. Đơn COD bắt đầu `paymentStatus: "unpaid"`; đơn PayOS có tổng bằng 0 được đánh dấu `paid` ngay, còn đơn PayOS có tổng lớn hơn 0 bắt đầu `unpaid` và tạo payment attempt. Tạo đơn, chi tiết và payment attempt được ghi nguyên tử. Phản hồi tạo đơn gồm `orderId`, `orderDate`, `customerId`, `voucherId`, `voucherCode`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `status`, `note` và `details` (mỗi dòng có `orderId`, `variantId`, `quantity`, `unitPrice`, `subtotal`). Với đơn PayOS đang chờ và có URL đã lưu, phản hồi chi tiết khách còn có `checkoutUrl` và `paymentExpiresAt`; các trường thanh toán nội bộ không được trả. `voucherId` và `voucherCode` là `null` khi không dùng voucher.
+
 - `GET /orders?page=1&limit=20`: liệt kê đơn của khách hiện tại, mới nhất trước. Mặc định `page=1`, `limit=20`; `page` phải từ 1 trở lên, `limit` từ 1 đến tối đa 100. Phản hồi có dạng `{ "items": [...], "page": 1, "limit": 20, "total": 1 }`; mỗi phần tử `items` có các trường đơn hàng ở trên nhưng không gồm `details`.
 - `GET /orders/:orderId`: xem một đơn của khách hiện tại, kèm `details` theo thứ tự `variantId`; phản hồi có các trường như phản hồi tạo đơn.
 - `POST /orders/:orderId/cancel`: hủy đơn đang `pending` của khách hiện tại. Với COD, hủy đơn chỉ đổi trạng thái. Với PayOS có URL đã lưu, server yêu cầu PayOS xác nhận link kết thúc và chưa nhận tiền trước khi hủy; trạng thái chưa rõ, có khoản thanh toán một phần, hoặc link chưa thể đối chiếu thì giữ đơn để xử lý tiếp và không giải phóng lượt voucher. Trả đơn đã cập nhật với `status: "cancelled"` khi hủy thành công. Hủy lại hoặc hủy đơn không còn `pending` trả `409 Conflict`; thao tác không cập nhật tồn kho.
@@ -162,12 +179,13 @@ Voucher không tồn tại/không khả dụng, inactive, ngoài ngày hiệu l�
 
 ## API quản trị đơn hàng và đóng gói
 
-Các route dưới đây yêu cầu JWT nhân viên đang `active` trong header `Authorization: Bearer <token>`. Hệ thống hiện chưa có phân quyền theo vai trò: mọi nhân viên active đã xác thực đều dùng được các route quản trị. Token thiếu/sai/hết hạn hoặc nhân viên không còn active trả `401 Unauthorized`.
+Các route dưới đây yêu cầu JWT nhân viên đang `active` và role `order_staff` hoặc `admin` trong header `Authorization: Bearer <token>`. Token thiếu/sai/hết hạn, sai actor hoặc nhân viên không còn active trả `401 Unauthorized`; nhân viên active nhưng thiếu role yêu cầu trả `403 Forbidden`.
 
 - `GET /admin/orders?page=1&limit=20&status=pending`: danh sách theo `orderDate DESC, orderId DESC`. `page` mặc định 1, nhận số nguyên từ 1 đến 2,147,483,647; `limit` mặc định 20, nhận số nguyên từ 1 đến 100. `status` tùy chọn, chỉ nhận `pending`, `packed`, `cancelled`. Phản hồi có dạng `{ "items": [...], "page": 1, "limit": 20, "total": 1 }`; mỗi item chỉ gồm `orderId`, `orderDate`, `customerId`, `recipientName`, `status`, `paymentStatus`, `voucherCode`, `discountAmount`, `totalAmount`, `detailCount`. Danh sách không bao gồm địa chỉ hoặc dòng hàng. Trang hợp lệ nhưng vượt trang cuối trả danh sách `items` rỗng và `total` thực tế.
 - `GET /admin/orders/:orderId`: trả `orderId`, `orderDate`, `customerId`, `voucherCode`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `paymentConfirmedAt`, `paymentConfirmedByEmployeeId`, `paymentAttentionRequired`, `paymentAttempt`, `status`, `note`, `details`, `packing`. `voucherCode` là `null` khi không dùng voucher. `paymentConfirmedAt` và `paymentConfirmedByEmployeeId` là `null` trước khi xác nhận thanh toán. `paymentAttentionRequired` báo cần admin rà soát trạng thái giao dịch. `paymentAttempt` là `null` khi đơn không có PayOS attempt (COD hoặc tổng PayOS bằng 0); với attempt gồm `status`, `providerReference`, `observedAmountPaid`, `reconciliationReason`, `reconciliationAt`, `checkoutUrlMissing`. Endpoint không trả `checkoutUrl`, key, fingerprint hoặc thông tin chữ ký. `details` sắp theo `variantId`; mỗi dòng có `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, `subtotal`. `size` và `color` có thể là `null`. `packing` là `null` nếu đơn chưa đóng gói; nếu có thì gồm `packingId`, `packingDate`, `packingType`, `status`, `note`, `employeeId`.
 - `POST /admin/orders/:orderId/pack`: body nhận `packingType` tùy chọn (`"bag"` hoặc `"box"`) và `note` tùy chọn (chuỗi tối đa 1000 ký tự). Ví dụ: `{ "packingType": "box", "note": "Đóng gói cẩn thận" }`. Chỉ đơn `pending` được gói; đơn PayOS phải `paid` trước khi gói. Có thể bỏ qua hai trường hoặc gửi `null` cho chúng (`@IsOptional` xem `null` như trường bị bỏ qua); chuỗi được trim, ghi chú rỗng sau khi trim trở thành `null`. Giá trị `note` không phải chuỗi và khác `null` trả `400 Bad Request`. Phản hồi HTTP `200` chứa cùng dạng đơn hàng với route chi tiết và thông tin đóng gói vừa tạo. Server lấy `employeeId`, thời gian và trạng thái từ phiên đăng nhập/server, không nhận các giá trị này từ client.
-- `POST /admin/orders/:orderId/mark-paid`: không nhận body. Chỉ nhân viên có JWT hợp lệ và đang `active` mới dùng được. Chỉ xác nhận được đơn `packed`, chưa thanh toán, có phương thức `cod` hoặc `null` trên dòng dữ liệu cũ; trước khi xác nhận, nhân viên phải thực sự nhận đủ `totalAmount` bằng tiền mặt. Đóng gói không đồng nghĩa với đã thu tiền. Thành công trả HTTP `200` với chi tiết đơn quản trị đã cập nhật: `paymentStatus: "paid"`, `paymentConfirmedAt` lấy từ `CURRENT_TIMESTAMP` của PostgreSQL và `paymentConfirmedByEmployeeId` lấy từ JWT nhân viên. Đơn vẫn ở trạng thái `packed`. Đơn `pending`/`cancelled`, dùng PayOS hoặc đã thanh toán trả `409 Conflict`; ID sai định dạng, ngoài phạm vi hoặc không tồn tại trả `404 Not Found`. Phản hồi đơn hàng của khách không chứa `paymentConfirmedAt` hoặc `paymentConfirmedByEmployeeId`.
+- `POST /admin/orders/:orderId/mark-paid`: không nhận body. Chỉ role `order_staff` hoặc `admin` mới dùng được. Chỉ xác nhận được đơn `packed`, chưa thanh toán, có phương thức `cod` hoặc `null` trên dòng dữ liệu cũ; trước khi xác nhận, nhân viên phải thực sự nhận đủ `totalAmount` bằng tiền mặt. Đóng gói không đồng nghĩa với đã thu tiền. Thành công trả HTTP `200` với chi tiết đơn quản trị đã cập nhật: `paymentStatus: "paid"`, `paymentConfirmedAt` lấy từ `CURRENT_TIMESTAMP` của PostgreSQL và `paymentConfirmedByEmployeeId` lấy từ JWT nhân viên. Đơn vẫn ở trạng thái `packed`. Đơn `pending`/`cancelled`, dùng PayOS hoặc đã thanh toán trả `409 Conflict`; ID sai định dạng, ngoài phạm vi hoặc không tồn tại trả `404 Not Found`. Phản hồi đơn hàng của khách không chứa `paymentConfirmedAt` hoặc `paymentConfirmedByEmployeeId`.
+- `GET /admin/orders/:orderId/invoice`: tra cứu biên nhận nội bộ của một đơn, chỉ role `order_staff` hoặc `admin`. Trả `invoiceId`, `orderId`, `issuedDate`, `totalAmount`, `status`; biên nhận chưa phát hành trả `404`. Nhân viên active thiếu role được phép nhận `403` từ role guard. Khách dùng `GET /orders/:orderId/invoice` với customer JWT và chỉ xem biên nhận của đơn mình; đơn của khách khác hoặc chưa có biên nhận đều trả `404`.
 
 Trong mọi phản hồi quản trị đơn, ID, số lượng, số dòng, `page`, `limit`, `total`, `detailCount` là JSON integer; tiền là chuỗi thập phân có đúng hai chữ số sau dấu chấm; thời gian là chuỗi ISO 8601 theo UTC. `GET /admin/orders` không trả `paymentMethod`; `GET /admin/orders/:orderId` luôn trả `paymentMethod` là `cod` hoặc `payos` (giá trị null trên đơn legacy được chuẩn hóa thành `cod`). Ghi chú đơn, `size` và `color` có thể là JSON `null` khi chưa có. `packing` là `null` trước khi đơn được đóng gói; khi `packing` là object, chỉ `packingType` và `note` có thể là `null`, còn `packingId`, `packingDate`, `status` và `employeeId` luôn hiện diện và có giá trị. API chỉ chọn các trường cần thiết, không trả entity khách hàng hay `password_hash`.
 
@@ -188,7 +206,7 @@ PayOS checkout được khởi tạo bởi `POST /orders` có `paymentMethod: "p
 
 ## API nhà cung cấp
 
-Các endpoint đều yêu cầu JWT nhân viên:
+Các endpoint đều yêu cầu JWT nhân viên có role `purchasing_staff` hoặc `admin`:
 
 - `GET /suppliers` và `GET /suppliers/:supplierId`: danh sách hoặc chi tiết.
 - `POST /suppliers`: tạo với `name` và tùy chọn `address`, `email`.
@@ -197,7 +215,7 @@ Các endpoint đều yêu cầu JWT nhân viên:
 
 ## API phiếu nhập
 
-Các endpoint đều yêu cầu JWT nhân viên:
+Các endpoint đều yêu cầu JWT nhân viên có role `purchasing_staff` hoặc `admin`:
 
 - `GET /imports` và `GET /imports/:importId`: danh sách hoặc chi tiết phiếu nhập.
 - `POST /imports`: tạo phiếu với `supplierId`, tùy chọn `note`, và 1–100 dòng `details`. Mỗi dòng có `variantId`, `quantity` nguyên dương và `unitPrice` dạng chuỗi thập phân tối đa hai chữ số, ví dụ:
@@ -218,6 +236,19 @@ API lấy `employeeId` từ JWT, tính subtotal/tổng tiền phía server, rồ
 - `npm run lint`: kiểm tra quy tắc lint
 - `npm run format`: định dạng mã nguồn trong `src/`
 - `npm run start:dev`: chạy API ở chế độ theo dõi thay đổi
+- `npm test`: chạy E2E qua HTTP thật cho phân quyền, đơn hàng, voucher và hóa đơn; đồng thời chạy kiểm thử nghiệp vụ PayOS với `FakePaymentProvider` trên PostgreSQL test. Không gọi PayOS thật.
+
+### Chạy E2E an toàn với PostgreSQL test
+
+Tạo trước một database PostgreSQL riêng, ví dụ `sales_system_test`, rồi chạy từ thư mục `backend` trong PowerShell:
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql://<user>:<password>@127.0.0.1:5432/sales_system_test"
+npm test
+Remove-Item Env:TEST_DATABASE_URL
+```
+
+Thay `<user>` và `<password>` bằng thông tin local của bạn; mã hóa ký tự đặc biệt trong URI nếu cần. `TEST_DATABASE_URL` là bắt buộc và database phải có tên kết thúc bằng `_test`. `npm test` sẽ xóa các bảng hiện có trong database đó, chạy lại migrations, rồi tạo dữ liệu kiểm thử. **Không trỏ biến này vào database đang dùng hoặc database chứa dữ liệu cần giữ.** Bộ test không đọc `DATABASE_URL` để chọn database test, không in thông tin kết nối và tắt cấu hình PayOS trong backend con.
 
 ## Mã nguồn
 

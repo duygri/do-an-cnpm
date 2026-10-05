@@ -54,9 +54,10 @@ The worker and webhook use row locks and recheck local state before writing. Aft
 
 ## Employee order processing
 
-- `POST /admin/orders/:orderId/pack` continues to permit pending unpaid COD orders.
+- `POST /admin/orders/:orderId/pack` requires employee role `order_staff` or `admin` and continues to permit pending unpaid COD orders.
 - Packing a PayOS order requires `payment_status = paid`; reject unpaid PayOS orders with `409 Conflict`.
-- `POST /admin/orders/:orderId/mark-paid` remains available only for COD orders. Employees cannot manually override PayOS state.
+- `POST /admin/orders/:orderId/mark-paid` requires employee role `order_staff` or `admin` and remains available only for COD orders. Employees cannot manually override PayOS state.
+- Employee order-processing roles and the `401`/`403` distinction follow the [employee role authorization design](2026-10-01-employee-role-authorization-design.md).
 - Admin order details expose payment method, payment-attempt status, and a `paymentAttentionRequired` flag with safe reconciliation identifiers when needed, but never the checkout URL or PayOS credentials.
 
 ## Data model and migration

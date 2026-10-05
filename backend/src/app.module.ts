@@ -13,6 +13,7 @@ import { SuppliersModule } from './suppliers/suppliers.module';
 import { OrdersModule } from './orders/orders.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { PayosPaymentModule } from './payments/payos-payment.module';
+import { EmployeesModule } from './employees/employees.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PayosPaymentModule } from './payments/payos-payment.module';
     OrdersModule,
     PromotionsModule,
     PayosPaymentModule,
+    EmployeesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

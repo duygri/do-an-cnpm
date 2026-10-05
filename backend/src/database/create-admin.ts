@@ -103,6 +103,7 @@ async function createAdmin(source: DataSource): Promise<void> {
     passwordHash: await passwordService.hash(password),
     position: 'admin',
     status: 'active',
+    role: 'admin',
   });
 
   const savedEmployee = await repository.save(employee);

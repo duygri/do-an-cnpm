@@ -12,12 +12,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EmployeeJwtGuard } from '../auth/employee-jwt.guard';
+import { EmployeeRoles } from '../auth/employee-roles.decorator';
+import { EmployeeRolesGuard } from '../auth/employee-roles.guard';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Controller('categories')
-@UseGuards(EmployeeJwtGuard)
+@UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
+@EmployeeRoles('catalog_manager')
 export class CategoriesController {
   constructor(private readonly categories: CategoriesService) {}
 

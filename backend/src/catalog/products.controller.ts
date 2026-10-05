@@ -12,12 +12,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EmployeeJwtGuard } from '../auth/employee-jwt.guard';
+import { EmployeeRoles } from '../auth/employee-roles.decorator';
+import { EmployeeRolesGuard } from '../auth/employee-roles.guard';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 
 @Controller('products')
-@UseGuards(EmployeeJwtGuard)
+@UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
+@EmployeeRoles('catalog_manager')
 export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 

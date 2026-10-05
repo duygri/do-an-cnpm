@@ -9,7 +9,7 @@ employee authorization. Add a small admin-only API so an administrator can
 provision employees and assign or revoke their roles without editing the
 database manually.
 
-## Current behavior
+## Behavior before this design
 
 - `EmployeeJwtGuard` verifies an employee JWT and loads the employee only when
   `status = active`.

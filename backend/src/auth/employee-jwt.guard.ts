@@ -53,6 +53,7 @@ export class EmployeeJwtGuard implements CanActivate {
         name: true,
         email: true,
         position: true,
+        role: true,
       },
     });
 

@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { ProductImage } from './product-image.entity';
 import { ProductVariant } from './product-variant.entity';
 
 @Entity({ name: 'product' })
@@ -44,4 +45,7 @@ export class Product {
 
   @OneToMany(() => ProductVariant, (variant) => variant.product)
   variants!: ProductVariant[];
+
+  @OneToMany(() => ProductImage, (image) => image.product)
+  images!: ProductImage[];
 }
