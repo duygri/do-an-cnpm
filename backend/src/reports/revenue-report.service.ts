@@ -35,14 +35,17 @@ export class RevenueReportService {
   }> {
     const from = this.parseDate(input.from, 'from');
     const to = this.parseDate(input.to, 'to');
-    const rangeDays = Math.floor((to.getTime() - from.getTime()) / 86_400_000) + 1;
+    const rangeDays =
+      Math.floor((to.getTime() - from.getTime()) / 86_400_000) + 1;
 
     if (rangeDays < 1) {
       throw new BadRequestException('to must be on or after from.');
     }
 
     if (rangeDays > 366) {
-      throw new BadRequestException('Date range may not exceed 366 calendar days.');
+      throw new BadRequestException(
+        'Date range may not exceed 366 calendar days.',
+      );
     }
 
     const rows = await this.orders.query<RevenueRow[]>(
@@ -73,7 +76,11 @@ export class RevenueReportService {
     let paidOrderCount = 0;
     let collectedAmount = 0n;
 
-    for (let cursor = new Date(from); cursor <= to; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    for (
+      let cursor = new Date(from);
+      cursor <= to;
+      cursor.setUTCDate(cursor.getUTCDate() + 1)
+    ) {
       const date = this.formatDate(cursor);
       const value = dailyByDate.get(date) ?? { orderCount: 0, amount: '0.00' };
       daily.push({ date, ...value });
@@ -94,7 +101,9 @@ export class RevenueReportService {
   private parseDate(value: string, field: 'from' | 'to'): Date {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (!match) {
-      throw new BadRequestException(`${field} must be a valid ISO calendar date.`);
+      throw new BadRequestException(
+        `${field} must be a valid ISO calendar date.`,
+      );
     }
 
     const year = Number(match[1]);
