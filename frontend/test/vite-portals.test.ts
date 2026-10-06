@@ -32,7 +32,7 @@ function inspectConfig(filename: string, transform = true) {
     try {
       if (server) await server.transformRequest('/src/main.tsx');
       const entry = server && await server.moduleGraph.getModuleByUrl('/src/main.tsx');
-      const shared = entry && [...entry.importedModules].find(module => /[\\/]src[\\/]main(?:\\.(?:staff|admin))?\\.tsx$/.test(module.file));
+      const shared = entry && [...entry.importedModules].find(module => /[\\/]src[\\/]main(?:\\.admin)?\\.tsx$/.test(module.file));
       const transformed = shared && await server.transformRequest(shared.url);
       console.log(JSON.stringify({
         root: config.root,
@@ -55,7 +55,6 @@ function inspectConfig(filename: string, transform = true) {
 describe('portal Vite configuration', () => {
   it.each([
     ['user', 5173, 'main.tsx'],
-    ['staff', 5174, 'main.staff.tsx'],
     ['admin', 5175, 'main.admin.tsx'],
   ] as const)('serves and builds %s independently while sharing the API and source graph', (portal, port, bootstrap) => {
     const config = inspectConfig(`vite.${portal}.config.ts`);

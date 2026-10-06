@@ -1,19 +1,14 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../src/App';
-import { AdminPortal } from '../src/pages/admin/AdminPortal';
 import { useAuth } from '../src/context/AuthContext';
 import { api } from '../src/services/api';
 import type { EmployeeRole } from '../src/types';
-import { StaffApp } from '../src/apps/StaffApp';
 import { AdminApp } from '../src/apps/AdminApp';
-import { StaffRoute } from '../src/components/auth/StaffRoute';
 import { AdminRoute } from '../src/components/auth/AdminRoute';
 import { getPortalUrl } from '../src/portals/portal-url';
-import * as portalNavigation from '../src/portals/portal-url';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, MemoryRouter } from 'react-router-dom';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -25,7 +20,7 @@ vi.mock('../src/context/AuthContext', async (importOriginal) => ({
 
 describe('Portal HTML bootstraps', () => {
   it.each([
-    ['user', 'main.tsx'], ['staff', 'main.staff.tsx'], ['admin', 'main.admin.tsx'],
+    ['user', 'main.tsx'], ['admin', 'main.admin.tsx'],
   ] as const)('loads the root-local %s bootstrap shim', (portal) => {
     const portalRoot = resolve('portals', portal);
     const document = new DOMParser().parseFromString(readFileSync(resolve(portalRoot, 'index.html'), 'utf8'), 'text/html');
@@ -34,8 +29,20 @@ describe('Portal HTML bootstraps', () => {
     expect(existsSync(resolve(portalRoot, scriptUrl!.slice(1)))).toBe(true);
   });
 
+  it('removes the separate staff application and server target', () => {
+    expect(existsSync(resolve('vite.staff.config.ts'))).toBe(false);
+    expect(existsSync(resolve('src/main.staff.tsx'))).toBe(false);
+    expect(existsSync(resolve('src/apps/StaffApp.tsx'))).toBe(false);
+    expect(existsSync(resolve('src/components/auth/StaffRoute.tsx'))).toBe(false);
+    expect(existsSync(resolve('portals/staff'))).toBe(false);
+    const packageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { scripts: Record<string, string> };
+    expect(Object.keys(packageJson.scripts).some((script) => /staff/.test(script))).toBe(false);
+    expect(Object.values(packageJson.scripts).some((script) => /staff/.test(script))).toBe(false);
+    expect(readFileSync(resolve('src/vite-env.d.ts'), 'utf8')).not.toContain('VITE_STAFF_PORTAL_URL');
+  });
+
   it.each([
-    ['user', 'main.tsx'], ['staff', 'main.staff.tsx'], ['admin', 'main.admin.tsx'],
+    ['user', 'main.tsx'], ['admin', 'main.admin.tsx'],
   ] as const)('imports the matching shared %s bootstrap from the local shim', (portal, bootstrap) => {
     const shimPath = resolve('portals', portal, 'src', 'main.tsx');
     expect(existsSync(shimPath)).toBe(true);
@@ -47,7 +54,7 @@ describe('Portal HTML bootstraps', () => {
   });
 
   it.each([
-    ['user', 'main.tsx'], ['staff', 'main.staff.tsx'], ['admin', 'main.admin.tsx'],
+    ['user', 'main.tsx'], ['admin', 'main.admin.tsx'],
   ] as const)('transforms the %s shim and shared bootstrap with real Vite', (portal, bootstrap) => {
     // Vite/esbuild require Node's typed-array realm, so run outside jsdom.
     const result = spawnSync(process.execPath, ['--input-type=module'], {
@@ -93,7 +100,6 @@ function auth(role: EmployeeRole | null = null) {
 
 beforeEach(() => {
   vi.mocked(useAuth).mockReturnValue(auth());
-  vi.stubEnv('VITE_STAFF_PORTAL_URL', 'https://staff.example.test');
   vi.stubEnv('VITE_ADMIN_PORTAL_URL', 'https://admin.example.test');
   vi.stubEnv('VITE_USER_PORTAL_URL', 'https://shop.example.test');
   window.history.replaceState({}, '', '/login');
@@ -112,57 +118,34 @@ const modules = [
   ['promotions', 'Khuyến mãi và voucher'], ['suppliers', 'Nhà cung cấp và phiếu nhập'],
   ['imports', 'Nhà cung cấp và phiếu nhập'], ['employees', 'Tài khoản nhân viên'],
 ] as const;
-const staffRoles = [
-  ['order_staff', ['orders']], ['catalog_manager', ['categories', 'products']],
-  ['promotion_manager', ['promotions']], ['purchasing_staff', ['suppliers', 'imports']],
-] as const;
+describe('Unified management access matrix', () => {
+  it('shows managers all operational modules but hides employee management', async () => {
+    vi.mocked(useAuth).mockReturnValue(auth('manager'));
+    window.history.replaceState({}, '', '/admin/orders');
+    render(<AdminApp />);
+    await screen.findByRole('navigation', { name: 'Khu vực quản lý' });
+    const links = screen.getByRole('navigation', { name: 'Khu vực quản lý' }).querySelectorAll('a');
+    expect(Array.from(links, (link) => link.getAttribute('href'))).toEqual(
+      ['orders', 'categories', 'products', 'promotions', 'suppliers', 'imports'].map((path) => `/admin/${path}`),
+    );
+    expect(screen.queryByRole('link', { name: 'Nhân viên' })).toBeNull();
+  });
 
-describe('Staff access matrix', () => {
-  it.each([
-    ['order_staff', '/staff/orders'], ['catalog_manager', '/staff/categories'],
-    ['promotion_manager', '/staff/promotions'], ['purchasing_staff', '/staff/suppliers'],
-  ] as const)('opens the first assigned Staff module for %s', async (role, destination) => {
-    vi.mocked(useAuth).mockReturnValue(auth(role));
-    window.history.replaceState({}, '', '/staff');
-    render(<StaffApp />);
-    await waitFor(() => expect(window.location.pathname).toBe(destination));
+  it('denies a manager direct access to employee management', () => {
+    vi.mocked(useAuth).mockReturnValue(auth('manager'));
+    window.history.replaceState({}, '', '/admin/employees');
+    render(<AdminApp />);
+    expect(screen.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeTruthy();
+    expect(api.getEmployees).not.toHaveBeenCalled();
   });
-  it('keeps catalog tabs and the empty catalog action inside Staff', async () => {
-    vi.mocked(useAuth).mockReturnValue(auth('catalog_manager'));
-    window.history.replaceState({}, '', '/staff/products');
-    render(<StaffApp />);
-    expect((await screen.findByRole('link', { name: 'Mở quản lý danh mục' })).getAttribute('href')).toBe('/staff/categories');
-    expect(screen.getAllByRole('link', { name: 'Danh mục' }).map((link) => link.getAttribute('href'))).toEqual(['/staff/categories', '/staff/categories']);
-    expect(screen.getAllByRole('link', { name: 'Sản phẩm' }).map((link) => link.getAttribute('href'))).toEqual(['/staff/products', '/staff/products']);
-  });
-  it('returns an unknown Staff module to the Staff root', () => {
-    vi.mocked(useAuth).mockReturnValue(auth('catalog_manager'));
-    window.history.replaceState({}, '', '/staff/unknown');
-    render(<StaffApp />);
-    expect(screen.getByRole('link', { name: 'Về mô-đun được cấp quyền' }).getAttribute('href')).toBe('/staff');
-  });
-  for (const [role, allowed] of staffRoles) {
-    it.each(modules)(`${role} can enter only assigned modules: %s`, async (module, title) => {
-      vi.mocked(useAuth).mockReturnValue(auth(role));
-      window.history.replaceState({}, '', `/staff/${module}`);
-      render(<StaffApp />);
-      if ((allowed as readonly string[]).includes(module)) {
-        expect(await screen.findByRole('heading', { name: title, exact: true })).toBeTruthy();
-      } else {
-        expect(screen.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeTruthy();
-        expect(screen.queryByRole('heading', { name: title, exact: true })).toBeNull();
-      }
-      const links = screen.getByRole('navigation', { name: 'Khu vực quản lý' }).querySelectorAll('a');
-      expect(Array.from(links, (link) => link.getAttribute('href'))).toEqual(allowed.map((path) => `/staff/${path}`));
-    });
-  }
 
-  it('denies admin on Staff with a configured Admin link', () => {
-    vi.mocked(useAuth).mockReturnValue(auth('admin'));
-    window.history.replaceState({}, '', '/staff/employees');
-    render(<StaffApp />);
-    expect(screen.getByRole('link', { name: 'Đến cổng quản trị' }).getAttribute('href')).toBe('https://admin.example.test/employee/login');
-    expect(screen.queryByRole('heading', { name: 'Tài khoản nhân viên' })).toBeNull();
+  it('redirects legacy staff paths to the matching management path', async () => {
+    vi.mocked(useAuth).mockReturnValue(auth('manager'));
+    window.history.replaceState({}, '', '/staff/products?filter=active#list');
+    render(<AdminApp />);
+    await waitFor(() => expect(window.location.pathname).toBe('/admin/products'));
+    expect(window.location.search).toBe('?filter=active');
+    expect(window.location.hash).toBe('#list');
   });
 });
 
@@ -175,46 +158,58 @@ describe('Admin access matrix', () => {
     expect(screen.getByRole('link', { name: 'Về cửa hàng' }).getAttribute('href')).toBe('https://shop.example.test');
   });
 
-  it.each(staffRoles)('denies %s on Admin and links to Staff', (role) => {
-    vi.mocked(useAuth).mockReturnValue(auth(role));
+  it('lets admin manage employee accounts', async () => {
+    vi.mocked(useAuth).mockReturnValue(auth('admin'));
     window.history.replaceState({}, '', '/admin/employees');
     render(<AdminApp />);
-    expect(screen.getByRole('link', { name: 'Đến cổng nhân viên' }).getAttribute('href')).toBe('https://staff.example.test/employee/login');
-    expect(screen.queryByRole('heading', { name: 'Tài khoản nhân viên' })).toBeNull();
-    expect(api.getEmployees).not.toHaveBeenCalled();
+    expect(await screen.findByRole('heading', { name: 'Tài khoản nhân viên' })).toBeTruthy();
+    expect(api.getEmployees).toHaveBeenCalledOnce();
+    expect(screen.getByRole('link', { name: 'Nhân viên' })).toBeTruthy();
+  });
+
+  it('offers only the two employee roles in the account form', async () => {
+    vi.mocked(useAuth).mockReturnValue(auth('admin'));
+    window.history.replaceState({}, '', '/admin/employees');
+    render(<AdminApp />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Thêm nhân viên' }));
+    const roleSelect = screen.getByLabelText('Vai trò') as HTMLSelectElement;
+    expect(Array.from(roleSelect.options, (option) => option.value)).toEqual(['admin', 'manager']);
   });
 });
 
 describe('Employee guards', () => {
-  for (const [basePath, Guard] of [['/staff', StaffRoute], ['/admin', AdminRoute]] as const) {
-    it(`requires employee authentication at ${basePath}`, () => {
-      vi.mocked(useAuth).mockReturnValue({ ...auth(), customer: { customerId: 2, name: 'Customer', email: 'customer@example.test' } });
-      render(<MemoryRouter initialEntries={[`${basePath}/orders`]}><Routes>
-        <Route path={`${basePath}/*`} element={<Guard><p>Protected content</p></Guard>} />
-        <Route path="/employee/login" element={<p>Employee login destination</p>} />
-      </Routes></MemoryRouter>);
-      expect(screen.getByText('Employee login destination')).toBeTruthy();
-      expect(screen.queryByText('Protected content')).toBeNull();
-    });
-    it(`denies unassigned at ${basePath}`, () => {
-      vi.mocked(useAuth).mockReturnValue(auth('unassigned'));
-      render(<MemoryRouter><Guard><p>Protected content</p></Guard></MemoryRouter>);
-      expect(screen.getByRole('heading', { name: 'Tài khoản chưa được cấp quyền' })).toBeTruthy();
-      expect(screen.queryByText('Protected content')).toBeNull();
-    });
-    it(`waits for verified employee profile at ${basePath}`, () => {
-      vi.mocked(useAuth).mockReturnValue({ ...auth('admin'), employeeLoading: true });
-      render(<MemoryRouter><Guard><p>Protected content</p></Guard></MemoryRouter>);
-      expect(screen.getByText('Đang xác minh quyền nhân viên...')).toBeTruthy();
-      expect(screen.queryByText('Protected content')).toBeNull();
-    });
-    it(`denies access on profile restore failure at ${basePath}`, () => {
-      vi.mocked(useAuth).mockReturnValue({ ...auth('admin'), employeeRestoreError: 'API unavailable' });
-      render(<MemoryRouter><Guard><p>Protected content</p></Guard></MemoryRouter>);
-      expect(screen.getByRole('alert').textContent).toBe('API unavailable');
-      expect(screen.queryByText('Protected content')).toBeNull();
-    });
-  }
+  it('requires employee authentication on the management portal', () => {
+    vi.mocked(useAuth).mockReturnValue({ ...auth(), customer: { customerId: 2, name: 'Customer', email: 'customer@example.test' } });
+    render(<MemoryRouter initialEntries={['/admin/orders']}><Routes>
+      <Route path="/admin/*" element={<AdminRoute><p>Protected content</p></AdminRoute>} />
+      <Route path="/employee/login" element={<p>Employee login destination</p>} />
+    </Routes></MemoryRouter>);
+    expect(screen.getByText('Employee login destination')).toBeTruthy();
+    expect(screen.queryByText('Protected content')).toBeNull();
+  });
+
+  it('allows either active employee role into the shared route guard', () => {
+    for (const role of ['admin', 'manager'] as const) {
+      vi.mocked(useAuth).mockReturnValue(auth(role));
+      const view = render(<MemoryRouter><AdminRoute><p>Protected content</p></AdminRoute></MemoryRouter>);
+      expect(screen.getByText('Protected content')).toBeTruthy();
+      view.unmount();
+    }
+  });
+
+  it('waits for the verified employee profile', () => {
+    vi.mocked(useAuth).mockReturnValue({ ...auth('manager'), employeeLoading: true });
+    render(<MemoryRouter><AdminRoute><p>Protected content</p></AdminRoute></MemoryRouter>);
+    expect(screen.getByText('Đang xác minh quyền nhân viên...')).toBeTruthy();
+    expect(screen.queryByText('Protected content')).toBeNull();
+  });
+
+  it('denies access on employee profile restore failure', () => {
+    vi.mocked(useAuth).mockReturnValue({ ...auth('admin'), employeeRestoreError: 'API unavailable' });
+    render(<MemoryRouter><AdminRoute><p>Protected content</p></AdminRoute></MemoryRouter>);
+    expect(screen.getByRole('alert').textContent).toBe('API unavailable');
+    expect(screen.queryByText('Protected content')).toBeNull();
+  });
 });
 
 describe('Customer routes', () => {
@@ -238,22 +233,20 @@ describe('Customer routes', () => {
     expect(screen.queryByRole('navigation', { name: 'Khu vực quản lý' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeTruthy();
   });
-  for (const [path, Component] of [['/cart', StaffApp], ['/orders', AdminApp]] as const) {
-    it(`does not mount customer route ${path} in an employee portal`, () => {
-      window.history.replaceState({}, '', path);
-      render(<Component />);
-      expect(screen.getByRole('heading', { name: 'Đăng nhập nhân viên' })).toBeTruthy();
-      expect(api.getCustomerOrders).not.toHaveBeenCalled();
-    });
-  }
+  it('does not mount customer routes in the management portal', () => {
+    window.history.replaceState({}, '', '/orders');
+    render(<AdminApp />);
+    expect(screen.getByRole('heading', { name: 'Đăng nhập nhân viên' })).toBeTruthy();
+    expect(api.getCustomerOrders).not.toHaveBeenCalled();
+  });
 });
 
 describe('Employee login destinations', () => {
   it.each([
-    ['catalog_manager', StaffApp, '/staff/products', '/staff/products'],
-    ['catalog_manager', StaffApp, '/admin/employees', '/staff/categories'],
-    ['admin', AdminApp, '/admin/employees', '/admin/employees'],
-  ] as const)('returns verified %s to an allowed local destination (%s)', async (role, Component, from, destination) => {
+    ['manager', '/admin/products', '/admin/products'],
+    ['manager', '/admin/employees', '/admin/orders'],
+    ['admin', '/admin/employees', '/admin/employees'],
+  ] as const)('returns verified %s to an allowed local destination (%s)', async (role, from, destination) => {
     const session = auth(role);
     session.employee = null;
     session.employeeLogin.mockImplementation(() => { session.employee = auth(role).employee; });
@@ -261,7 +254,7 @@ describe('Employee login destinations', () => {
     vi.mocked(useAuth).mockImplementation(() => session);
     vi.spyOn(api, 'employeeLogin').mockResolvedValue({ access_token: 'employee-token', token_type: 'Bearer', expires_in: 3600, employee: auth(role).employee! });
     window.history.replaceState({ usr: { from: { pathname: from, search: '?test=1', hash: '#section' } } }, '', '/employee/login');
-    render(<Component />);
+    render(<AdminApp />);
     fireEvent.change(screen.getByLabelText('Email công việc'), { target: { value: 'employee@example.test' } });
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập', exact: true }));
@@ -274,27 +267,14 @@ describe('Employee login destinations', () => {
       expect(window.location.hash).toBe('');
     }
   });
-  it.each([['admin', StaffApp, 'https://admin.example.test/employee/login'], ['order_staff', AdminApp, 'https://staff.example.test/employee/login']] as const)('directs verified %s to the appropriate portal login', async (role, Component, url) => {
-    const session = auth();
-    session.refreshEmployeeProfile.mockResolvedValue(auth(role).employee);
-    vi.mocked(useAuth).mockReturnValue(session);
-    vi.spyOn(api, 'employeeLogin').mockResolvedValue({ access_token: 'private-token', token_type: 'Bearer', expires_in: 3600, employee: auth(role).employee! });
-    const redirect = vi.spyOn(portalNavigation, 'redirectToPortal').mockImplementation(() => undefined);
-    window.history.replaceState({}, '', '/employee/login');
-    render(<Component />);
-    fireEvent.change(screen.getByLabelText('Email công việc'), { target: { value: 'employee@example.test' } });
-    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'password' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập', exact: true }));
-    await waitFor(() => expect(redirect).toHaveBeenCalledWith(url));
-  });
 });
 
 describe('Portal URLs', () => {
-  it.each([['user', 5173], ['staff', 5174], ['admin', 5175]] as const)('defaults %s to its port on the current host', (portal, port) => {
+  it.each([['user', 5173], ['admin', 5175]] as const)('defaults %s to its port on the current host', (portal, port) => {
     expect(getPortalUrl(portal, {}, 'http://192.168.1.25:1234')).toBe(`http://192.168.1.25:${port}`);
     expect(getPortalUrl(portal, {}, 'https://[::1]:1234')).toBe(`https://[::1]:${port}`);
   });
-  it.each([['user', 'VITE_USER_PORTAL_URL'], ['staff', 'VITE_STAFF_PORTAL_URL'], ['admin', 'VITE_ADMIN_PORTAL_URL']] as const)('uses the configured %s URL', (portal, key) => {
+  it.each([['user', 'VITE_USER_PORTAL_URL'], ['admin', 'VITE_ADMIN_PORTAL_URL']] as const)('uses the configured %s URL', (portal, key) => {
     expect(getPortalUrl(portal, { [key]: 'https://portal.example.test/' }, 'http://localhost:5173')).toBe('https://portal.example.test');
   });
 });
@@ -302,9 +282,9 @@ describe('Portal URLs', () => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe('User portal separation', () => {
-  it('links customer login to the configured Staff origin', () => {
+  it('links employee sign-in from the storefront to the shared management origin', () => {
     render(<App />);
-    expect(screen.getAllByRole('link', { name: 'Đăng nhập nhân viên' }).every((link) => link.getAttribute('href') === 'https://staff.example.test/employee/login')).toBe(true);
+    expect(screen.getAllByRole('link', { name: 'Đăng nhập nhân viên' }).every((link) => link.getAttribute('href') === 'https://admin.example.test/employee/login')).toBe(true);
     expect(screen.getByRole('link', { name: 'Cổng quản trị' }).getAttribute('href')).toBe('https://admin.example.test/employee/login');
   });
 
@@ -351,21 +331,11 @@ describe('Portal authentication ownership', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Đăng nhập', exact: true })).toBeTruthy());
     expect(employeeProfile).not.toHaveBeenCalled();
   });
-  it.each([StaffApp, AdminApp])('does not restore a customer token in an employee portal', async (Component) => {
+  it('does not restore a customer token in the management portal', async () => {
     window.localStorage.setItem('customer_token', 'customer-token');
     const customerProfile = vi.spyOn(api, 'getCustomerProfile').mockResolvedValue({ customerId: 2, name: 'Customer', email: 'customer@example.test' });
-    render(<Component />);
+    render(<AdminApp />);
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Đăng nhập nhân viên' })).toBeTruthy());
     expect(customerProfile).not.toHaveBeenCalled();
-  });
-});
-
-describe('Staff module routing', () => {
-  it('recognizes the Staff base path and renders the assigned orders module', async () => {
-    vi.mocked(useAuth).mockReturnValue(auth('order_staff'));
-    vi.spyOn(api, 'getAdminOrders').mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    render(<MemoryRouter initialEntries={['/staff/orders']}><AdminPortal {...{ basePath: '/staff' as const }} /></MemoryRouter>);
-    expect(await screen.findByRole('heading', { name: /Đơn hàng/ })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Đơn hàng' }).getAttribute('href')).toBe('/staff/orders');
   });
 });

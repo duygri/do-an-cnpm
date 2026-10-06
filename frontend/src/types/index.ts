@@ -126,13 +126,7 @@ export interface CustomerProfile {
   phoneNumber?: string;
 }
 
-export type EmployeeRole =
-  | 'admin'
-  | 'catalog_manager'
-  | 'promotion_manager'
-  | 'order_staff'
-  | 'purchasing_staff'
-  | 'unassigned';
+export type EmployeeRole = 'admin' | 'manager';
 
 export type EmployeeStatus = 'active' | 'inactive';
 

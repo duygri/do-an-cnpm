@@ -7,11 +7,7 @@ const PAGE_SIZE = 20;
 
 const roles: { value: EmployeeRole; label: string }[] = [
   { value: 'admin', label: 'Quản trị viên' },
-  { value: 'catalog_manager', label: 'Quản lý danh mục và sản phẩm' },
-  { value: 'promotion_manager', label: 'Quản lý khuyến mãi' },
-  { value: 'order_staff', label: 'Nhân viên xử lý đơn' },
-  { value: 'purchasing_staff', label: 'Nhân viên mua hàng' },
-  { value: 'unassigned', label: 'Chưa phân quyền' },
+  { value: 'manager', label: 'Quản lý vận hành' },
 ];
 
 const fieldClass = 'mt-1.5 w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60';
@@ -34,7 +30,7 @@ const emptyDraft: EmployeeDraft = {
   password: '',
   phone: '',
   position: '',
-  role: 'unassigned',
+  role: 'manager',
 };
 
 function errorMessage(error: unknown, fallback: string): string {

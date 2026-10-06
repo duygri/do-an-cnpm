@@ -51,7 +51,7 @@ const NotFound: React.FC<{ returnPath: string }> = ({ returnPath }) => (
   </section>
 );
 
-export const AdminPortal: React.FC<{ basePath: '/staff' | '/admin' }> = ({ basePath }) => {
+export const AdminPortal: React.FC<{ basePath: '/admin' }> = ({ basePath }) => {
   const { employee } = useAuth();
   const { pathname } = useLocation();
   const modulePath = pathname.slice(basePath.length).replace(/^\//, '').split('/')[0];

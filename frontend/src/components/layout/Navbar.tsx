@@ -195,7 +195,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
                 HOT
               </span>
             </a>
-            <a href={`${getPortalUrl('staff', import.meta.env, window.location.origin)}/employee/login`} className="ml-auto font-label-md text-label-md text-primary bg-primary-soft px-3 py-1 rounded-full hover:bg-primary hover:text-on-primary transition-all">
+            <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="ml-auto font-label-md text-label-md text-primary bg-primary-soft px-3 py-1 rounded-full hover:bg-primary hover:text-on-primary transition-all">
               Đăng nhập nhân viên
             </a>
             <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="font-label-md text-label-md text-primary whitespace-nowrap hover:underline">Cổng quản trị</a>

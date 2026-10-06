@@ -90,7 +90,7 @@ export const CustomerLoginPage: React.FC = () => {
         </p>
         <p className="mt-3 text-center font-body-sm text-body-sm text-on-surface-variant">
           Là nhân viên?{' '}
-          <a href={`${getPortalUrl('staff', import.meta.env, window.location.origin)}/employee/login`} className="font-semibold text-primary hover:underline">Đăng nhập nhân viên</a>
+          <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="font-semibold text-primary hover:underline">Đăng nhập nhân viên</a>
         </p>
       </div>
     </section>

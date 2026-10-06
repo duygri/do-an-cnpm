@@ -10,8 +10,7 @@ import { createServer, loadConfigFromFile } from 'vite';
 const frontendRoot = fileURLToPath(new URL('..', import.meta.url));
 const portals = [
   { name: 'user', deepLink: '/products', title: 'Modern Apparel', bootstrap: 'main.tsx' },
-  { name: 'staff', deepLink: '/staff/orders', title: 'Cổng nhân viên', bootstrap: 'main.staff.tsx' },
-  { name: 'admin', deepLink: '/admin/employees', title: 'Cổng quản trị', bootstrap: 'main.admin.tsx' },
+  { name: 'admin', deepLink: '/admin/employees', title: 'Cổng quản lý', bootstrap: 'main.admin.tsx' },
 ];
 
 function listen(server) {

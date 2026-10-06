@@ -2,11 +2,11 @@ import React, { FormEvent, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import { canAccessModule, canAccessPortal, EMPLOYEE_MODULES } from '../../portals/employee-access';
-import { getPortalUrl, redirectToPortal } from '../../portals/portal-url';
+import { canAccessModule, EMPLOYEE_MODULES } from '../../portals/employee-access';
+import { getPortalUrl } from '../../portals/portal-url';
 import type { EmployeeRole } from '../../types';
 
-function returnToLocation(state: unknown, basePath: '/staff' | '/admin', role: EmployeeRole): string {
+function returnToLocation(state: unknown, basePath: '/admin', role: EmployeeRole): string {
   const firstModule = EMPLOYEE_MODULES.find((module) => canAccessModule(module.path, role));
   const fallback = firstModule ? `${basePath}/${firstModule.path}` : basePath;
   if (typeof state !== 'object' || state === null || !('from' in state)) return fallback;
@@ -20,7 +20,7 @@ function returnToLocation(state: unknown, basePath: '/staff' | '/admin', role: E
   return `${from.pathname}${search}${hash}`;
 }
 
-export const EmployeeLoginPage: React.FC<{ basePath: '/staff' | '/admin' }> = ({ basePath }) => {
+export const EmployeeLoginPage: React.FC<{ basePath: '/admin' }> = ({ basePath }) => {
   const { employeeLogin, refreshEmployeeProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -41,12 +41,6 @@ export const EmployeeLoginPage: React.FC<{ basePath: '/staff' | '/admin' }> = ({
         setError('Không thể xác minh hồ sơ nhân viên. Vui lòng đăng nhập lại.');
         return;
       }
-      const portal = basePath === '/admin' ? 'admin' : 'staff';
-      const otherPortal = portal === 'admin' ? 'staff' : 'admin';
-      if (!canAccessPortal(portal, profile.role) && canAccessPortal(otherPortal, profile.role)) {
-        redirectToPortal(`${getPortalUrl(otherPortal, import.meta.env, window.location.origin)}/employee/login`);
-        return;
-      }
       navigate(returnToLocation(location.state, basePath, profile.role), { replace: true });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Đăng nhập không thành công. Vui lòng thử lại.');
@@ -58,7 +52,7 @@ export const EmployeeLoginPage: React.FC<{ basePath: '/staff' | '/admin' }> = ({
   return (
     <section className="max-w-7xl mx-auto px-gutter py-12 sm:py-16">
       <div className="max-w-md mx-auto rounded-2xl border border-border-neutral bg-surface p-6 shadow-sm sm:p-8">
-        <p className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-primary">{basePath === '/admin' ? 'Cổng quản trị' : 'Cổng nhân viên'}</p>
+        <p className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-primary">Cổng quản lý</p>
         <h1 className="mt-2 font-headline-md text-headline-md font-bold text-on-surface">Đăng nhập nhân viên</h1>
         <p className="mt-2 font-body-md text-body-md text-on-surface-variant">Đăng nhập bằng tài khoản nhân viên INDIGO STUDIO.</p>
 

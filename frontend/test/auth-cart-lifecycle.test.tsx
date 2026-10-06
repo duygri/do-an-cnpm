@@ -43,7 +43,7 @@ const employeeA = {
   email: 'employee-a@example.test',
   phone: null,
   position: 'catalog',
-  role: 'catalog_manager' as const,
+  role: 'manager' as const,
   status: 'active' as const,
 };
 
@@ -363,7 +363,7 @@ describe('customer session and cart lifecycle', () => {
   it('blocks an employee mutation when another tab changed the employee token before the storage event', async () => {
     window.localStorage.setItem('employee_profile', JSON.stringify(employeeA));
     window.localStorage.setItem('employee_token', jwtFor(employeeA.employeeId));
-    const employeeB = { ...employeeA, employeeId: 22, name: 'Employee B', role: 'order_staff' as const };
+    const employeeB = { ...employeeA, employeeId: 22, name: 'Employee B', role: 'admin' as const };
     vi.spyOn(api, 'getEmployeeProfile')
       .mockResolvedValueOnce(employeeA)
       .mockResolvedValueOnce(employeeB);

@@ -7,9 +7,9 @@ import { getPortalUrl } from '../../portals/portal-url';
 
 export const ADMIN_MODULES = modules;
 
-export const AdminLayout: React.FC<{ children: React.ReactNode; basePath: '/staff' | '/admin' }> = ({ children, basePath }) => {
+export const AdminLayout: React.FC<{ children: React.ReactNode; basePath: '/admin' }> = ({ children, basePath }) => {
   const { employee } = useAuth();
-  const role = employee?.role ?? 'unassigned';
+  const role = employee?.role ?? 'employee';
   const allowedModules = modules.filter((module) => canAccessModule(module.path, employee?.role ?? null));
 
   return (

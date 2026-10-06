@@ -64,7 +64,7 @@ function productDraftFrom(product: ProductResource): ProductDraft {
   };
 }
 
-export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/staff' | '/admin' }> = ({ section, basePath }) => {
+export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/admin' }> = ({ section, basePath }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<ProductResource[]>([]);
   const [loading, setLoading] = useState(true);
