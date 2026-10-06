@@ -180,6 +180,42 @@ async function activeAdminCount() {
   }
 }
 
+async function setRevenueOrderState({
+  orderId,
+  totalAmount,
+  paymentMethod,
+  paymentStatus,
+  paymentConfirmedAt,
+  paymentConfirmedByEmployeeId,
+  status,
+}) {
+  const client = new Client({ connectionString: testDatabaseUrl });
+  await client.connect();
+  try {
+    await client.query(
+      `UPDATE sales_order
+       SET total_amount = $1,
+           payment_method = $2,
+           payment_status = $3,
+           payment_confirmed_at = $4,
+           payment_confirmed_by_employee_id = $5,
+           status = $6
+       WHERE order_id = $7`,
+      [
+        totalAmount,
+        paymentMethod,
+        paymentStatus,
+        paymentConfirmedAt,
+        paymentConfirmedByEmployeeId,
+        status,
+        orderId,
+      ],
+    );
+  } finally {
+    await client.end();
+  }
+}
+
 async function api(pathname, options = {}) {
   const headers = {};
   if (options.body !== undefined) headers['content-type'] = 'application/json';
@@ -1133,4 +1169,108 @@ test('storefront exposes primary image summaries and ordered detail images witho
     false,
     'inactive product image data must not appear in storefront responses',
   );
+});
+
+test('admin revenue report groups paid non-cancelled orders by Vietnam confirmation date', async () => {
+  const [paidCod, paidPayos, unpaid, cancelled] = await Promise.all([
+    placeOrder(customerOneToken),
+    placeOrder(customerOneToken),
+    placeOrder(customerOneToken),
+    placeOrder(customerOneToken),
+  ]);
+  for (const response of [paidCod, paidPayos, unpaid, cancelled]) {
+    assert.equal(response.status, 201, JSON.stringify(response.body));
+  }
+
+  const adminEmployeeId = await employeeIdForEmail(employeeEmail);
+  await Promise.all([
+    setRevenueOrderState({
+      orderId: paidCod.body.orderId,
+      totalAmount: '500000.00',
+      paymentMethod: 'cod',
+      paymentStatus: 'paid',
+      paymentConfirmedAt: '2026-01-31T17:30:00.000Z',
+      paymentConfirmedByEmployeeId: adminEmployeeId,
+      status: 'packed',
+    }),
+    setRevenueOrderState({
+      orderId: paidPayos.body.orderId,
+      totalAmount: '750000.00',
+      paymentMethod: 'payos',
+      paymentStatus: 'paid',
+      paymentConfirmedAt: '2026-02-02T18:00:00.000Z',
+      paymentConfirmedByEmployeeId: null,
+      status: 'pending',
+    }),
+    setRevenueOrderState({
+      orderId: unpaid.body.orderId,
+      totalAmount: '900000.00',
+      paymentMethod: 'cod',
+      paymentStatus: 'unpaid',
+      paymentConfirmedAt: null,
+      paymentConfirmedByEmployeeId: null,
+      status: 'pending',
+    }),
+    setRevenueOrderState({
+      orderId: cancelled.body.orderId,
+      totalAmount: '1200000.00',
+      paymentMethod: 'cod',
+      paymentStatus: 'paid',
+      paymentConfirmedAt: '2026-02-02T19:00:00.000Z',
+      paymentConfirmedByEmployeeId: adminEmployeeId,
+      status: 'cancelled',
+    }),
+  ]);
+
+  const response = await api('/admin/reports/revenue?from=2026-02-01&to=2026-02-03', {
+    token: employeeToken,
+  });
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.deepEqual(response.body, {
+    from: '2026-02-01',
+    to: '2026-02-03',
+    timezone: 'Asia/Ho_Chi_Minh',
+    paidOrderCount: 2,
+    collectedAmount: '1250000.00',
+    daily: [
+      { date: '2026-02-01', orderCount: 1, amount: '500000.00' },
+      { date: '2026-02-02', orderCount: 0, amount: '0.00' },
+      { date: '2026-02-03', orderCount: 1, amount: '750000.00' },
+    ],
+  });
+
+  assert.equal(
+    (await api('/admin/reports/revenue?from=2026-02-01&to=2026-02-03', {
+      token: managerEmployeeToken,
+    })).status,
+    403,
+  );
+  assert.equal(
+    (await api('/admin/reports/revenue?from=2026-02-01&to=2026-02-03', {
+      token: customerOneToken,
+    })).status,
+    401,
+  );
+  assert.equal(
+    (await api('/admin/reports/revenue?from=2026-02-01&to=2026-02-03')).status,
+    401,
+  );
+});
+
+test('admin revenue report rejects invalid and oversized date ranges', async () => {
+  const invalidQueries = [
+    'from=2026-02-1&to=2026-02-03',
+    'from=2026-02-30&to=2026-03-01',
+    'from=2026-02-03&to=2026-02-01',
+    'from=2024-01-01&to=2025-01-02',
+    'from=2026-02-01',
+    'to=2026-02-01',
+  ];
+
+  for (const query of invalidQueries) {
+    const response = await api(`/admin/reports/revenue?${query}`, {
+      token: employeeToken,
+    });
+    assert.equal(response.status, 400, JSON.stringify({ query, body: response.body }));
+  }
 });
