@@ -359,6 +359,17 @@ graph LR
 | **Quy tắc nghiệp vụ** | Chỉ `manager` hoặc `admin` được xác nhận đơn COD đang `packed` và `unpaid`, sau khi đã nhận đủ tiền. PayOS không được xác nhận qua endpoint này. Đơn pending/cancelled, đã thanh toán hoặc PayOS → `409 Conflict`. Cập nhật thanh toán và phát hành hóa đơn trong cùng transaction. |
 | **Kết quả**     | Đơn trả `paymentStatus = "paid"`, thời gian và nhân viên xác nhận. |
 
+### FR-ADM-05: Thống kê doanh thu đã thu
+
+| Thuộc tính     | Mô tả |
+| -------------- | ----- |
+| **Mô tả**      | `admin` xem báo cáo nội bộ về số tiền đơn đã thu. Đây là báo cáo vận hành MVP, không phải hóa đơn thuế hoặc báo cáo kế toán. |
+| **Endpoint**   | `GET /admin/reports/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD` |
+| **Phân quyền** | Chỉ employee đang `active` có role `admin`; `manager`, customer và caller chưa xác thực không được truy cập. Backend là ranh giới bảo mật. |
+| **Tham số**    | `from` và `to` bắt buộc, là ngày lịch hợp lệ `YYYY-MM-DD`, hiểu theo múi giờ `Asia/Ho_Chi_Minh`. `to` không trước `from`; khoảng yêu cầu tối đa 366 ngày. Trang quản trị mặc định tháng lịch hiện tại ở Việt Nam. |
+| **Quy tắc doanh thu** | Chỉ tính đơn có `paymentStatus = paid`, `status` khác `cancelled`, và quy về ngày của `paymentConfirmedAt` ở Việt Nam. Mỗi đơn đóng góp `totalAmount`: số tiền khách thực trả sau giảm giá, có gồm `shippingFee`. Không cộng riêng hóa đơn, phiếu nhập hay các đơn chưa thanh toán. MVP chưa mô hình hóa hoàn tiền, trả hàng hay vòng đời hóa đơn thuế. |
+| **Kết quả** | Trả `{ from, to, timezone: "Asia/Ho_Chi_Minh", paidOrderCount, collectedAmount, daily }`; `daily` liên tục cho từng ngày trong khoảng, kể cả ngày không có đơn. Tiền là chuỗi thập phân 2 chữ số sau dấu chấm. |
+
 ---
 
 ## 8. Nhóm chức năng: Quản lý Nhà cung cấp (Supplier Management)
@@ -549,6 +560,7 @@ stateDiagram-v2
 | Quản lý chương trình/voucher | ❌ | ❌ | ✅ | ✅ |
 | Xem/đóng gói đơn, xác nhận COD | ❌ | ❌ | ✅ | ✅ |
 | Tra cứu hóa đơn quản trị | ❌ | ❌ | ✅ | ✅ |
+| Xem thống kê doanh thu đã thu | ❌ | ❌ | ✅ | ❌ |
 | Quản lý nhà cung cấp/phiếu nhập | ❌ | ❌ | ✅ | ✅ |
 | Quản lý tài khoản/vai trò nhân viên | ❌ | ❌ | ✅ | ❌ |
 | Xem hóa đơn của đơn cá nhân | ❌ | ✅* | ❌ | ❌ |
@@ -596,6 +608,7 @@ stateDiagram-v2
 | FR-ADM-02  | Xem chi tiết đơn (admin)       | ✅ Đã triển khai |
 | FR-ADM-03  | Đóng gói đơn hàng              | ✅ Đã triển khai |
 | FR-ADM-04  | Xác nhận đã thu tiền COD       | ✅ Đã triển khai |
+| FR-ADM-05  | Thống kê doanh thu đã thu      | ✅ Đã triển khai |
 | FR-SUP-01  | Xem danh sách nhà cung cấp     | ✅ Đã triển khai |
 | FR-SUP-02  | Xem chi tiết nhà cung cấp      | ✅ Đã triển khai |
 | FR-SUP-03  | Tạo nhà cung cấp               | ✅ Đã triển khai |

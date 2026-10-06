@@ -195,6 +195,16 @@ Validation query/body, trường body không được hỗ trợ, `packingType` 
 
 Đóng gói là một transaction: khóa dòng `sales_order` bằng pessimistic write lock, xác nhận trạng thái vẫn `pending` (và PayOS đã thanh toán), tạo một bản ghi `packing` với thời gian server và nhân viên từ JWT, chuyển đơn sang `packed`, rồi đọc lại phản hồi trước khi commit. Việc hủy khách hàng cũng khóa cùng dòng đơn trước khi kiểm tra trạng thái, nên các thao tác được tuần tự hóa. Xác nhận thủ công thanh toán cũng khóa cùng dòng đơn, chỉ dành cho đơn COD (hoặc dòng cũ có phương thức null), yêu cầu trạng thái `packed` và trạng thái `unpaid`, rồi cập nhật trạng thái thanh toán cùng thời điểm PostgreSQL và nhân viên xác nhận trong một transaction. Nhân viên chỉ xác nhận sau khi đã nhận đủ tổng tiền COD; PayOS chỉ được đánh dấu `paid` qua đối soát nhà cung cấp, không qua endpoint này. Đóng gói và xác nhận thanh toán không thay đổi số lượng hàng; hệ thống không theo dõi tồn kho. `shipping_fee` là phí giao hàng riêng; MVP không có cân nặng kiện hàng hay phí đóng gói.
 
+## API báo cáo doanh thu
+
+`GET /admin/reports/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD` yêu cầu employee JWT đang active và role `admin`. `manager`, customer token và caller chưa xác thực không thể truy cập. Đây là báo cáo vận hành MVP nội bộ, không phải hóa đơn thuế hay báo cáo kế toán.
+
+Hai query `from` và `to` là bắt buộc, phải là ngày lịch hợp lệ theo định dạng `YYYY-MM-DD`. Chúng được hiểu theo múi giờ `Asia/Ho_Chi_Minh`; `to` không được trước `from` và khoảng yêu cầu tối đa 366 ngày. Frontend quản trị tự chọn tháng lịch hiện tại theo giờ Việt Nam khi mở trang.
+
+Báo cáo chỉ tính các đơn có `payment_status = paid` và `status` khác `cancelled`, quy vào ngày `payment_confirmed_at` ở Việt Nam. `collectedAmount` là tổng `sales_order.total_amount`: số tiền khách đã trả sau giảm giá, gồm `shipping_fee`. Báo cáo không cộng hóa đơn riêng, đơn chưa thanh toán, phiếu nhập/chi phí mua hàng, hoàn tiền hay trả hàng vì các điều chỉnh này chưa được mô hình hóa trong MVP.
+
+Phản hồi trả `from`, `to`, `timezone`, `paidOrderCount`, `collectedAmount` và `daily`. Dãy `daily` có đủ mỗi ngày trong khoảng, kể cả ngày không có hoạt động; tất cả số tiền là chuỗi thập phân hai chữ số sau dấu chấm.
+
 ## API thanh toán PayOS
 
 PayOS checkout được khởi tạo bởi `POST /orders` có `paymentMethod: "payos"`; endpoint này vẫn yêu cầu customer JWT. Tổng tiền được lấy từ server sau áp dụng voucher. PayOS chỉ nhận VND nguyên dương; tổng có phần lẻ VND trả `400 Bad Request`, không làm tròn. Nếu tổng bằng 0, đơn chuyển ngay sang `paymentStatus: "paid"`, không gọi PayOS và không tạo payment attempt. Với tổng dương, server tạo một link hết hạn 15 phút tính từ `orderDate`. Link chỉ xuất hiện trong phản hồi đơn khách khi đơn còn `pending`, chưa trả tiền và URL đã được lưu cục bộ.
