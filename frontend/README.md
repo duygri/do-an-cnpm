@@ -14,10 +14,11 @@ Khởi động NestJS API tại `http://localhost:3000` theo [hướng dẫn bac
 | Cổng | Chạy riêng | URL trình duyệt |
 | --- | --- | --- |
 | User | `npm run dev:user` (hoặc `npm run dev`) | http://localhost:5173 |
-| Staff | `npm run dev:staff` | http://localhost:5174 — đơn hàng: `/staff/orders` |
-| Admin | `npm run dev:admin` | http://localhost:5175 — nhân viên: `/admin/employees` |
+| Management | `npm run dev:admin` | http://localhost:5175 — nhân viên: `/admin/employees` |
 
-Cổng đã được sử dụng sẽ khiến lệnh khởi động thất bại; Vite không tự đổi sang cổng khác. Dừng cả ba bằng `Ctrl+C` khi chạy `dev:portals`.
+Management dùng chung một portal cho `admin` và `manager`. `manager` thấy các module vận hành; `admin` có thêm quản lý nhân viên. Frontend chỉ ẩn/khóa điều hướng theo vai trò; backend vẫn là nơi quyết định quyền truy cập.
+
+Cổng đã được sử dụng sẽ khiến lệnh khởi động thất bại; Vite không tự đổi sang cổng khác. Dừng cả hai bằng `Ctrl+C` khi chạy `dev:portals`.
 
 ## Kiểm tra và build
 
@@ -29,4 +30,4 @@ npm run build
 
 Smoke test dùng API giả cục bộ và các cổng tạm thời để kiểm tra HTML, đường dẫn sâu, bootstrap, proxy JSON và xung đột cổng; không cần NestJS hay cơ sở dữ liệu. Test này không kiểm tra thao tác trong trình duyệt hoặc API thật.
 
-Build riêng: `npm run build:user`, `npm run build:staff`, `npm run build:admin`. Kết quả nằm trong `dist/user`, `dist/staff`, `dist/admin`.
+Build riêng: `npm run build:user`, `npm run build:admin`. Kết quả nằm trong `dist/user` và `dist/admin`.

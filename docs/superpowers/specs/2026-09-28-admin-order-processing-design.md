@@ -1,4 +1,4 @@
-> **Superseded decisions.** Inventory statements below are historical: the current [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md) removes inventory tracking, and packing/cancellation do not change inventory. Employee access is now role-based: `order_staff` or `admin` may use the employee order routes. Keep the employee-authenticated order list/detail contracts, direct `pending` → `packed` workflow, packing MVP fields and transaction/row-lock coordination with pending-only cancellation.
+> **Superseded decisions.** Inventory statements below are historical: the current [Remove Inventory Tracking Design](2026-09-29-remove-inventory-design.md) removes inventory tracking, and packing/cancellation do not change inventory. The current [Admin and Manager Role Model](2026-10-06-admin-manager-roles-design.md) permits `manager` or `admin` to use employee order routes. Keep the employee-authenticated order list/detail contracts, direct `pending` → `packed` workflow, packing MVP fields and transaction/row-lock coordination with pending-only cancellation.
 
 # Admin Order Processing Design
 
@@ -18,7 +18,7 @@ This MVP has no separate `confirmed` or `packing` stage. It does not implement s
 
 ## API and access
 
-All routes require an active employee JWT with role `order_staff` or `admin`. An active employee without either role receives `403`; invalid, wrong-actor, or inactive credentials receive `401`. The complete role matrix and employee provisioning rules are in the [employee role authorization design](2026-10-01-employee-role-authorization-design.md). Do not return the customer entity or password hash.
+All routes require an active employee JWT with role `manager` or `admin`. An active employee without either role receives `403`; invalid, wrong-actor, or inactive credentials receive `401`. The complete role matrix and employee provisioning rules are in the [current role design](2026-10-06-admin-manager-roles-design.md). Do not return the customer entity or password hash.
 
 - `GET /admin/orders?page=1&limit=20&status=pending`: list orders newest first by `(orderDate DESC, orderId DESC)`; `status` is optional and accepts only `pending`, `packed`, or `cancelled`. Pagination defaults to page 1 and limit 20; `page` must be an integer from 1 through 2,147,483,647, and `limit` an integer from 1 through 100. A valid page beyond the final page returns an empty `items` array with the actual `total`, not a 404. Return `{ items, page, limit, total }`. Each item has exactly `orderId`, `orderDate`, `customerId`, `recipientName`, `status`, `paymentStatus`, `totalAmount`, and `detailCount`. Do not include delivery address or order lines in the list.
 - `GET /admin/orders/:orderId`: return `{ orderId, orderDate, customerId, recipientName, recipientPhone, shippingAddress, discountAmount, shippingFee, totalAmount, paymentMethod, paymentStatus, status, note, details, packing }`. `details` is sorted by `variantId`; each detail has exactly `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, and `subtotal`. `packing` is null or `{ packingId, packingDate, packingType, status, note, employeeId }`. Select only these fields; never serialize the full customer entity.
@@ -66,7 +66,7 @@ The migration's `up` and `down` paths require an active transaction. Assert `que
 
 ## Acceptance criteria
 
-- An active employee JWT with role `order_staff` or `admin` is required for list, detail, and pack endpoints.
+- An active employee JWT with role `manager` or `admin` is required for list, detail, and pack endpoints.
 - Employee list is paginated and optionally filterable by a valid order status without joining detail rows into pagination.
 - Employee detail contains the delivery snapshot and packing-relevant product/variant data but does not leak `customer.password_hash`.
 - A valid pack request atomically creates one packing record and changes `pending` to `packed`, using the authenticated employee and server time.

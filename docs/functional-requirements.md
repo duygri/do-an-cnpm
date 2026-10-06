@@ -16,7 +16,7 @@
 Hệ thống bán hàng trực tuyến cho phép:
 
 - **Khách hàng**: đăng ký tài khoản, duyệt sản phẩm, đặt hàng và quản lý đơn hàng cá nhân.
-- **Nhân viên**: thao tác theo vai trò `admin`, `catalog_manager`, `promotion_manager`, `order_staff`, `purchasing_staff` hoặc `unassigned`.
+- **Nhân viên**: thao tác theo vai trò `admin` hoặc `manager`.
 
 ### 1.1. Các tác nhân (Actors)
 
@@ -104,7 +104,7 @@ graph LR
 | **Mô tả**      | Nhân viên xem thông tin cá nhân từ token. |
 | **Tác nhân**    | Nhân viên (đã đăng nhập) |
 | **Luồng chính** | 1. Gửi `GET /auth/employee/profile` với Bearer token. |
-| **Kết quả**     | Trả hồ sơ nhân viên gồm `employeeId`, `name`, `email`, `position`, `role`. Tài khoản `unassigned` vẫn xem được hồ sơ của chính mình. |
+| **Kết quả**     | Trả hồ sơ nhân viên gồm `employeeId`, `name`, `email`, `position`, `role`. |
 
 ### FR-AUTH-07: Phân biệt loại token
 
@@ -115,16 +115,12 @@ graph LR
 
 ### Chính sách vai trò nhân viên
 
-`position` là chức danh mô tả, không cấp quyền. API nạp `role` hiện tại từ database ở mỗi request. `admin` được phép trên tất cả API nhân viên; vai trò chuyên biệt chỉ được vào miền tương ứng. `unassigned` chỉ được đăng nhập và xem `/auth/employee/profile` cho đến khi admin gán vai trò.
+`position` là chức danh mô tả, không cấp quyền. API nạp `role` hiện tại từ database ở mỗi request. `admin` được phép trên tất cả API nhân viên, gồm quản lý nhân viên. `manager` được phép dùng toàn bộ API vận hành nhưng không quản lý nhân viên. Khi migration nâng cấp role, các role vận hành cũ được gom thành `manager`; tài khoản `unassigned` cũ cũng thành `manager`, nhưng tài khoản đang active được khóa để admin rà soát và kích hoạt lại.
 
 | Vai trò | API nội bộ được phép |
 | --- | --- |
 | `admin` | Tất cả API nhân viên, bao gồm quản lý tài khoản nhân viên. |
-| `catalog_manager` | `/categories`, `/products` và `/products/:productId/variants`. |
-| `promotion_manager` | `/promotions` và các API voucher lồng bên dưới. |
-| `order_staff` | `/admin/orders`, xác nhận COD và tra cứu hóa đơn qua `/admin/orders/:orderId/invoice`. |
-| `purchasing_staff` | `/suppliers` và `/imports`. |
-| `unassigned` | Chỉ hồ sơ nhân viên của chính mình. |
+| `manager` | `/categories`, `/products`, biến thể, `/promotions`, `/admin/orders`, xác nhận COD, tra cứu biên nhận, `/suppliers` và `/imports`. |
 
 ### FR-AUTH-08: Quản lý tài khoản và vai trò nhân viên
 
@@ -139,7 +135,7 @@ graph LR
 
 ## 3. Nhóm chức năng: Quản lý Danh mục (Category Management)
 
-> **Phân quyền**: `catalog_manager` hoặc `admin`; active employee thiếu quyền trả `403`.
+> **Phân quyền**: `manager` hoặc `admin`; active employee thiếu quyền trả `403`.
 
 ### FR-CAT-01: Xem danh sách danh mục
 
@@ -186,7 +182,7 @@ graph LR
 
 ## 4. Nhóm chức năng: Quản lý Sản phẩm & Biến thể (Product & Variant Management)
 
-> **Phân quyền**: `catalog_manager` hoặc `admin`; active employee thiếu quyền trả `403`.
+> **Phân quyền**: `manager` hoặc `admin`; active employee thiếu quyền trả `403`.
 
 ### FR-PRD-01: Xem danh sách sản phẩm
 
@@ -327,7 +323,7 @@ graph LR
 
 ## 7. Nhóm chức năng: Quản trị Đơn hàng – Nhân viên (Admin Order Management)
 
-> **Phân quyền**: `order_staff` hoặc `admin`; active employee thiếu quyền trả `403`.
+> **Phân quyền**: `manager` hoặc `admin`; active employee thiếu quyền trả `403`.
 
 ### FR-ADM-01: Xem danh sách đơn hàng (admin)
 
@@ -360,14 +356,14 @@ graph LR
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
 | **Endpoint**    | `POST /admin/orders/:orderId/mark-paid` |
-| **Quy tắc nghiệp vụ** | Chỉ `order_staff` hoặc `admin` được xác nhận đơn COD đang `packed` và `unpaid`, sau khi đã nhận đủ tiền. PayOS không được xác nhận qua endpoint này. Đơn pending/cancelled, đã thanh toán hoặc PayOS → `409 Conflict`. Cập nhật thanh toán và phát hành hóa đơn trong cùng transaction. |
+| **Quy tắc nghiệp vụ** | Chỉ `manager` hoặc `admin` được xác nhận đơn COD đang `packed` và `unpaid`, sau khi đã nhận đủ tiền. PayOS không được xác nhận qua endpoint này. Đơn pending/cancelled, đã thanh toán hoặc PayOS → `409 Conflict`. Cập nhật thanh toán và phát hành hóa đơn trong cùng transaction. |
 | **Kết quả**     | Đơn trả `paymentStatus = "paid"`, thời gian và nhân viên xác nhận. |
 
 ---
 
 ## 8. Nhóm chức năng: Quản lý Nhà cung cấp (Supplier Management)
 
-> **Phân quyền**: `purchasing_staff` hoặc `admin`; active employee thiếu quyền trả `403`.
+> **Phân quyền**: `manager` hoặc `admin`; active employee thiếu quyền trả `403`.
 
 ### FR-SUP-01: Xem danh sách nhà cung cấp
 
@@ -405,7 +401,7 @@ graph LR
 
 ## 9. Nhóm chức năng: Quản lý Phiếu nhập (Stock Import Management)
 
-> **Phân quyền**: `purchasing_staff` hoặc `admin`; active employee thiếu quyền trả `403`.
+> **Phân quyền**: `manager` hoặc `admin`; active employee thiếu quyền trả `403`.
 
 ### FR-IMP-01: Xem danh sách phiếu nhập
 
@@ -439,8 +435,8 @@ graph LR
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
 | **Mô tả**      | Hệ thống phát hành một hóa đơn khi đơn được xác nhận đã thanh toán và cho phép chủ đơn/nhân viên tra cứu. |
-| **Endpoint**    | `GET /orders/:orderId/invoice` (customer JWT); `GET /admin/orders/:orderId/invoice` (`order_staff` hoặc `admin`). |
-| **Quy tắc nghiệp vụ** | – Hóa đơn được phát hành cùng transaction xác nhận đơn paid: COD qua `POST /admin/orders/:orderId/mark-paid`; PayOS sau webhook/đối soát xác nhận đủ tiền; đơn PayOS tổng 0 được phát hành ngay.<br>– Chưa thanh toán hoặc chỉ mới đóng gói thì chưa có hóa đơn; route trả `404`.<br>– Mỗi đơn tối đa một hóa đơn; `totalAmount` là snapshot bất biến tại thời điểm phát hành, trạng thái hiện tại là `issued`.<br>– Khách chỉ xem hóa đơn của đơn mình; đơn/hóa đơn không tồn tại hoặc thuộc khách khác đều trả `404`. Nhân viên chỉ xem qua route admin khi có `order_staff` hoặc `admin`. |
+| **Endpoint**    | `GET /orders/:orderId/invoice` (customer JWT); `GET /admin/orders/:orderId/invoice` (`manager` hoặc `admin`). |
+| **Quy tắc nghiệp vụ** | – Hóa đơn được phát hành cùng transaction xác nhận đơn paid: COD qua `POST /admin/orders/:orderId/mark-paid`; PayOS sau webhook/đối soát xác nhận đủ tiền; đơn PayOS tổng 0 được phát hành ngay.<br>– Chưa thanh toán hoặc chỉ mới đóng gói thì chưa có hóa đơn; route trả `404`.<br>– Mỗi đơn tối đa một hóa đơn; `totalAmount` là snapshot bất biến tại thời điểm phát hành, trạng thái hiện tại là `issued`.<br>– Khách chỉ xem hóa đơn của đơn mình; đơn/hóa đơn không tồn tại hoặc thuộc khách khác đều trả `404`. Nhân viên chỉ xem qua route admin khi có `manager` hoặc `admin`. |
 | **Kết quả**     | `{ invoiceId, orderId, issuedDate, totalAmount, status }`. |
 
 ---
@@ -451,7 +447,7 @@ graph LR
 
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
-| **Mô tả**      | `promotion_manager` hoặc `admin` tạo, xem, cập nhật chương trình qua `GET/POST /promotions`, `GET/PATCH /promotions/:promotionId`. Chưa có xóa; chuyển `status` sang `inactive` để ngừng dùng. |
+| **Mô tả**      | `manager` hoặc `admin` tạo, xem, cập nhật chương trình qua `GET/POST /promotions`, `GET/PATCH /promotions/:promotionId`. Chưa có xóa; chuyển `status` sang `inactive` để ngừng dùng. |
 | **Dữ liệu**    | `promotionId`, `name`, `description`, `startDate`, `endDate`, `status`. |
 | **Quy tắc nghiệp vụ** | Tên tối đa 120 ký tự, mô tả tùy chọn tối đa 5000 ký tự; ngày theo `YYYY-MM-DD`, start không sau end; status `active`/`inactive`, mặc định `active`. |
 
@@ -459,7 +455,7 @@ graph LR
 
 | Thuộc tính     | Mô tả |
 | -------------- | ----- |
-| **Mô tả**      | `promotion_manager` hoặc `admin` quản lý voucher theo campaign qua `GET/POST /promotions/:promotionId/vouchers` và `GET/PATCH /promotions/:promotionId/vouchers/:voucherId`. Chưa có xóa hoặc sửa code. |
+| **Mô tả**      | `manager` hoặc `admin` quản lý voucher theo campaign qua `GET/POST /promotions/:promotionId/vouchers` và `GET/PATCH /promotions/:promotionId/vouchers/:voucherId`. Chưa có xóa hoặc sửa code. |
 | **Dữ liệu**    | `voucherId`, `code` (unique), `name`, `type`, `discountValue`, `startDate`, `endDate`, `minPrice`, `maxDiscount`, `quantity`, `status`, `promotionId`. |
 | **Quan hệ**     | Voucher có thể áp dụng cho đơn hàng qua `SALES_ORDER.voucher_id`. |
 | **Quy tắc nghiệp vụ** | Code được trim/chuyển uppercase, chỉ nhận ASCII chữ/số/`-`/`_`, duy nhất toàn hệ thống; type là `fixed` hoặc `percentage`. Campaign và voucher đều phải active và còn hiệu lực ngày hiện tại. `minPrice` tính trên tổng hàng trước giảm; percentage làm tròn half-up tới cent, có thể giới hạn bởi `maxDiscount`; giảm không vượt tổng hàng. `quantity` là lượt dùng chung toàn hệ thống, không giới hạn theo khách. |
@@ -541,25 +537,24 @@ stateDiagram-v2
 
 ## 13. Ma trận phân quyền (Authorization Matrix)
 
-| Chức năng | Khách vãng lai | Khách hàng | `admin` | `catalog_manager` | `promotion_manager` | `order_staff` | `purchasing_staff` | `unassigned` |
-| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Xem storefront | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Đăng ký/đăng nhập khách | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Xem/cập nhật hồ sơ khách | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Tạo đơn hàng | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Xem/hủy đơn cá nhân | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Đăng nhập nhân viên | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Xem hồ sơ nhân viên của mình | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Quản lý danh mục/sản phẩm/biến thể | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Quản lý chương trình/voucher | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Xem/đóng gói đơn, xác nhận COD | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Tra cứu hóa đơn quản trị | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Quản lý nhà cung cấp/phiếu nhập | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Quản lý tài khoản/vai trò nhân viên | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Xem hóa đơn của đơn cá nhân | ❌ | ✅* | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Gửi webhook PayOS | ✅* | ✅* | ✅* | ✅* | ✅* | ✅* | ✅* | ✅* |
+| Chức năng | Khách vãng lai | Khách hàng | `admin` | `manager` |
+| --- | :---: | :---: | :---: | :---: |
+| Xem storefront | ✅ | ✅ | ✅ | ✅ |
+| Đăng ký/đăng nhập khách | ✅ | ❌ | ❌ | ❌ |
+| Xem/cập nhật hồ sơ khách | ❌ | ✅ | ❌ | ❌ |
+| Tạo đơn hàng | ❌ | ✅ | ❌ | ❌ |
+| Xem/hủy đơn cá nhân | ❌ | ✅ | ❌ | ❌ |
+| Đăng nhập/xem hồ sơ nhân viên | ❌ | ❌ | ✅ | ✅ |
+| Quản lý danh mục/sản phẩm/biến thể | ❌ | ❌ | ✅ | ✅ |
+| Quản lý chương trình/voucher | ❌ | ❌ | ✅ | ✅ |
+| Xem/đóng gói đơn, xác nhận COD | ❌ | ❌ | ✅ | ✅ |
+| Tra cứu hóa đơn quản trị | ❌ | ❌ | ✅ | ✅ |
+| Quản lý nhà cung cấp/phiếu nhập | ❌ | ❌ | ✅ | ✅ |
+| Quản lý tài khoản/vai trò nhân viên | ❌ | ❌ | ✅ | ❌ |
+| Xem hóa đơn của đơn cá nhân | ❌ | ✅* | ❌ | ❌ |
+| Gửi webhook PayOS | ✅* | ✅* | ✅* | ✅* |
 
-`admin` là quyền bao trùm trên các API nhân viên trong bảng. Nhân viên `unassigned` chỉ xem hồ sơ của mình; vai trò còn lại chỉ vào miền được đánh dấu. Active employee thiếu vai trò cần thiết nhận `403`; token thiếu/sai/hết hạn, sai actor hoặc nhân viên inactive nhận `401`. `*` Tra cứu hóa đơn chỉ được phép với đơn thuộc khách đã đăng nhập; webhook PayOS là callback máy chủ công khai, được bảo vệ bằng xác minh chữ ký thay vì JWT.
+`admin` là quyền bao trùm trên các API nhân viên trong bảng; `manager` là quyền vận hành. Active employee thiếu vai trò cần thiết nhận `403`; token thiếu/sai/hết hạn, sai actor hoặc nhân viên inactive nhận `401`. `*` Tra cứu hóa đơn chỉ được phép với đơn thuộc khách đã đăng nhập; webhook PayOS là callback máy chủ công khai, được bảo vệ bằng xác minh chữ ký thay vì JWT.
 
 ---
 

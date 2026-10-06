@@ -53,7 +53,9 @@ npm run db:create-admin
 
 API không có đăng ký admin công khai. Lệnh `db:create-admin` tạo tài khoản bootstrap với `role = admin` và `position = admin`. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được. `position` là chức danh mô tả, không dùng để cấp quyền.
 
-Vai trò hợp lệ: `admin`, `catalog_manager`, `promotion_manager`, `order_staff`, `purchasing_staff`, `unassigned`. `unassigned` được đăng nhập và chỉ xem hồ sơ của mình cho đến khi admin gán vai trò. Vai trò hiện tại được đọc từ database ở mỗi request; JWT không mang role đáng tin cậy, vì vậy thay đổi vai trò có hiệu lực ngay với token còn hạn. `admin` được phép qua mọi API nhân viên; các vai trò chuyên biệt chỉ dùng được miền tương ứng bên dưới.
+Vai trò hợp lệ: `admin` và `manager`. Vai trò hiện tại được đọc từ database ở mỗi request; JWT không mang role đáng tin cậy, vì vậy thay đổi vai trò có hiệu lực ngay với token còn hạn. `admin` được phép qua mọi API nhân viên và quản lý tài khoản nhân viên. `manager` dùng được toàn bộ API vận hành: danh mục, sản phẩm, khuyến mãi, đơn hàng, nhà cung cấp và phiếu nhập.
+
+Khi nâng cấp dữ liệu, các role vận hành cũ được gom thành `manager`. Tài khoản có role cũ `unassigned` cũng chuyển thành `manager`, nhưng nếu đang active thì bị khóa (`status = inactive`) để admin chủ động rà soát và kích hoạt lại.
 
 Token thiếu, sai, hết hạn, sai actor (ví dụ customer token gọi API nhân viên), hoặc nhân viên inactive trả `401 Unauthorized`. Nhân viên active nhưng role không được phép trả `403 Forbidden`.
 
@@ -77,7 +79,7 @@ JWT có phân biệt loại chủ thể. Customer token không truy cập đư�
 
 ## API danh mục
 
-Các endpoint dưới đây yêu cầu JWT nhân viên có role `catalog_manager` hoặc `admin` trong header `Authorization: Bearer <token>`:
+Các endpoint dưới đây yêu cầu JWT nhân viên có role `manager` hoặc `admin` trong header `Authorization: Bearer <token>`:
 
 - `GET /categories`: danh sách danh mục.
 - `GET /categories/:categoryId`: chi tiết danh mục.
@@ -87,7 +89,7 @@ Các endpoint dưới đây yêu cầu JWT nhân viên có role `catalog_manager
 
 ## API sản phẩm và biến thể
 
-Các endpoint này cũng yêu cầu JWT nhân viên có role `catalog_manager` hoặc `admin`:
+Các endpoint này cũng yêu cầu JWT nhân viên có role `manager` hoặc `admin`:
 
 - `GET /products` và `GET /products/:productId`: danh sách hoặc chi tiết sản phẩm, có `images` sắp theo `sortOrder`, rồi `productImageId`. Mỗi ảnh gồm `productImageId`, `productId`, `imageUrl`, `altText`, `sortOrder`, `isPrimary`.
 - `POST /products`: tạo sản phẩm với `name`, `categoryId` và các trường tùy chọn `description`, `brand`, `status`, `images`.
@@ -110,7 +112,7 @@ Schema biến thể hiện chưa có trạng thái riêng, vì vậy tất cả 
 
 ## API chương trình khuyến mãi và voucher
 
-Các route quản lý dưới đây yêu cầu JWT của nhân viên đang `active` và role `promotion_manager` hoặc `admin` trong header `Authorization: Bearer <token>`. Token thiếu/sai/hết hạn, sai actor hoặc nhân viên không còn active trả `401 Unauthorized`; nhân viên active nhưng thiếu role yêu cầu trả `403 Forbidden`.
+Các route quản lý dưới đây yêu cầu JWT của nhân viên đang `active` và role `manager` hoặc `admin` trong header `Authorization: Bearer <token>`. Token thiếu/sai/hết hạn, sai actor hoặc nhân viên không còn active trả `401 Unauthorized`; nhân viên active nhưng thiếu role yêu cầu trả `403 Forbidden`.
 
 - `GET /promotions` và `GET /promotions/:promotionId`: liệt kê hoặc xem chương trình theo `promotionId` tăng dần. Phản hồi có `promotionId`, `name`, `description`, `startDate`, `endDate`, `status`.
 - `POST /promotions`: tạo chương trình với `name`, `startDate`, `endDate`; `description` và `status` là tùy chọn. Ví dụ: `{ "name": "Tết 2027", "description": "Khuyến mãi Tết", "startDate": "2027-01-01", "endDate": "2027-02-28", "status": "active" }`.
@@ -179,13 +181,13 @@ Voucher không tồn tại/không khả dụng, inactive, ngoài ngày hiệu l�
 
 ## API quản trị đơn hàng và đóng gói
 
-Các route dưới đây yêu cầu JWT nhân viên đang `active` và role `order_staff` hoặc `admin` trong header `Authorization: Bearer <token>`. Token thiếu/sai/hết hạn, sai actor hoặc nhân viên không còn active trả `401 Unauthorized`; nhân viên active nhưng thiếu role yêu cầu trả `403 Forbidden`.
+Các route dưới đây yêu cầu JWT nhân viên đang `active` và role `manager` hoặc `admin` trong header `Authorization: Bearer <token>`. Token thiếu/sai/hết hạn, sai actor hoặc nhân viên không còn active trả `401 Unauthorized`; nhân viên active nhưng thiếu role yêu cầu trả `403 Forbidden`.
 
 - `GET /admin/orders?page=1&limit=20&status=pending`: danh sách theo `orderDate DESC, orderId DESC`. `page` mặc định 1, nhận số nguyên từ 1 đến 2,147,483,647; `limit` mặc định 20, nhận số nguyên từ 1 đến 100. `status` tùy chọn, chỉ nhận `pending`, `packed`, `cancelled`. Phản hồi có dạng `{ "items": [...], "page": 1, "limit": 20, "total": 1 }`; mỗi item chỉ gồm `orderId`, `orderDate`, `customerId`, `recipientName`, `status`, `paymentStatus`, `voucherCode`, `discountAmount`, `totalAmount`, `detailCount`. Danh sách không bao gồm địa chỉ hoặc dòng hàng. Trang hợp lệ nhưng vượt trang cuối trả danh sách `items` rỗng và `total` thực tế.
 - `GET /admin/orders/:orderId`: trả `orderId`, `orderDate`, `customerId`, `voucherCode`, `recipientName`, `recipientPhone`, `shippingAddress`, `discountAmount`, `shippingFee`, `totalAmount`, `paymentMethod`, `paymentStatus`, `paymentConfirmedAt`, `paymentConfirmedByEmployeeId`, `paymentAttentionRequired`, `paymentAttempt`, `status`, `note`, `details`, `packing`. `voucherCode` là `null` khi không dùng voucher. `paymentConfirmedAt` và `paymentConfirmedByEmployeeId` là `null` trước khi xác nhận thanh toán. `paymentAttentionRequired` báo cần admin rà soát trạng thái giao dịch. `paymentAttempt` là `null` khi đơn không có PayOS attempt (COD hoặc tổng PayOS bằng 0); với attempt gồm `status`, `providerReference`, `observedAmountPaid`, `reconciliationReason`, `reconciliationAt`, `checkoutUrlMissing`. Endpoint không trả `checkoutUrl`, key, fingerprint hoặc thông tin chữ ký. `details` sắp theo `variantId`; mỗi dòng có `orderId`, `variantId`, `productName`, `size`, `color`, `quantity`, `unitPrice`, `subtotal`. `size` và `color` có thể là `null`. `packing` là `null` nếu đơn chưa đóng gói; nếu có thì gồm `packingId`, `packingDate`, `packingType`, `status`, `note`, `employeeId`.
 - `POST /admin/orders/:orderId/pack`: body nhận `packingType` tùy chọn (`"bag"` hoặc `"box"`) và `note` tùy chọn (chuỗi tối đa 1000 ký tự). Ví dụ: `{ "packingType": "box", "note": "Đóng gói cẩn thận" }`. Chỉ đơn `pending` được gói; đơn PayOS phải `paid` trước khi gói. Có thể bỏ qua hai trường hoặc gửi `null` cho chúng (`@IsOptional` xem `null` như trường bị bỏ qua); chuỗi được trim, ghi chú rỗng sau khi trim trở thành `null`. Giá trị `note` không phải chuỗi và khác `null` trả `400 Bad Request`. Phản hồi HTTP `200` chứa cùng dạng đơn hàng với route chi tiết và thông tin đóng gói vừa tạo. Server lấy `employeeId`, thời gian và trạng thái từ phiên đăng nhập/server, không nhận các giá trị này từ client.
-- `POST /admin/orders/:orderId/mark-paid`: không nhận body. Chỉ role `order_staff` hoặc `admin` mới dùng được. Chỉ xác nhận được đơn `packed`, chưa thanh toán, có phương thức `cod` hoặc `null` trên dòng dữ liệu cũ; trước khi xác nhận, nhân viên phải thực sự nhận đủ `totalAmount` bằng tiền mặt. Đóng gói không đồng nghĩa với đã thu tiền. Thành công trả HTTP `200` với chi tiết đơn quản trị đã cập nhật: `paymentStatus: "paid"`, `paymentConfirmedAt` lấy từ `CURRENT_TIMESTAMP` của PostgreSQL và `paymentConfirmedByEmployeeId` lấy từ JWT nhân viên. Đơn vẫn ở trạng thái `packed`. Đơn `pending`/`cancelled`, dùng PayOS hoặc đã thanh toán trả `409 Conflict`; ID sai định dạng, ngoài phạm vi hoặc không tồn tại trả `404 Not Found`. Phản hồi đơn hàng của khách không chứa `paymentConfirmedAt` hoặc `paymentConfirmedByEmployeeId`.
-- `GET /admin/orders/:orderId/invoice`: tra cứu biên nhận nội bộ của một đơn, chỉ role `order_staff` hoặc `admin`. Trả `invoiceId`, `orderId`, `issuedDate`, `totalAmount`, `status`; biên nhận chưa phát hành trả `404`. Nhân viên active thiếu role được phép nhận `403` từ role guard. Khách dùng `GET /orders/:orderId/invoice` với customer JWT và chỉ xem biên nhận của đơn mình; đơn của khách khác hoặc chưa có biên nhận đều trả `404`.
+- `POST /admin/orders/:orderId/mark-paid`: không nhận body. Chỉ role `manager` hoặc `admin` mới dùng được. Chỉ xác nhận được đơn `packed`, chưa thanh toán, có phương thức `cod` hoặc `null` trên dòng dữ liệu cũ; trước khi xác nhận, nhân viên phải thực sự nhận đủ `totalAmount` bằng tiền mặt. Đóng gói không đồng nghĩa với đã thu tiền. Thành công trả HTTP `200` với chi tiết đơn quản trị đã cập nhật: `paymentStatus: "paid"`, `paymentConfirmedAt` lấy từ `CURRENT_TIMESTAMP` của PostgreSQL và `paymentConfirmedByEmployeeId` lấy từ JWT nhân viên. Đơn vẫn ở trạng thái `packed`. Đơn `pending`/`cancelled`, dùng PayOS hoặc đã thanh toán trả `409 Conflict`; ID sai định dạng, ngoài phạm vi hoặc không tồn tại trả `404 Not Found`. Phản hồi đơn hàng của khách không chứa `paymentConfirmedAt` hoặc `paymentConfirmedByEmployeeId`.
+- `GET /admin/orders/:orderId/invoice`: tra cứu biên nhận nội bộ của một đơn, chỉ role `manager` hoặc `admin`. Trả `invoiceId`, `orderId`, `issuedDate`, `totalAmount`, `status`; biên nhận chưa phát hành trả `404`. Nhân viên active thiếu role được phép nhận `403` từ role guard. Khách dùng `GET /orders/:orderId/invoice` với customer JWT và chỉ xem biên nhận của đơn mình; đơn của khách khác hoặc chưa có biên nhận đều trả `404`.
 
 Trong mọi phản hồi quản trị đơn, ID, số lượng, số dòng, `page`, `limit`, `total`, `detailCount` là JSON integer; tiền là chuỗi thập phân có đúng hai chữ số sau dấu chấm; thời gian là chuỗi ISO 8601 theo UTC. `GET /admin/orders` không trả `paymentMethod`; `GET /admin/orders/:orderId` luôn trả `paymentMethod` là `cod` hoặc `payos` (giá trị null trên đơn legacy được chuẩn hóa thành `cod`). Ghi chú đơn, `size` và `color` có thể là JSON `null` khi chưa có. `packing` là `null` trước khi đơn được đóng gói; khi `packing` là object, chỉ `packingType` và `note` có thể là `null`, còn `packingId`, `packingDate`, `status` và `employeeId` luôn hiện diện và có giá trị. API chỉ chọn các trường cần thiết, không trả entity khách hàng hay `password_hash`.
 
@@ -206,7 +208,7 @@ PayOS checkout được khởi tạo bởi `POST /orders` có `paymentMethod: "p
 
 ## API nhà cung cấp
 
-Các endpoint đều yêu cầu JWT nhân viên có role `purchasing_staff` hoặc `admin`:
+Các endpoint đều yêu cầu JWT nhân viên có role `manager` hoặc `admin`:
 
 - `GET /suppliers` và `GET /suppliers/:supplierId`: danh sách hoặc chi tiết.
 - `POST /suppliers`: tạo với `name` và tùy chọn `address`, `email`.
@@ -215,7 +217,7 @@ Các endpoint đều yêu cầu JWT nhân viên có role `purchasing_staff` ho�
 
 ## API phiếu nhập
 
-Các endpoint đều yêu cầu JWT nhân viên có role `purchasing_staff` hoặc `admin`:
+Các endpoint đều yêu cầu JWT nhân viên có role `manager` hoặc `admin`:
 
 - `GET /imports` và `GET /imports/:importId`: danh sách hoặc chi tiết phiếu nhập.
 - `POST /imports`: tạo phiếu với `supplierId`, tùy chọn `note`, và 1–100 dòng `details`. Mỗi dòng có `variantId`, `quantity` nguyên dương và `unitPrice` dạng chuỗi thập phân tối đa hai chữ số, ví dụ:

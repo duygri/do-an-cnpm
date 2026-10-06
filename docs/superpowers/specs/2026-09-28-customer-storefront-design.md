@@ -9,7 +9,7 @@ Add customer registration, login, profile access, and public product browsing wh
 - Customers can register with a name, email, and password. Date of birth, phone, address, and gender are optional profile fields.
 - Customers can log in, read their profile, and update profile fields without changing their email or password through the profile endpoint.
 - Public storefront routes list categories that contain active products, search and filter active products with pagination, and read one active product with its variants. The existing variant schema has no status field, so every variant of an active product is included.
-- Employee catalog administration routes require `catalog_manager` or `admin`; active `unassigned` employees can only read their own employee profile. The role list, other employee-domain mappings, and `401`/`403` distinction are maintained in the [employee role authorization design](2026-10-01-employee-role-authorization-design.md).
+- Employee catalog administration routes require `manager` or `admin`. The role list, other employee-domain mappings, and `401`/`403` distinction are maintained in the [current role design](2026-10-06-admin-manager-roles-design.md).
 
 ## Architecture
 

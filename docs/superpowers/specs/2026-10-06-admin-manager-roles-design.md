@@ -13,6 +13,8 @@ This change provides the role and portal foundation before a later decision abou
 - `admin`: access to every employee operations API and employee account administration.
 - `manager`: access to operational APIs for catalog, promotions, orders, supplier records, and import documents. Cannot list, create, activate, deactivate, or change employee roles.
 
+The admin role also has access to the internal revenue statistics module described in `2026-10-06-admin-revenue-statistics-design.md`. The manager role does not have access to that module.
+
 The existing `employee.status` (`active` / `inactive`) remains the account lock mechanism. Do not add a duplicate `is_active` field. Customer accounts remain in `customer`; `User` is not an employee role.
 
 ## Database migration
@@ -39,9 +41,9 @@ Catalog, promotion/voucher, order/packing/COD/invoice, supplier, and import cont
 Keep the storefront at port `5173` and the single management application at port `5175`. Both `admin` and `manager` log in through the management app's employee login. The app loads the authenticated role and filters modules:
 
 - `manager`: orders, categories, products, promotions, suppliers, and imports.
-- `admin`: all operational modules plus employees.
+- `admin`: all manager modules plus employees and revenue statistics.
 
-Route guards must deny direct navigation to a hidden module. The backend remains the security boundary; hiding a menu is not authorization. Remove the separate staff Vite config, entry point, scripts, build output, and documentation for port `5174`. The old staff route may redirect to its matching `/admin/...` route when requested on the unified portal origin.
+Route guards must deny direct navigation to a hidden module. The backend remains the security boundary; hiding a menu is not authorization. Remove the separate staff Vite config, entry point, scripts, build output, and documentation for port `5174`. For compatibility, old `/staff/...` paths on the management portal origin redirect to the matching `/admin/...` path.
 
 React-admin is intentionally a later, separate frontend decision. The existing admin UI remains the implementation surface for this role consolidation.
 
@@ -55,6 +57,8 @@ Employee email/password credentials do not change. Legacy employee role-specific
 - Backend access tests prove manager access to each operational domain and `403` access to employee administration; admin can access both; invalid role values are rejected; inactive employees remain unable to authenticate.
 - Frontend smoke/build checks cover the user and unified management portals, including direct links, manager/admin bootstraps, and the removal of the staff build target.
 - Update the functional requirements and local run instructions to describe only the two employee roles and unified management portal.
+
+Revenue statistics have their own design and implementation plan so their business definition and aggregation can be reviewed independently from role consolidation.
 
 ## Options considered
 

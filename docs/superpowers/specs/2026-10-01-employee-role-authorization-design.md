@@ -1,5 +1,12 @@
 # Employee Role Authorization Design
 
+> **Superseded on 2026-10-06.** This document is retained as the historical
+> record of the former specialist-role model. The current role and portal
+> contract is [Admin and Manager Role Model](2026-10-06-admin-manager-roles-design.md):
+> employee roles are only `admin` and `manager`; `admin` alone manages employee
+> accounts; `manager` has all operational access; the separate staff portal was
+> removed. Do not use the role matrix below for current implementation or setup.
+
 ## Goal
 
 Replace the current all-active-employees-can-administer policy with explicit
