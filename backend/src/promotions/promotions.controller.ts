@@ -19,7 +19,7 @@ import { PromotionsService } from './promotions.service';
 
 @Controller('promotions')
 @UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
-@EmployeeRoles('promotion_manager')
+@EmployeeRoles('manager')
 export class PromotionsController {
   constructor(private readonly promotions: PromotionsService) {}
 

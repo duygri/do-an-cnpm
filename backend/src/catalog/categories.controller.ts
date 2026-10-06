@@ -20,7 +20,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Controller('categories')
 @UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
-@EmployeeRoles('catalog_manager')
+@EmployeeRoles('manager')
 export class CategoriesController {
   constructor(private readonly categories: CategoriesService) {}
 

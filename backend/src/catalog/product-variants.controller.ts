@@ -20,7 +20,7 @@ import { ProductVariantsService } from './product-variants.service';
 
 @Controller('products/:productId/variants')
 @UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
-@EmployeeRoles('catalog_manager')
+@EmployeeRoles('manager')
 export class ProductVariantsController {
   constructor(private readonly variants: ProductVariantsService) {}
 

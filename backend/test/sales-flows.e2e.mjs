@@ -35,23 +35,16 @@ const employeeEmail = `employee-${randomUUID()}@example.com`;
 const employeePassword = 'Employee-Test-Password-2026!';
 const customerPassword = 'Customer-Test-Password-2026!';
 const employeeName = 'Test Employee';
-const unassignedEmployeeEmail = `unassigned-${randomUUID()}@example.com`;
-const unassignedEmployeeName = 'Unassigned Employee';
-const employeeRoles = [
-  'admin',
-  'catalog_manager',
-  'promotion_manager',
-  'order_staff',
-  'purchasing_staff',
-  'unassigned',
-];
+const managerEmployeeEmail = `manager-${randomUUID()}@example.com`;
+const managerEmployeeName = 'Manager Employee';
+const employeeRoles = ['admin', 'manager'];
 const roleEmployeeTokens = new Map();
 
 let childProcess;
 let serverOutput = '';
 let baseUrl;
 let employeeToken;
-let unassignedEmployeeToken;
+let managerEmployeeToken;
 let customerOneToken;
 let customerTwoToken;
 let productId;
@@ -288,31 +281,20 @@ before(async () => {
   employeeToken = employeeLogin.body.access_token;
   roleEmployeeTokens.set('admin', employeeToken);
 
-  for (const role of employeeRoles.filter((candidate) => candidate !== 'admin' && candidate !== 'unassigned')) {
-    const email = `${role}-${randomUUID()}@example.com`;
-    await seedEmployee({ email, name: role, role });
-    const login = await api('/auth/employee/login', {
-      method: 'POST',
-      body: { email, password: employeePassword },
-    });
-    assert.equal(login.status, 200, JSON.stringify(login.body));
-    assert.equal(login.body.employee.role, role);
-    roleEmployeeTokens.set(role, login.body.access_token);
-  }
-
   await seedEmployee({
-    email: unassignedEmployeeEmail,
-    name: unassignedEmployeeName,
-    role: 'unassigned',
+    email: managerEmployeeEmail,
+    name: managerEmployeeName,
+    role: 'manager',
   });
-  const unassignedEmployeeLogin = await api('/auth/employee/login', {
+
+  const managerEmployeeLogin = await api('/auth/employee/login', {
     method: 'POST',
-    body: { email: unassignedEmployeeEmail, password: employeePassword },
+    body: { email: managerEmployeeEmail, password: employeePassword },
   });
-  assert.equal(unassignedEmployeeLogin.status, 200, JSON.stringify(unassignedEmployeeLogin.body));
-  assert.equal(unassignedEmployeeLogin.body.employee.role, 'unassigned');
-  unassignedEmployeeToken = unassignedEmployeeLogin.body.access_token;
-  roleEmployeeTokens.set('unassigned', unassignedEmployeeToken);
+  assert.equal(managerEmployeeLogin.status, 200, JSON.stringify(managerEmployeeLogin.body));
+  assert.equal(managerEmployeeLogin.body.employee.role, 'manager');
+  managerEmployeeToken = managerEmployeeLogin.body.access_token;
+  roleEmployeeTokens.set('manager', managerEmployeeToken);
 
   customerOneToken = await registerCustomer('Customer One');
   customerTwoToken = await registerCustomer('Customer Two');
@@ -374,41 +356,40 @@ test('enforces customer and employee token boundaries', async () => {
   assert.equal(adminProfile.status, 200);
   assert.equal(adminProfile.body.role, 'admin');
 
-  const unassignedProfile = await api('/auth/employee/profile', {
-    token: unassignedEmployeeToken,
+  const managerProfile = await api('/auth/employee/profile', {
+    token: managerEmployeeToken,
   });
-  assert.equal(unassignedProfile.status, 200);
-  assert.equal(unassignedProfile.body.role, 'unassigned');
-  assert.equal(unassignedProfile.body.email, unassignedEmployeeEmail);
+  assert.equal(managerProfile.status, 200);
+  assert.equal(managerProfile.body.role, 'manager');
+  assert.equal(managerProfile.body.email, managerEmployeeEmail);
 });
 
 test('enforces the employee role matrix across business read endpoints', async () => {
   const endpoints = [
-    { path: '/categories', role: 'catalog_manager' },
-    { path: '/products', role: 'catalog_manager' },
-    { path: `/products/${productId}/variants`, role: 'catalog_manager' },
-    { path: '/promotions', role: 'promotion_manager' },
-    { path: `/promotions/${promotionId}/vouchers`, role: 'promotion_manager' },
-    { path: '/admin/orders', role: 'order_staff' },
-    { path: '/suppliers', role: 'purchasing_staff' },
-    { path: '/imports', role: 'purchasing_staff' },
+    '/categories',
+    '/products',
+    `/products/${productId}/variants`,
+    '/promotions',
+    `/promotions/${promotionId}/vouchers`,
+    '/admin/orders',
+    '/suppliers',
+    '/imports',
   ];
 
   for (const endpoint of endpoints) {
     for (const role of employeeRoles) {
-      const response = await api(endpoint.path, { token: roleEmployeeTokens.get(role) });
-      const expectedStatus = role === 'admin' || role === endpoint.role ? 200 : 403;
+      const response = await api(endpoint, { token: roleEmployeeTokens.get(role) });
       assert.equal(
         response.status,
-        expectedStatus,
-        `${role} access to ${endpoint.path}: ${JSON.stringify(response.body)}`,
+        200,
+        `${role} access to ${endpoint}: ${JSON.stringify(response.body)}`,
       );
     }
 
     assert.equal(
-      (await api(endpoint.path, { token: customerOneToken })).status,
+      (await api(endpoint, { token: customerOneToken })).status,
       401,
-      `Customer access to ${endpoint.path} must remain unauthorized`,
+      `Customer access to ${endpoint} must remain unauthorized`,
     );
   }
 
@@ -488,7 +469,7 @@ test('issues one invoice only after COD payment and enforces invoice ownership',
 
   const packed = await api(`/admin/orders/${orderId}/pack`, {
     method: 'POST',
-    token: employeeToken,
+    token: managerEmployeeToken,
     body: { packingType: 'bag' },
   });
   assert.equal(packed.status, 200, JSON.stringify(packed.body));
@@ -499,7 +480,7 @@ test('issues one invoice only after COD payment and enforces invoice ownership',
 
   const paid = await api(`/admin/orders/${orderId}/mark-paid`, {
     method: 'POST',
-    token: employeeToken,
+    token: managerEmployeeToken,
   });
   assert.equal(paid.status, 200, JSON.stringify(paid.body));
   assert.equal(paid.body.paymentStatus, 'paid');
@@ -517,20 +498,11 @@ test('issues one invoice only after COD payment and enforces invoice ownership',
   assert.equal(adminInvoice.body.invoiceId, customerInvoice.body.invoiceId);
   assert.equal(adminInvoice.body.orderId, orderId);
 
-  const orderStaffInvoice = await api(`/admin/orders/${orderId}/invoice`, {
-    token: roleEmployeeTokens.get('order_staff'),
+  const managerInvoice = await api(`/admin/orders/${orderId}/invoice`, {
+    token: managerEmployeeToken,
   });
-  assert.equal(orderStaffInvoice.status, 200, JSON.stringify(orderStaffInvoice.body));
-  assert.equal(orderStaffInvoice.body.invoiceId, customerInvoice.body.invoiceId);
-  for (const role of ['catalog_manager', 'promotion_manager', 'purchasing_staff', 'unassigned']) {
-    assert.equal(
-      (await api(`/admin/orders/${orderId}/invoice`, {
-        token: roleEmployeeTokens.get(role),
-      })).status,
-      403,
-      `${role} must not read admin invoices`,
-    );
-  }
+  assert.equal(managerInvoice.status, 200, JSON.stringify(managerInvoice.body));
+  assert.equal(managerInvoice.body.invoiceId, customerInvoice.body.invoiceId);
 
   assert.equal(
     (await api(`/orders/${orderId}/invoice`, { token: customerTwoToken })).status,
@@ -561,17 +533,17 @@ test('reloads current employee role from the database instead of JWT claims', as
   const claims = JSON.parse(Buffer.from(employeeToken.split('.')[1], 'base64url').toString());
   assert.equal(Object.hasOwn(claims, 'role'), false);
 
-  await updateEmployeeRole(employeeEmail, 'unassigned');
+  await updateEmployeeRole(employeeEmail, 'manager');
   try {
     const profile = await api('/auth/employee/profile', { token: employeeToken });
     assert.equal(profile.status, 200, JSON.stringify(profile.body));
-    assert.equal(profile.body.role, 'unassigned');
+    assert.equal(profile.body.role, 'manager');
   } finally {
     await updateEmployeeRole(employeeEmail, 'admin');
   }
 });
 
-test('employee role guard denies missing metadata and unassigned roles', () => {
+test('employee role guard allows the two approved roles and denies legacy roles', () => {
   const guard = new EmployeeRolesGuard(new Reflector());
   const undecoratedController = class {};
   const undecoratedHandler = () => undefined;
@@ -582,13 +554,13 @@ test('employee role guard denies missing metadata and unassigned roles', () => {
 
   const controller = class {};
   const catalogHandler = () => undefined;
-  EmployeeRoles('catalog_manager')(controller.prototype, 'catalog', {
+  EmployeeRoles('manager')(controller.prototype, 'catalog', {
     value: catalogHandler,
   });
 
-  assert.equal(guard.canActivate(employeeRoleContext(catalogHandler, controller, 'catalog_manager')), true);
+  assert.equal(guard.canActivate(employeeRoleContext(catalogHandler, controller, 'manager')), true);
   assert.equal(guard.canActivate(employeeRoleContext(catalogHandler, controller, 'admin')), true);
-  assert.equal(guard.canActivate(employeeRoleContext(catalogHandler, controller, 'unassigned')), false);
+  assert.equal(guard.canActivate(employeeRoleContext(catalogHandler, controller, 'catalog_manager')), false);
   assert.equal(guard.canActivate(employeeRoleContext(catalogHandler, controller, undefined)), false);
 });
 
@@ -609,7 +581,7 @@ test('admin employee API lists and creates safe, normalized employee records', a
     password: 'Valid-Test-Password-2026!',
     phone: '0900000001',
     position: 'Catalog operator',
-    role: 'catalog_manager',
+    role: 'manager',
   };
   const created = await api('/admin/employees', {
     method: 'POST',
@@ -618,7 +590,7 @@ test('admin employee API lists and creates safe, normalized employee records', a
   });
   assert.equal(created.status, 201, JSON.stringify(created.body));
   assert.equal(created.body.email, input.email.trim().toLowerCase());
-  assert.equal(created.body.role, 'catalog_manager');
+  assert.equal(created.body.role, 'manager');
   assert.equal(created.body.status, 'active');
   assert.deepEqual(
     Object.keys(created.body).sort(),
@@ -638,6 +610,13 @@ test('admin employee API lists and creates safe, normalized employee records', a
     body: { ...input, email: `invalid-role-${randomUUID()}@example.com`, role: 'owner' },
   });
   assert.equal(invalidRole.status, 400, JSON.stringify(invalidRole.body));
+
+  const legacyRole = await api('/admin/employees', {
+    method: 'POST',
+    token: employeeToken,
+    body: { ...input, email: `legacy-role-${randomUUID()}@example.com`, role: 'catalog_manager' },
+  });
+  assert.equal(legacyRole.status, 400, JSON.stringify(legacyRole.body));
 
   const invalidPassword = await api('/admin/employees', {
     method: 'POST',
@@ -659,13 +638,13 @@ test('admin employee API lists and creates safe, normalized employee records', a
 });
 
 test('only admins can list, create, or update employee access', async () => {
-  const employeeId = await employeeIdForEmail(unassignedEmployeeEmail);
+  const employeeId = await employeeIdForEmail(managerEmployeeEmail);
   const createBody = {
     name: 'Forbidden creation',
     email: `forbidden-${randomUUID()}@example.com`,
     password: 'Valid-Test-Password-2026!',
     position: 'Operator',
-    role: 'unassigned',
+    role: 'manager',
   };
 
   for (const role of employeeRoles.filter((candidate) => candidate !== 'admin')) {
@@ -684,7 +663,7 @@ test('only admins can list, create, or update employee access', async () => {
       (await api(`/admin/employees/${employeeId}`, {
         method: 'PATCH',
         token,
-        body: { role: 'catalog_manager' },
+        body: { role: 'manager' },
       })).status,
       403,
       `${role} must not update employee access`,
@@ -704,7 +683,7 @@ test('only admins can list, create, or update employee access', async () => {
     (await api(`/admin/employees/${employeeId}`, {
       method: 'PATCH',
       token: customerOneToken,
-      body: { role: 'catalog_manager' },
+      body: { role: 'manager' },
     })).status,
     401,
   );
@@ -720,7 +699,7 @@ test('employee access changes apply to the same token and responses never expose
       email: createEmail,
       password: 'Valid-Test-Password-2026!',
       position: 'Operator',
-      role: 'catalog_manager',
+      role: 'manager',
     },
   });
   assert.equal(created.status, 201, JSON.stringify(created.body));
@@ -737,13 +716,13 @@ test('employee access changes apply to the same token and responses never expose
   const changed = await api(`/admin/employees/${employeeId}`, {
     method: 'PATCH',
     token: employeeToken,
-    body: { role: 'promotion_manager' },
+    body: { role: 'admin' },
   });
   assert.equal(changed.status, 200, JSON.stringify(changed.body));
-  assert.equal(changed.body.role, 'promotion_manager');
+  assert.equal(changed.body.role, 'admin');
   assert.equal(JSON.stringify(changed.body).includes('passwordHash'), false);
-  assert.equal((await api('/auth/employee/profile', { token })).body.role, 'promotion_manager');
-  assert.equal((await api('/categories', { token })).status, 403);
+  assert.equal((await api('/auth/employee/profile', { token })).body.role, 'admin');
+  assert.equal((await api('/categories', { token })).status, 200);
   assert.equal((await api('/promotions', { token })).status, 200);
 
   const invalidStatus = await api(`/admin/employees/${employeeId}`, {
@@ -759,6 +738,13 @@ test('employee access changes apply to the same token and responses never expose
     body: { role: 'owner' },
   });
   assert.equal(invalidRole.status, 400, JSON.stringify(invalidRole.body));
+
+  const legacyRole = await api(`/admin/employees/${employeeId}`, {
+    method: 'PATCH',
+    token: employeeToken,
+    body: { role: 'order_staff' },
+  });
+  assert.equal(legacyRole.status, 400, JSON.stringify(legacyRole.body));
 
   const nullRole = await api(`/admin/employees/${employeeId}`, {
     method: 'PATCH',
@@ -810,14 +796,14 @@ test('employee management pagination is bounded and an administrator cannot remo
   const outOfRangeEmployeeId = await api('/admin/employees/2147483648', {
     method: 'PATCH',
     token: employeeToken,
-    body: { role: 'catalog_manager' },
+    body: { role: 'manager' },
   });
   assert.equal(outOfRangeEmployeeId.status, 400, JSON.stringify(outOfRangeEmployeeId.body));
 
   const selfDemotion = await api(`/admin/employees/${await employeeIdForEmail(employeeEmail)}`, {
     method: 'PATCH',
     token: employeeToken,
-    body: { role: 'unassigned' },
+    body: { role: 'manager' },
   });
   assert.equal(selfDemotion.status, 409, JSON.stringify(selfDemotion.body));
 
@@ -856,12 +842,12 @@ test('concurrent administrators cannot demote each other and remove every active
     api(`/admin/employees/${secondAdminId}`, {
       method: 'PATCH',
       token: employeeToken,
-      body: { role: 'unassigned' },
+      body: { role: 'manager' },
     }),
     api(`/admin/employees/${firstAdminId}`, {
       method: 'PATCH',
       token: secondLogin.body.access_token,
-      body: { role: 'unassigned' },
+      body: { role: 'manager' },
     }),
   ]);
 

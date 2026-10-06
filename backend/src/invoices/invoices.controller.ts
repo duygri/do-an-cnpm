@@ -25,7 +25,7 @@ export class CustomerInvoicesController {
 
 @Controller('admin/orders/:orderId/invoice')
 @UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
-@EmployeeRoles('order_staff')
+@EmployeeRoles('manager')
 export class AdminInvoicesController {
   constructor(private readonly invoices: InvoicesService) {}
 

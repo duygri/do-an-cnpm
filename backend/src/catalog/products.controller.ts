@@ -20,7 +20,7 @@ import { ProductsService } from './products.service';
 
 @Controller('products')
 @UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
-@EmployeeRoles('catalog_manager')
+@EmployeeRoles('manager')
 export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 

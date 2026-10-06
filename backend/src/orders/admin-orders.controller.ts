@@ -20,7 +20,7 @@ import { AdminOrdersService } from './admin-orders.service';
 
 @Controller('admin/orders')
 @UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
-@EmployeeRoles('order_staff')
+@EmployeeRoles('manager')
 export class AdminOrdersController {
   constructor(private readonly orders: AdminOrdersService) {}
 

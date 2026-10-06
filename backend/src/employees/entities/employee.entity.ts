@@ -26,6 +26,6 @@ export class Employee {
   @Column({ type: 'varchar', length: 30, default: 'active' })
   status!: string;
 
-  @Column({ type: 'varchar', length: 30, default: 'unassigned' })
+  @Column({ type: 'varchar', length: 30, default: 'manager' })
   role!: EmployeeRole;
 }

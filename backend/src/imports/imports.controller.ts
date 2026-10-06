@@ -17,7 +17,7 @@ import { ImportsService } from './imports.service';
 
 @Controller('imports')
 @UseGuards(EmployeeJwtGuard, EmployeeRolesGuard)
-@EmployeeRoles('purchasing_staff')
+@EmployeeRoles('manager')
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 
