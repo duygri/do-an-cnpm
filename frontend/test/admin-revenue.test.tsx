@@ -48,7 +48,19 @@ describe('admin revenue statistics', () => {
     vi.spyOn(api, 'getRevenueReport').mockResolvedValue(report);
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('requests the full current Vietnam calendar month on initial load', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-15T10:00:00+07:00'));
+
+    render(<AdminApp />);
+
+    expect(api.getRevenueReport).toHaveBeenCalledWith('2026-02-01', '2026-02-28');
+  });
 
   it('shows the report only to admins and requests the selected date range', async () => {
     render(<AdminApp />);

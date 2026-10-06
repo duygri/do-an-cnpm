@@ -14,7 +14,7 @@ function currentVietnamMonth(): { from: string; to: string } {
   const today = vietnamToday();
   const [year, month] = today.split('-').map(Number);
   const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return { from: `${today.slice(0, 8)}01`, to: `${today.slice(0, 5)}${String(days).padStart(2, '0')}` };
+  return { from: `${today.slice(0, 8)}01`, to: `${today.slice(0, 8)}${String(days).padStart(2, '0')}` };
 }
 
 /** Adds grouping without parsing decimal money through JavaScript floating point. */
