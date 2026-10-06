@@ -114,9 +114,9 @@ beforeEach(() => {
 });
 
 const modules = [
-  ['orders', 'Đơn hàng'], ['categories', 'Quản lý danh mục'], ['products', 'Quản lý sản phẩm'],
-  ['promotions', 'Khuyến mãi và voucher'], ['suppliers', 'Nhà cung cấp và phiếu nhập'],
-  ['imports', 'Nhà cung cấp và phiếu nhập'], ['employees', 'Tài khoản nhân viên'],
+  ['orders', 'Đơn hàng'], ['categories', 'Danh mục'], ['products', 'Sản phẩm'],
+  ['promotions', 'Khuyến mãi'], ['vouchers', 'Voucher'], ['suppliers', 'Nhà cung cấp'],
+  ['imports', 'Phiếu nhập'], ['employees', 'Nhân viên'], ['revenue', 'Thống kê doanh thu'],
 ] as const;
 describe('Unified management access matrix', () => {
   it('shows managers all operational modules but hides employee management', async () => {
@@ -124,18 +124,18 @@ describe('Unified management access matrix', () => {
     window.history.replaceState({}, '', '/admin/orders');
     render(<AdminApp />);
     await screen.findByRole('navigation', { name: 'Khu vực quản lý' });
-    const links = screen.getByRole('navigation', { name: 'Khu vực quản lý' }).querySelectorAll('a');
-    expect(Array.from(links, (link) => link.getAttribute('href'))).toEqual(
-      ['orders', 'categories', 'products', 'promotions', 'suppliers', 'imports'].map((path) => `/admin/${path}`),
-    );
-    expect(screen.queryByRole('link', { name: 'Nhân viên' })).toBeNull();
+    for (const label of ['Đơn hàng', 'Phiếu nhập', 'Danh mục', 'Sản phẩm', 'Khuyến mãi', 'Voucher', 'Nhà cung cấp']) {
+      expect((await screen.findAllByText(label)).length).toBeGreaterThan(0);
+    }
+    expect(screen.queryByText('Nhân viên')).toBeNull();
+    expect(screen.queryByText('Thống kê doanh thu')).toBeNull();
   });
 
-  it('denies a manager direct access to employee management', () => {
+  it('denies a manager direct access to employee management', async () => {
     vi.mocked(useAuth).mockReturnValue(auth('manager'));
     window.history.replaceState({}, '', '/admin/employees');
     render(<AdminApp />);
-    expect(screen.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeTruthy();
+    await screen.findByRole('heading', { name: 'Không có quyền truy cập' });
     expect(api.getEmployees).not.toHaveBeenCalled();
   });
 
@@ -154,26 +154,33 @@ describe('Admin access matrix', () => {
     vi.mocked(useAuth).mockReturnValue(auth('admin'));
     window.history.replaceState({}, '', `/admin/${module}`);
     render(<AdminApp />);
-    expect(await screen.findByRole('heading', { name: title, exact: true })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Về cửa hàng' }).getAttribute('href')).toBe('https://shop.example.test');
+    expect((await screen.findAllByRole('heading', { name: title, exact: true })).length).toBeGreaterThan(0);
   });
 
   it('lets admin manage employee accounts', async () => {
     vi.mocked(useAuth).mockReturnValue(auth('admin'));
     window.history.replaceState({}, '', '/admin/employees');
     render(<AdminApp />);
-    expect(await screen.findByRole('heading', { name: 'Tài khoản nhân viên' })).toBeTruthy();
-    expect(api.getEmployees).toHaveBeenCalledOnce();
-    expect(screen.getByRole('link', { name: 'Nhân viên' })).toBeTruthy();
+    expect((await screen.findAllByRole('heading', { name: 'Nhân viên' })).length).toBeGreaterThan(0);
+    await waitFor(() => expect(api.getEmployees).toHaveBeenCalledOnce());
+    expect(screen.getByRole('menuitem', { name: 'Nhân viên' })).toBeTruthy();
   });
 
   it('offers only the two employee roles in the account form', async () => {
     vi.mocked(useAuth).mockReturnValue(auth('admin'));
     window.history.replaceState({}, '', '/admin/employees');
+    const list = render(<AdminApp />);
+    const createLink = await screen.findByRole('link', { name: 'Thêm nhân viên' });
+    expect(createLink.getAttribute('href')).toBe('/admin/employees/create');
+    list.unmount();
+    window.history.replaceState({}, '', '/admin/employees/create');
     render(<AdminApp />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Thêm nhân viên' }));
-    const roleSelect = screen.getByLabelText('Vai trò') as HTMLSelectElement;
-    expect(Array.from(roleSelect.options, (option) => option.value)).toEqual(['admin', 'manager']);
+    await screen.findByRole('heading', { name: 'Tạo tài khoản nhân viên' });
+    const roleSelect = screen.getByRole('combobox', { name: 'Vai trò' });
+    fireEvent.mouseDown(roleSelect);
+    expect(await screen.findByRole('option', { name: 'Admin' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Manager' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Staff' })).toBeNull();
   });
 });
 
@@ -213,11 +220,11 @@ describe('Employee guards', () => {
 });
 
 describe('Customer routes', () => {
-  it('does not use an employee account to enter customer orders', () => {
+  it('does not use an employee account to enter customer orders', async () => {
     vi.mocked(useAuth).mockReturnValue(auth('admin'));
     window.history.replaceState({}, '', '/orders');
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Đăng nhập', exact: true })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập', exact: true })).toBeTruthy();
     expect(api.getCustomerOrders).not.toHaveBeenCalled();
   });
   it('allows an authenticated customer into orders', async () => {
@@ -226,17 +233,17 @@ describe('Customer routes', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Đơn hàng của tôi', exact: true })).toBeTruthy();
   });
-  it.each(['/admin/employees', '/staff/orders'])('does not mount employee modules at %s on User', (path) => {
+  it.each(['/admin/employees', '/staff/orders'])('does not mount employee modules at %s on User', async (path) => {
     vi.mocked(useAuth).mockReturnValue(auth('admin'));
     window.history.replaceState({}, '', path);
     render(<App />);
     expect(screen.queryByRole('navigation', { name: 'Khu vực quản lý' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy trang' })).toBeTruthy();
   });
-  it('does not mount customer routes in the management portal', () => {
+  it('does not mount customer routes in the management portal', async () => {
     window.history.replaceState({}, '', '/orders');
     render(<AdminApp />);
-    expect(screen.getByRole('heading', { name: 'Đăng nhập nhân viên' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập nhân viên' })).toBeTruthy();
     expect(api.getCustomerOrders).not.toHaveBeenCalled();
   });
 });

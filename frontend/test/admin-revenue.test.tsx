@@ -59,14 +59,14 @@ describe('admin revenue statistics', () => {
 
     render(<AdminApp />);
 
-    expect(api.getRevenueReport).toHaveBeenCalledWith('2026-02-01', '2026-02-28');
+    await vi.waitFor(() => expect(api.getRevenueReport).toHaveBeenCalledWith('2026-02-01', '2026-02-28'));
   });
 
   it('shows the report only to admins and requests the selected date range', async () => {
     render(<AdminApp />);
 
     expect(await screen.findByRole('heading', { name: 'Thống kê doanh thu' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Thống kê doanh thu' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Thống kê doanh thu' })).toBeTruthy();
     const from = screen.getByLabelText('Từ ngày') as HTMLInputElement;
     const to = screen.getByLabelText('Đến ngày') as HTMLInputElement;
     fireEvent.change(from, { target: { value: '2026-10-01' } });
@@ -79,12 +79,12 @@ describe('admin revenue statistics', () => {
     expect(screen.getByRole('cell', { name: '0.00' })).toBeTruthy();
   });
 
-  it('hides the module and denies direct revenue navigation to managers', () => {
+  it('hides the module and denies direct revenue navigation to managers', async () => {
     vi.mocked(useAuth).mockReturnValue(auth('manager'));
     render(<AdminApp />);
 
-    expect(screen.queryByRole('link', { name: 'Thống kê doanh thu' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeTruthy();
+    await screen.findByRole('heading', { name: 'Không có quyền truy cập' });
+    expect(screen.queryByRole('menuitem', { name: 'Thống kê doanh thu' })).toBeNull();
     expect(api.getRevenueReport).not.toHaveBeenCalled();
   });
 });

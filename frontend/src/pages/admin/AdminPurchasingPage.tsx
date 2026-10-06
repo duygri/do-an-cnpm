@@ -30,7 +30,7 @@ function variantLabel(variant: ProductVariant): string {
   return attributes ? `${attributes} · mã biến thể ${variant.variantId}` : `Mã biến thể ${variant.variantId}`;
 }
 
-export const AdminPurchasingPage: React.FC = () => {
+export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({ section = 'all' }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(true);
   const [suppliersError, setSuppliersError] = useState<string | null>(null);
@@ -286,8 +286,8 @@ export const AdminPurchasingPage: React.FC = () => {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-label-xs text-label-xs font-bold uppercase tracking-[0.16em] text-primary">Quản lý mua hàng</p>
-          <h1 className="mt-1 font-headline-md text-headline-md font-bold text-on-surface">Nhà cung cấp và phiếu nhập</h1>
-          <p className="mt-2 max-w-3xl font-body-sm text-body-sm text-on-surface-variant">Lưu thông tin nhà cung cấp và chứng từ mua hàng. Phiếu nhập là hồ sơ bất biến sau khi tạo; số lượng trong phiếu không được dùng để suy ra hàng sẵn có.</p>
+          <h1 className="mt-1 font-headline-md text-headline-md font-bold text-on-surface">{section === 'imports' ? 'Phiếu nhập' : 'Nhà cung cấp và phiếu nhập'}</h1>
+          <p className="mt-2 max-w-3xl font-body-sm text-body-sm text-on-surface-variant">Lưu chứng từ mua hàng. Phiếu nhập là hồ sơ bất biến sau khi tạo; số lượng trong phiếu không được dùng để suy ra hàng sẵn có.</p>
         </div>
         <button type="button" onClick={startCreateImport} disabled={busy || suppliers.length === 0} className={primaryButtonClass}>
           <span aria-hidden="true" className="material-symbols-outlined mr-2 text-[20px]">add</span>
@@ -298,7 +298,7 @@ export const AdminPurchasingPage: React.FC = () => {
       {notice && <p role="status" className="rounded-xl border border-success/20 bg-success-soft px-4 py-3 font-body-sm text-body-sm text-success">{notice}</p>}
       {actionError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive-soft px-4 py-3 font-body-sm text-body-sm text-destructive">{actionError}</p>}
 
-      <section className="overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-sm">
+      {section !== 'imports' && <section className="overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-4 sm:px-5">
           <div>
             <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Nhà cung cấp</h2>
@@ -354,7 +354,7 @@ export const AdminPurchasingPage: React.FC = () => {
             </table>
           </div>
         )}
-      </section>
+      </section>}
 
       {importFormOpen && (
         <form onSubmit={submitImport} className="space-y-5 rounded-2xl border border-primary/20 bg-surface p-5 shadow-sm sm:p-6">
