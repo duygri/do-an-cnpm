@@ -23,6 +23,7 @@ import {
   ProductResource,
   ProductVariant,
   Promotion,
+  RevenueReport,
   StoreProductDetail,
   StoreProductSummary,
   Supplier,
@@ -125,6 +126,11 @@ export const api = {
 
   getEmployeeProfile(): Promise<EmployeeProfile> {
     return request('/auth/employee/profile', { tokenOwner: 'employee', allowUnverifiedSession: true });
+  },
+
+  // Admin reporting
+  getRevenueReport(from: string, to: string): Promise<RevenueReport> {
+    return request(withQuery('/admin/reports/revenue', { from, to }), { tokenOwner: 'employee' });
   },
 
   // Public storefront

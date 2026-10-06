@@ -13,13 +13,18 @@ describe('employee module permissions', () => {
     const modules = EMPLOYEE_MODULES.filter((module) => canAccessModule(module.path, role));
     expect(modules.map((module) => module.path)).toEqual([
       'orders', 'categories', 'products', 'promotions', 'suppliers', 'imports',
-      ...(role === 'admin' ? ['employees'] : []),
+      ...(role === 'admin' ? ['employees', 'revenue'] : []),
     ]);
   });
 
   it('restricts employee management to admin', () => {
     expect(canAccessModule('employees', 'admin')).toBe(true);
     expect(canAccessModule('employees', 'manager')).toBe(false);
+  });
+
+  it('restricts revenue statistics to admin', () => {
+    expect(canAccessModule('revenue', 'admin')).toBe(true);
+    expect(canAccessModule('revenue', 'manager')).toBe(false);
   });
 
   it('denies unknown modules', () => {

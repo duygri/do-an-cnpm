@@ -16,6 +16,7 @@ export const EMPLOYEE_MODULES: EmployeeModule[] = [
   { path: 'suppliers', label: 'Nhà cung cấp', icon: 'local_shipping', roles: ['admin', 'manager'] },
   { path: 'imports', label: 'Phiếu nhập', icon: 'inventory', roles: ['admin', 'manager'] },
   { path: 'employees', label: 'Nhân viên', icon: 'manage_accounts', roles: ['admin'] },
+  { path: 'revenue', label: 'Thống kê doanh thu', icon: 'monitoring', roles: ['admin'] },
 ];
 
 export function canAccessModule(modulePath: string, role: EmployeeRole | null): boolean {

@@ -274,6 +274,22 @@ export interface InvoiceSummary {
   status: string;
 }
 
+export interface RevenueReportDay {
+  date: string;
+  orderCount: number;
+  amount: MoneyAmount;
+}
+
+/** Internal collected-order summary; this is not a tax or accounting report. */
+export interface RevenueReport {
+  from: string;
+  to: string;
+  timezone: 'Asia/Ho_Chi_Minh';
+  paidOrderCount: number;
+  collectedAmount: MoneyAmount;
+  daily: RevenueReportDay[];
+}
+
 export interface EmployeeRecord extends EmployeeProfile {
   phone: string | null;
   status: EmployeeStatus;

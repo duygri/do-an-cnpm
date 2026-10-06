@@ -7,6 +7,7 @@ import { AdminCatalogPage } from './AdminCatalogPage';
 import { AdminPromotionsPage } from './AdminPromotionsPage';
 import { AdminPurchasingPage } from './AdminPurchasingPage';
 import { AdminEmployeesPage } from './AdminEmployeesPage';
+import { AdminRevenuePage } from './AdminRevenuePage';
 import { useAuth } from '../../context/AuthContext';
 
 const moduleLabels: Record<string, string> = {
@@ -16,6 +17,7 @@ const moduleLabels: Record<string, string> = {
   suppliers: 'Nhà cung cấp',
   imports: 'Phiếu nhập',
   employees: 'Nhân viên',
+  revenue: 'Thống kê doanh thu',
 };
 
 const AccessDenied: React.FC<{ moduleName: string; returnPath: string }> = ({ moduleName, returnPath }) => (
@@ -92,6 +94,10 @@ export const AdminPortal: React.FC<{ basePath: '/admin' }> = ({ basePath }) => {
 
   if (modulePath === 'employees') {
     return <AdminLayout basePath={basePath}><AdminEmployeesPage /></AdminLayout>;
+  }
+
+  if (modulePath === 'revenue') {
+    return <AdminLayout basePath={basePath}><AdminRevenuePage /></AdminLayout>;
   }
 
   return <AdminLayout basePath={basePath}><ComingSoon title={moduleName} /></AdminLayout>;
