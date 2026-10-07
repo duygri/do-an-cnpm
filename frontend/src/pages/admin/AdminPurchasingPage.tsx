@@ -8,10 +8,10 @@ type ProductLookup = { detail?: StoreProductDetail; error?: string; loading?: bo
 
 const emptySupplier: SupplierDraft = { name: '', address: '', email: '' };
 const emptyImportLine = (): ImportLineDraft => ({ productId: '', variantId: '', quantity: '1', unitPrice: '' });
-const fieldClass = 'mt-1.5 w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60';
-const labelClass = 'block font-label-sm text-label-sm font-semibold text-on-surface';
-const primaryButtonClass = 'inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-label-sm text-label-sm font-bold text-on-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
-const secondaryButtonClass = 'inline-flex items-center justify-center rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-label-sm text-label-sm font-semibold text-on-surface transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
+const fieldClass = 'mt-1.5 w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 font-sans text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60';
+const labelClass = 'block font-sans text-label-sm font-semibold text-on-surface';
+const primaryButtonClass = 'inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-sans text-label-sm font-bold text-on-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
+const secondaryButtonClass = 'inline-flex items-center justify-center rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-sans text-label-sm font-semibold text-on-surface transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
 const importAmountPattern = /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/;
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -285,9 +285,9 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-label-xs text-label-xs font-bold uppercase tracking-[0.16em] text-primary">Quản lý mua hàng</p>
-          <h1 className="mt-1 font-headline-md text-headline-md font-bold text-on-surface">{section === 'imports' ? 'Phiếu nhập' : 'Nhà cung cấp và phiếu nhập'}</h1>
-          <p className="mt-2 max-w-3xl font-body-sm text-body-sm text-on-surface-variant">Lưu chứng từ mua hàng. Phiếu nhập là hồ sơ bất biến sau khi tạo; số lượng trong phiếu không được dùng để suy ra hàng sẵn có.</p>
+          <p className="font-sans text-label-xs font-bold uppercase tracking-[0.16em] text-primary">Quản lý mua hàng</p>
+          <h1 className="mt-1 font-sans text-headline-md font-bold text-on-surface">{section === 'imports' ? 'Phiếu nhập' : 'Nhà cung cấp và phiếu nhập'}</h1>
+          <p className="mt-2 max-w-3xl font-sans text-body-sm text-on-surface-variant">Lưu chứng từ mua hàng. Phiếu nhập là hồ sơ bất biến sau khi tạo; số lượng trong phiếu không được dùng để suy ra hàng sẵn có.</p>
         </div>
         <button type="button" onClick={startCreateImport} disabled={busy || suppliers.length === 0} className={primaryButtonClass}>
           <span aria-hidden="true" className="material-symbols-outlined mr-2 text-[20px]">add</span>
@@ -295,14 +295,14 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
         </button>
       </header>
 
-      {notice && <p role="status" className="rounded-xl border border-success/20 bg-success-soft px-4 py-3 font-body-sm text-body-sm text-success">{notice}</p>}
-      {actionError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive-soft px-4 py-3 font-body-sm text-body-sm text-destructive">{actionError}</p>}
+      {notice && <p role="status" className="rounded-xl border border-success/20 bg-success-soft px-4 py-3 font-sans text-body-sm text-success">{notice}</p>}
+      {actionError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive-soft px-4 py-3 font-sans text-body-sm text-destructive">{actionError}</p>}
 
       {section !== 'imports' && <section className="overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-4 sm:px-5">
           <div>
-            <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Nhà cung cấp</h2>
-            {!suppliersLoading && !suppliersError && <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">{suppliers.length} nhà cung cấp</p>}
+            <h2 className="font-sans text-headline-sm font-bold text-on-surface">Nhà cung cấp</h2>
+            {!suppliersLoading && !suppliersError && <p className="mt-1 font-sans text-body-xs text-on-surface-variant">{suppliers.length} nhà cung cấp</p>}
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={startCreateSupplier} disabled={busy} className={primaryButtonClass}>Thêm nhà cung cấp</button>
@@ -313,7 +313,7 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
         {supplierFormOpen && (
           <form onSubmit={saveSupplier} className="border-b border-outline-variant bg-surface-container-low/40 p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <h3 className="font-label-md text-label-md font-bold text-on-surface">{editingSupplierId === null ? 'Thêm nhà cung cấp' : `Cập nhật nhà cung cấp #${editingSupplierId}`}</h3>
+              <h3 className="font-sans text-label-md font-bold text-on-surface">{editingSupplierId === null ? 'Thêm nhà cung cấp' : `Cập nhật nhà cung cấp #${editingSupplierId}`}</h3>
               <button type="button" onClick={() => setSupplierFormOpen(false)} disabled={busy} className={secondaryButtonClass}>Đóng biểu mẫu</button>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -334,19 +334,19 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
           </form>
         )}
 
-        {suppliersError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 p-4 text-destructive"><p className="font-body-sm text-body-sm">{suppliersError}</p><button type="button" onClick={() => setSupplierRetry((value) => value + 1)} className={secondaryButtonClass}>Tải lại</button></div>}
-        {suppliersLoading && suppliers.length === 0 && <p role="status" className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải nhà cung cấp…</p>}
-        {!suppliersLoading && !suppliersError && suppliers.length === 0 && <p className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chưa có nhà cung cấp. Hãy thêm nhà cung cấp trước khi lập phiếu nhập.</p>}
+        {suppliersError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 p-4 text-destructive"><p className="font-sans text-body-sm">{suppliersError}</p><button type="button" onClick={() => setSupplierRetry((value) => value + 1)} className={secondaryButtonClass}>Tải lại</button></div>}
+        {suppliersLoading && suppliers.length === 0 && <p role="status" className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Đang tải nhà cung cấp…</p>}
+        {!suppliersLoading && !suppliersError && suppliers.length === 0 && <p className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Chưa có nhà cung cấp. Hãy thêm nhà cung cấp trước khi lập phiếu nhập.</p>}
         {suppliers.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left">
-              <thead className="bg-surface-container-low font-label-xs text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th scope="col" className="px-4 py-3 font-semibold">Nhà cung cấp</th><th scope="col" className="px-4 py-3 font-semibold">Email</th><th scope="col" className="px-4 py-3 font-semibold">Địa chỉ</th><th scope="col" className="px-4 py-3 text-right font-semibold">Thao tác</th></tr></thead>
+              <thead className="bg-surface-container-low font-sans text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th scope="col" className="px-4 py-3 font-semibold">Nhà cung cấp</th><th scope="col" className="px-4 py-3 font-semibold">Email</th><th scope="col" className="px-4 py-3 font-semibold">Địa chỉ</th><th scope="col" className="px-4 py-3 text-right font-semibold">Thao tác</th></tr></thead>
               <tbody className="divide-y divide-outline-variant">
                 {suppliers.map((supplier) => (
                   <tr key={supplier.supplierId} className="align-top hover:bg-surface-container-low/60">
-                    <td className="px-4 py-3.5"><span className="block font-label-sm text-label-sm font-bold text-on-surface">{supplier.name}</span><span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">Mã nhà cung cấp {supplier.supplierId}</span></td>
-                    <td className="px-4 py-3.5 font-body-sm text-body-sm text-on-surface-variant">{supplier.email || '—'}</td>
-                    <td className="px-4 py-3.5 font-body-sm text-body-sm text-on-surface-variant">{supplier.address || '—'}</td>
+                    <td className="px-4 py-3.5"><span className="block font-sans text-label-sm font-bold text-on-surface">{supplier.name}</span><span className="mt-1 block font-sans text-body-xs text-on-surface-variant">Mã nhà cung cấp {supplier.supplierId}</span></td>
+                    <td className="px-4 py-3.5 font-sans text-body-sm text-on-surface-variant">{supplier.email || '—'}</td>
+                    <td className="px-4 py-3.5 font-sans text-body-sm text-on-surface-variant">{supplier.address || '—'}</td>
                     <td className="px-4 py-3.5"><div className="flex justify-end gap-2"><button type="button" onClick={() => startEditSupplier(supplier)} disabled={busy} className={secondaryButtonClass}>Sửa</button><button type="button" onClick={() => void deleteSupplier(supplier)} disabled={busy} className={secondaryButtonClass}>{actionId === `supplier-delete-${supplier.supplierId}` ? 'Đang xóa…' : 'Xóa'}</button></div></td>
                   </tr>
                 ))}
@@ -359,7 +359,7 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
       {importFormOpen && (
         <form onSubmit={submitImport} className="space-y-5 rounded-2xl border border-primary/20 bg-surface p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Lập phiếu nhập</h2><p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Chọn biến thể từ catalog storefront đang hoạt động hoặc nhập mã biến thể đã biết. Máy chủ kiểm tra mã khi lưu. Phiếu đã lưu không thể sửa hoặc xóa.</p></div>
+            <div><h2 className="font-sans text-headline-sm font-bold text-on-surface">Lập phiếu nhập</h2><p className="mt-1 font-sans text-body-xs text-on-surface-variant">Chọn biến thể từ catalog storefront đang hoạt động hoặc nhập mã biến thể đã biết. Máy chủ kiểm tra mã khi lưu. Phiếu đã lưu không thể sửa hoặc xóa.</p></div>
             <button type="button" onClick={() => setImportFormOpen(false)} disabled={busy} className={secondaryButtonClass}>Đóng biểu mẫu</button>
           </div>
 
@@ -377,23 +377,23 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
 
           <div className="rounded-xl border border-outline-variant bg-surface-container-low/40 p-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <div><h3 className="font-label-md text-label-md font-bold text-on-surface">Sản phẩm để chọn</h3><p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Danh sách lấy từ catalog storefront, gồm sản phẩm đang hoạt động.</p></div>
+              <div><h3 className="font-sans text-label-md font-bold text-on-surface">Sản phẩm để chọn</h3><p className="mt-1 font-sans text-body-xs text-on-surface-variant">Danh sách lấy từ catalog storefront, gồm sản phẩm đang hoạt động.</p></div>
               <label className={`${labelClass} min-w-[220px] flex-1`}>Tìm sản phẩm
                 <input value={catalogSearch} disabled={busy} onChange={(event) => { setCatalogSearch(event.target.value); setCatalogPage(1); }} className={fieldClass} placeholder="Tên hoặc thương hiệu" />
               </label>
               <button type="button" onClick={() => setCatalogRetry((value) => value + 1)} disabled={busy || catalogLoading} className={secondaryButtonClass}>Tải lại catalog</button>
             </div>
-            {catalogLoading && <p role="status" className="mt-3 font-body-xs text-body-xs text-on-surface-variant">Đang tải sản phẩm…</p>}
-            {catalogError && <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-3 text-destructive"><p className="font-body-xs text-body-xs">{catalogError}</p><button type="button" onClick={() => setCatalogRetry((value) => value + 1)} className={secondaryButtonClass}>Thử lại</button></div>}
-            {!catalogLoading && !catalogError && catalogProducts.length === 0 && <p className="mt-3 font-body-xs text-body-xs text-on-surface-variant">Không có sản phẩm phù hợp trong catalog storefront.</p>}
-            <div className="mt-3 flex items-center justify-between gap-3 font-body-xs text-body-xs text-on-surface-variant">
+            {catalogLoading && <p role="status" className="mt-3 font-sans text-body-xs text-on-surface-variant">Đang tải sản phẩm…</p>}
+            {catalogError && <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-3 text-destructive"><p className="font-sans text-body-xs">{catalogError}</p><button type="button" onClick={() => setCatalogRetry((value) => value + 1)} className={secondaryButtonClass}>Thử lại</button></div>}
+            {!catalogLoading && !catalogError && catalogProducts.length === 0 && <p className="mt-3 font-sans text-body-xs text-on-surface-variant">Không có sản phẩm phù hợp trong catalog storefront.</p>}
+            <div className="mt-3 flex items-center justify-between gap-3 font-sans text-body-xs text-on-surface-variant">
               <span>{catalogTotal ? `Trang ${catalogPage}/${pageCount} · ${catalogTotal} sản phẩm phù hợp` : 'Chưa có kết quả'}</span>
               <div className="flex gap-2"><button type="button" onClick={() => setCatalogPage((page) => Math.max(1, page - 1))} disabled={busy || catalogLoading || catalogPage <= 1} className={secondaryButtonClass}>Trước</button><button type="button" onClick={() => setCatalogPage((page) => Math.min(pageCount, page + 1))} disabled={busy || catalogLoading || catalogPage >= pageCount} className={secondaryButtonClass}>Tiếp</button></div>
             </div>
           </div>
 
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-label-md text-label-md font-bold text-on-surface">Chi tiết phiếu ({importLines.length}/100 dòng)</h3><button type="button" onClick={() => setImportLines((current) => current.length < 100 ? [...current, emptyImportLine()] : current)} disabled={busy || importLines.length >= 100} className={secondaryButtonClass}>Thêm dòng</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-sans text-label-md font-bold text-on-surface">Chi tiết phiếu ({importLines.length}/100 dòng)</h3><button type="button" onClick={() => setImportLines((current) => current.length < 100 ? [...current, emptyImportLine()] : current)} disabled={busy || importLines.length >= 100} className={secondaryButtonClass}>Thêm dòng</button></div>
             {importLines.map((line, index) => {
               const productId = Number(line.productId);
               const lookup = productLookups[productId];
@@ -401,7 +401,7 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
               const productLabel = lookup?.detail?.name ?? chosenProduct?.name;
               return (
                 <div key={index} className="rounded-xl border border-outline-variant p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-label-sm text-label-sm font-bold text-on-surface">Dòng {index + 1}{productLabel ? ` · ${productLabel}` : ''}</p>{importLines.length > 1 && <button type="button" onClick={() => setImportLines((current) => current.filter((_, lineIndex) => lineIndex !== index))} disabled={busy} className="font-label-xs text-label-xs font-semibold text-destructive hover:underline">Xóa dòng</button>}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-sans text-label-sm font-bold text-on-surface">Dòng {index + 1}{productLabel ? ` · ${productLabel}` : ''}</p>{importLines.length > 1 && <button type="button" onClick={() => setImportLines((current) => current.filter((_, lineIndex) => lineIndex !== index))} disabled={busy} className="font-sans text-label-xs font-semibold text-destructive hover:underline">Xóa dòng</button>}</div>
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <label className={labelClass}>Sản phẩm <span className="font-normal text-on-surface-variant">(tùy chọn)</span>
                       <select value={line.productId} disabled={busy || catalogLoading || catalogProducts.length === 0} onChange={(event) => updateImportLine(index, { productId: event.target.value, variantId: '' })} className={fieldClass}>
@@ -426,35 +426,35 @@ export const AdminPurchasingPage: React.FC<{ section?: 'all' | 'imports' }> = ({
                       <input required type="text" inputMode="decimal" pattern="(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?" value={line.unitPrice} disabled={busy} onChange={(event) => updateImportLine(index, { unitPrice: event.target.value })} className={fieldClass} placeholder="Ví dụ: 12500.00" />
                     </label>
                   </div>
-                    {line.productId && lookup?.error && <div role="alert" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-destructive"><p className="font-body-xs text-body-xs">{lookup.error}</p><button type="button" onClick={() => { requestedProductIds.current.delete(productId); setProductLookups((current) => { const next = { ...current }; delete next[productId]; return next; }); setProductLookupRetry((value) => value + 1); }} className={secondaryButtonClass}>Tải lại biến thể</button></div>}
+                    {line.productId && lookup?.error && <div role="alert" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-destructive"><p className="font-sans text-body-xs">{lookup.error}</p><button type="button" onClick={() => { requestedProductIds.current.delete(productId); setProductLookups((current) => { const next = { ...current }; delete next[productId]; return next; }); setProductLookupRetry((value) => value + 1); }} className={secondaryButtonClass}>Tải lại biến thể</button></div>}
                 </div>
               );
             })}
           </div>
-          <p className="rounded-lg bg-surface-container-low px-3 py-2 font-body-xs text-body-xs text-on-surface-variant">Thành tiền từng dòng và tổng phiếu được tính ở máy chủ. Dữ liệu biểu mẫu sẽ được giữ lại nếu máy chủ từ chối phiếu.</p>
+          <p className="rounded-lg bg-surface-container-low px-3 py-2 font-sans text-body-xs text-on-surface-variant">Thành tiền từng dòng và tổng phiếu được tính ở máy chủ. Dữ liệu biểu mẫu sẽ được giữ lại nếu máy chủ từ chối phiếu.</p>
           <div className="flex flex-wrap gap-2"><button type="submit" disabled={busy || suppliers.length === 0} className={primaryButtonClass}>{busy ? 'Đang tạo phiếu…' : 'Lưu phiếu nhập'}</button><button type="button" onClick={() => setImportFormOpen(false)} disabled={busy} className={secondaryButtonClass}>Hủy</button></div>
         </form>
       )}
 
       <div className="grid grid-cols-1 items-start gap-5 2xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.35fr)]">
         <section className="min-w-0 overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-4 sm:px-5"><div><h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Phiếu nhập</h2>{!importsLoading && !importsError && <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">{imports.length} chứng từ</p>}</div><button type="button" onClick={() => setImportRetry((value) => value + 1)} disabled={busy || importsLoading} aria-label="Tải lại phiếu nhập" className={`${secondaryButtonClass} px-2.5`}><span aria-hidden="true" className="material-symbols-outlined">refresh</span></button></div>
-          {importsLoading && imports.length === 0 && <p role="status" className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải phiếu nhập…</p>}
-          {importsError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 p-4 text-destructive"><p className="font-body-sm text-body-sm">{importsError}</p><button type="button" onClick={() => setImportRetry((value) => value + 1)} className={secondaryButtonClass}>Tải lại</button></div>}
-          {!importsLoading && !importsError && imports.length === 0 && <p className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chưa có phiếu nhập nào.</p>}
-          {imports.length > 0 && <ul className="divide-y divide-outline-variant">{imports.map((record) => <li key={record.importId} className={`p-4 ${selectedImportId === record.importId ? 'bg-primary-container/30' : ''}`}><button type="button" onClick={() => { clearFeedback(); setSelectedImportId(record.importId); setImportFormOpen(false); }} className="w-full rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-primary/30"><span className="flex flex-wrap items-center justify-between gap-2"><span className="font-label-sm text-label-sm font-bold text-on-surface">Phiếu #{record.importId}</span><span className="font-label-sm text-label-sm font-bold text-on-surface">{formatMoney(record.totalAmount)}</span></span><span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">{new Date(record.importDate).toLocaleString('vi-VN')} · {record.supplier?.name ?? `Nhà cung cấp #${record.supplierId}`}</span></button></li>)}</ul>}
+          <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-4 sm:px-5"><div><h2 className="font-sans text-headline-sm font-bold text-on-surface">Phiếu nhập</h2>{!importsLoading && !importsError && <p className="mt-1 font-sans text-body-xs text-on-surface-variant">{imports.length} chứng từ</p>}</div><button type="button" onClick={() => setImportRetry((value) => value + 1)} disabled={busy || importsLoading} aria-label="Tải lại phiếu nhập" className={`${secondaryButtonClass} px-2.5`}><span aria-hidden="true" className="material-symbols-outlined">refresh</span></button></div>
+          {importsLoading && imports.length === 0 && <p role="status" className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Đang tải phiếu nhập…</p>}
+          {importsError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 p-4 text-destructive"><p className="font-sans text-body-sm">{importsError}</p><button type="button" onClick={() => setImportRetry((value) => value + 1)} className={secondaryButtonClass}>Tải lại</button></div>}
+          {!importsLoading && !importsError && imports.length === 0 && <p className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Chưa có phiếu nhập nào.</p>}
+          {imports.length > 0 && <ul className="divide-y divide-outline-variant">{imports.map((record) => <li key={record.importId} className={`p-4 ${selectedImportId === record.importId ? 'bg-primary-container/30' : ''}`}><button type="button" onClick={() => { clearFeedback(); setSelectedImportId(record.importId); setImportFormOpen(false); }} className="w-full rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-primary/30"><span className="flex flex-wrap items-center justify-between gap-2"><span className="font-sans text-label-sm font-bold text-on-surface">Phiếu #{record.importId}</span><span className="font-sans text-label-sm font-bold text-on-surface">{formatMoney(record.totalAmount)}</span></span><span className="mt-1 block font-sans text-body-xs text-on-surface-variant">{new Date(record.importDate).toLocaleString('vi-VN')} · {record.supplier?.name ?? `Nhà cung cấp #${record.supplierId}`}</span></button></li>)}</ul>}
         </section>
 
         <section className="min-w-0 overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-sm">
-          <div className="border-b border-outline-variant px-4 py-4 sm:px-5"><h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Chi tiết chứng từ</h2><p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Chọn phiếu để xem thông tin do API trả về.</p></div>
-          {selectedImportId === null && <p className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chưa chọn phiếu nhập.</p>}
-          {importDetailLoading && <p role="status" className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải chi tiết…</p>}
-          {importDetailError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 p-4 text-destructive"><p className="font-body-sm text-body-sm">{importDetailError}</p><button type="button" onClick={() => setImportDetailRetry((value) => value + 1)} className={secondaryButtonClass}>Thử lại</button></div>}
+          <div className="border-b border-outline-variant px-4 py-4 sm:px-5"><h2 className="font-sans text-headline-sm font-bold text-on-surface">Chi tiết chứng từ</h2><p className="mt-1 font-sans text-body-xs text-on-surface-variant">Chọn phiếu để xem thông tin do API trả về.</p></div>
+          {selectedImportId === null && <p className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Chưa chọn phiếu nhập.</p>}
+          {importDetailLoading && <p role="status" className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Đang tải chi tiết…</p>}
+          {importDetailError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 p-4 text-destructive"><p className="font-sans text-body-sm">{importDetailError}</p><button type="button" onClick={() => setImportDetailRetry((value) => value + 1)} className={secondaryButtonClass}>Thử lại</button></div>}
           {!importDetailLoading && !importDetailError && selectedImport && <div className="p-4 sm:p-5" data-selected-import={selectedImport.importId}>
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-label-md text-label-md font-bold text-on-surface">Phiếu nhập #{selectedImport.importId}</h3><p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">{new Date(selectedImport.importDate).toLocaleString('vi-VN')}</p></div><span className="rounded-lg bg-primary-container/50 px-3 py-2 font-label-sm text-label-sm font-bold text-on-primary-container">Tổng {formatMoney(selectedImport.totalAmount)}</span></div>
-            <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><div><dt className="font-label-xs text-label-xs font-semibold text-on-surface-variant">Nhà cung cấp</dt><dd className="mt-1 font-body-sm text-body-sm text-on-surface">{selectedImport.supplier?.name ?? `#${selectedImport.supplierId}`}</dd></div><div><dt className="font-label-xs text-label-xs font-semibold text-on-surface-variant">Nhân viên lập</dt><dd className="mt-1 font-body-sm text-body-sm text-on-surface">Mã nhân viên {selectedImport.employeeId}</dd></div>{selectedImport.note && <div className="sm:col-span-2"><dt className="font-label-xs text-label-xs font-semibold text-on-surface-variant">Ghi chú</dt><dd className="mt-1 whitespace-pre-wrap font-body-sm text-body-sm text-on-surface">{selectedImport.note}</dd></div>}</dl>
-            <div className="mt-5 overflow-x-auto rounded-xl border border-outline-variant"><table className="w-full min-w-[620px] text-left"><thead className="bg-surface-container-low font-label-xs text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th scope="col" className="px-3 py-3 font-semibold">Biến thể</th><th scope="col" className="px-3 py-3 text-right font-semibold">Số lượng</th><th scope="col" className="px-3 py-3 text-right font-semibold">Đơn giá</th><th scope="col" className="px-3 py-3 text-right font-semibold">Thành tiền</th></tr></thead><tbody className="divide-y divide-outline-variant">{selectedImport.details?.map((detail) => <tr key={`${detail.importId}-${detail.variantId}`}><td className="px-3 py-3"><span className="block font-label-sm text-label-sm font-semibold text-on-surface">{detail.variant ? variantLabel(detail.variant) : `Mã biến thể ${detail.variantId}`}</span>{detail.variant?.productId && <span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">Mã sản phẩm {detail.variant.productId}</span>}</td><td className="px-3 py-3 text-right font-body-sm text-body-sm text-on-surface">{detail.quantity.toLocaleString('vi-VN')}</td><td className="px-3 py-3 text-right font-body-sm text-body-sm text-on-surface">{formatMoney(detail.unitPrice)}</td><td className="px-3 py-3 text-right font-label-sm text-label-sm font-bold text-on-surface">{formatMoney(detail.subtotal)}</td></tr>)}</tbody></table></div>
-            <p className="mt-3 font-body-xs text-body-xs text-on-surface-variant">Thành tiền và tổng tiền là giá trị do máy chủ trả về khi tạo phiếu.</p>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-sans text-label-md font-bold text-on-surface">Phiếu nhập #{selectedImport.importId}</h3><p className="mt-1 font-sans text-body-xs text-on-surface-variant">{new Date(selectedImport.importDate).toLocaleString('vi-VN')}</p></div><span className="rounded-lg bg-primary-container/50 px-3 py-2 font-sans text-label-sm font-bold text-on-primary-container">Tổng {formatMoney(selectedImport.totalAmount)}</span></div>
+            <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><div><dt className="font-sans text-label-xs font-semibold text-on-surface-variant">Nhà cung cấp</dt><dd className="mt-1 font-sans text-body-sm text-on-surface">{selectedImport.supplier?.name ?? `#${selectedImport.supplierId}`}</dd></div><div><dt className="font-sans text-label-xs font-semibold text-on-surface-variant">Nhân viên lập</dt><dd className="mt-1 font-sans text-body-sm text-on-surface">Mã nhân viên {selectedImport.employeeId}</dd></div>{selectedImport.note && <div className="sm:col-span-2"><dt className="font-sans text-label-xs font-semibold text-on-surface-variant">Ghi chú</dt><dd className="mt-1 whitespace-pre-wrap font-sans text-body-sm text-on-surface">{selectedImport.note}</dd></div>}</dl>
+            <div className="mt-5 overflow-x-auto rounded-xl border border-outline-variant"><table className="w-full min-w-[620px] text-left"><thead className="bg-surface-container-low font-sans text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th scope="col" className="px-3 py-3 font-semibold">Biến thể</th><th scope="col" className="px-3 py-3 text-right font-semibold">Số lượng</th><th scope="col" className="px-3 py-3 text-right font-semibold">Đơn giá</th><th scope="col" className="px-3 py-3 text-right font-semibold">Thành tiền</th></tr></thead><tbody className="divide-y divide-outline-variant">{selectedImport.details?.map((detail) => <tr key={`${detail.importId}-${detail.variantId}`}><td className="px-3 py-3"><span className="block font-sans text-label-sm font-semibold text-on-surface">{detail.variant ? variantLabel(detail.variant) : `Mã biến thể ${detail.variantId}`}</span>{detail.variant?.productId && <span className="mt-1 block font-sans text-body-xs text-on-surface-variant">Mã sản phẩm {detail.variant.productId}</span>}</td><td className="px-3 py-3 text-right font-sans text-body-sm text-on-surface">{detail.quantity.toLocaleString('vi-VN')}</td><td className="px-3 py-3 text-right font-sans text-body-sm text-on-surface">{formatMoney(detail.unitPrice)}</td><td className="px-3 py-3 text-right font-sans text-label-sm font-bold text-on-surface">{formatMoney(detail.subtotal)}</td></tr>)}</tbody></table></div>
+            <p className="mt-3 font-sans text-body-xs text-on-surface-variant">Thành tiền và tổng tiền là giá trị do máy chủ trả về khi tạo phiếu.</p>
           </div>}
         </section>
       </div>

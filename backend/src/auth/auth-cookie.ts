@@ -66,29 +66,39 @@ export function clearRefreshCookie(
   });
 }
 
-export function assertSameOriginRequest(
-  request: Request,
-  config: ConfigService,
-): void {
-  const origin = request.get('origin');
+export function getAllowedAuthOrigins(config: ConfigService): string[] {
   const configuredOrigins = config.get<string>('AUTH_ALLOWED_ORIGINS');
-  const isProduction = config.get<string>('NODE_ENV') === 'production';
-  if (isProduction && !configuredOrigins) {
+  const allowedOrigins =
+    configuredOrigins === undefined
+      ? [
+          'http://localhost:5173',
+          'http://localhost:5175',
+          'http://127.0.0.1:5173',
+          'http://127.0.0.1:5175',
+        ]
+      : configuredOrigins
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean);
+
+  if (
+    config.get<string>('NODE_ENV') === 'production' &&
+    (configuredOrigins === undefined || allowedOrigins.length === 0)
+  ) {
     throw new InternalServerErrorException(
       'AUTH_ALLOWED_ORIGINS must be configured in production.',
     );
   }
-  const allowedOrigins = configuredOrigins
-    ? configuredOrigins
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean)
-    : [
-        'http://localhost:5173',
-        'http://localhost:5175',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:5175',
-      ];
+
+  return allowedOrigins;
+}
+
+export function assertAllowedSameSiteRequest(
+  request: Request,
+  config: ConfigService,
+): void {
+  const origin = request.get('origin');
+  const allowedOrigins = getAllowedAuthOrigins(config);
 
   if (!origin || !allowedOrigins.includes(origin)) {
     throw new ForbiddenException(
@@ -97,7 +107,11 @@ export function assertSameOriginRequest(
   }
 
   const fetchSite = request.get('sec-fetch-site');
-  if (fetchSite && fetchSite !== 'same-origin') {
-    throw new ForbiddenException('Auth session actions must be same-origin.');
+  if (
+    fetchSite !== undefined &&
+    fetchSite !== 'same-origin' &&
+    fetchSite !== 'same-site'
+  ) {
+    throw new ForbiddenException('Auth session actions must be same-site.');
   }
 }

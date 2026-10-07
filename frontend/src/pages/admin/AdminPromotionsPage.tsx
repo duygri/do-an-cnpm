@@ -30,10 +30,10 @@ const emptyVoucher: VoucherDraft = {
   minPrice: '0', maxDiscount: '', quantity: '1',
 };
 
-const fieldClass = 'mt-1.5 w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60';
-const labelClass = 'block font-label-sm text-label-sm font-semibold text-on-surface';
-const primaryButtonClass = 'inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-label-sm text-label-sm font-bold text-on-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
-const secondaryButtonClass = 'inline-flex items-center justify-center rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-label-sm text-label-sm font-semibold text-on-surface transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
+const fieldClass = 'mt-1.5 w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 font-sans text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60';
+const labelClass = 'block font-sans text-label-sm font-semibold text-on-surface';
+const primaryButtonClass = 'inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-sans text-label-sm font-bold text-on-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
+const secondaryButtonClass = 'inline-flex items-center justify-center rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-sans text-label-sm font-semibold text-on-surface transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -312,9 +312,9 @@ export const AdminPromotionsPage: React.FC = () => {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-label-xs text-label-xs font-bold uppercase tracking-[0.16em] text-primary">Quản lý ưu đãi</p>
-          <h1 className="mt-1 font-headline-md text-headline-md font-bold text-on-surface">Khuyến mãi và voucher</h1>
-          <p className="mt-2 max-w-3xl font-body-sm text-body-sm text-on-surface-variant">Quản lý chương trình và mã giảm giá theo quy tắc từ máy chủ. Kết quả áp dụng voucher chỉ được xác định khi khách đặt hàng.</p>
+          <p className="font-sans text-label-xs font-bold uppercase tracking-[0.16em] text-primary">Quản lý ưu đãi</p>
+          <h1 className="mt-1 font-sans text-headline-md font-bold text-on-surface">Khuyến mãi và voucher</h1>
+          <p className="mt-2 max-w-3xl font-sans text-body-sm text-on-surface-variant">Quản lý chương trình và mã giảm giá theo quy tắc từ máy chủ. Kết quả áp dụng voucher chỉ được xác định khi khách đặt hàng.</p>
         </div>
         <button type="button" onClick={startCreatePromotion} disabled={busy} className={primaryButtonClass}>
           <span aria-hidden="true" className="material-symbols-outlined mr-2 text-[20px]">add</span>
@@ -322,15 +322,15 @@ export const AdminPromotionsPage: React.FC = () => {
         </button>
       </header>
 
-      {notice && <p role="status" className="rounded-xl border border-success/20 bg-success-soft px-4 py-3 font-body-sm text-body-sm text-success">{notice}</p>}
-      {actionError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive-soft px-4 py-3 font-body-sm text-body-sm text-destructive">{actionError}</p>}
+      {notice && <p role="status" className="rounded-xl border border-success/20 bg-success-soft px-4 py-3 font-sans text-body-sm text-success">{notice}</p>}
+      {actionError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive-soft px-4 py-3 font-sans text-body-sm text-destructive">{actionError}</p>}
 
       {promotionFormOpen && (
         <form onSubmit={savePromotion} className="rounded-2xl border border-primary/20 bg-surface p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">{editingPromotionId === null ? 'Tạo chương trình' : `Sửa chương trình #${editingPromotionId}`}</h2>
-              <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Ngày nhập theo định dạng năm-tháng-ngày. Máy chủ kiểm tra khoảng ngày và dữ liệu.</p>
+              <h2 className="font-sans text-headline-sm font-bold text-on-surface">{editingPromotionId === null ? 'Tạo chương trình' : `Sửa chương trình #${editingPromotionId}`}</h2>
+              <p className="mt-1 font-sans text-body-xs text-on-surface-variant">Ngày nhập theo định dạng năm-tháng-ngày. Máy chủ kiểm tra khoảng ngày và dữ liệu.</p>
             </div>
             <button type="button" onClick={() => setPromotionFormOpen(false)} disabled={busy} className={secondaryButtonClass}>Đóng biểu mẫu</button>
           </div>
@@ -357,7 +357,7 @@ export const AdminPromotionsPage: React.FC = () => {
 
       {promotionsError && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-surface p-4 text-destructive">
-          <p className="font-body-sm text-body-sm">{promotionsError}</p>
+          <p className="font-sans text-body-sm">{promotionsError}</p>
           <button type="button" onClick={() => setPromotionRetry((value) => value + 1)} className={secondaryButtonClass}>Tải lại</button>
         </div>
       )}
@@ -366,26 +366,26 @@ export const AdminPromotionsPage: React.FC = () => {
         <section className="min-w-0 overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-sm">
           <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-4 sm:px-5">
             <div>
-              <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Chương trình</h2>
-              {!promotionsLoading && !promotionsError && <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">{promotions.length} chương trình</p>}
+              <h2 className="font-sans text-headline-sm font-bold text-on-surface">Chương trình</h2>
+              {!promotionsLoading && !promotionsError && <p className="mt-1 font-sans text-body-xs text-on-surface-variant">{promotions.length} chương trình</p>}
             </div>
             <button type="button" onClick={() => setPromotionRetry((value) => value + 1)} disabled={busy} aria-label="Tải lại chương trình" className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low disabled:opacity-50">
               <span aria-hidden="true" className="material-symbols-outlined">refresh</span>
             </button>
           </div>
-          {promotionsLoading && promotions.length === 0 && <p role="status" className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải chương trình…</p>}
-          {!promotionsLoading && !promotionsError && promotions.length === 0 && <p className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chưa có chương trình. Hãy tạo chương trình đầu tiên.</p>}
+          {promotionsLoading && promotions.length === 0 && <p role="status" className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Đang tải chương trình…</p>}
+          {!promotionsLoading && !promotionsError && promotions.length === 0 && <p className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Chưa có chương trình. Hãy tạo chương trình đầu tiên.</p>}
           {promotions.length > 0 && (
             <ul className="divide-y divide-outline-variant">
               {promotions.map((promotion) => (
                 <li key={promotion.promotionId} className={`p-4 ${selectedPromotionId === promotion.promotionId ? 'bg-primary-container/30' : ''}`}>
                   <button type="button" onClick={() => { clearFeedback(); setSelectedPromotionId(promotion.promotionId); setVoucherFormOpen(false); }} disabled={busy} aria-pressed={selectedPromotionId === promotion.promotionId} className="w-full rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed">
                     <span className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-label-md text-label-md font-bold text-on-surface">{promotion.name}</span>
+                      <span className="font-sans text-label-md font-bold text-on-surface">{promotion.name}</span>
                       <StatusBadge status={promotion.status} />
                     </span>
-                    <span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">{promotion.startDate.slice(0, 10)} – {promotion.endDate.slice(0, 10)}</span>
-                    {promotion.description && <span className="mt-1 block line-clamp-2 font-body-xs text-body-xs text-on-surface-variant">{promotion.description}</span>}
+                    <span className="mt-1 block font-sans text-body-xs text-on-surface-variant">{promotion.startDate.slice(0, 10)} – {promotion.endDate.slice(0, 10)}</span>
+                    {promotion.description && <span className="mt-1 block line-clamp-2 font-sans text-body-xs text-on-surface-variant">{promotion.description}</span>}
                   </button>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" onClick={() => startEditPromotion(promotion)} disabled={busy} className={secondaryButtonClass}>Chỉnh sửa</button>
@@ -402,8 +402,8 @@ export const AdminPromotionsPage: React.FC = () => {
         <section className="min-w-0 overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-4 sm:px-5">
             <div>
-              <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Voucher</h2>
-              <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">{selectedPromotion ? `Thuộc chương trình: ${selectedPromotion.name}` : 'Chọn chương trình để xem voucher.'}</p>
+              <h2 className="font-sans text-headline-sm font-bold text-on-surface">Voucher</h2>
+              <p className="mt-1 font-sans text-body-xs text-on-surface-variant">{selectedPromotion ? `Thuộc chương trình: ${selectedPromotion.name}` : 'Chọn chương trình để xem voucher.'}</p>
             </div>
             <button type="button" onClick={startCreateVoucher} disabled={busy || selectedPromotionId === null} className={primaryButtonClass}>
               <span aria-hidden="true" className="material-symbols-outlined mr-2 text-[20px]">add</span>
@@ -415,17 +415,17 @@ export const AdminPromotionsPage: React.FC = () => {
             <form onSubmit={saveVoucher} className="border-b border-outline-variant bg-surface-container-low/50 p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-label-md text-label-md font-bold text-on-surface">{editingVoucherId === null ? 'Tạo voucher' : `Sửa voucher #${editingVoucherId}`}</h3>
-                  <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Máy chủ là nguồn quyết định tính hợp lệ và mức giảm cuối cùng.</p>
+                  <h3 className="font-sans text-label-md font-bold text-on-surface">{editingVoucherId === null ? 'Tạo voucher' : `Sửa voucher #${editingVoucherId}`}</h3>
+                  <p className="mt-1 font-sans text-body-xs text-on-surface-variant">Máy chủ là nguồn quyết định tính hợp lệ và mức giảm cuối cùng.</p>
                 </div>
                 <button type="button" onClick={() => setVoucherFormOpen(false)} disabled={busy} className={secondaryButtonClass}>Đóng biểu mẫu</button>
               </div>
               {editingVoucherId !== null ? (
-                <p className="mt-4 rounded-lg bg-surface p-3 font-body-sm text-body-sm text-on-surface">Mã voucher cố định: <strong>{voucherDraft.code}</strong></p>
+                <p className="mt-4 rounded-lg bg-surface p-3 font-sans text-body-sm text-on-surface">Mã voucher cố định: <strong>{voucherDraft.code}</strong></p>
               ) : (
                 <label className={`${labelClass} mt-4`}>Mã voucher
                   <input required maxLength={64} autoCapitalize="characters" value={voucherDraft.code} disabled={busy} onChange={(event) => setVoucherDraft((draft) => ({ ...draft, code: event.target.value }))} className={fieldClass} placeholder="Ví dụ: TET10" />
-                  <span className="mt-1 block font-body-xs text-body-xs font-normal text-on-surface-variant">Chữ hoa/thường được máy chủ chuẩn hóa. Mã trùng toàn hệ thống sẽ bị từ chối.</span>
+                  <span className="mt-1 block font-sans text-body-xs font-normal text-on-surface-variant">Chữ hoa/thường được máy chủ chuẩn hóa. Mã trùng toàn hệ thống sẽ bị từ chối.</span>
                 </label>
               )}
               <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -464,19 +464,19 @@ export const AdminPromotionsPage: React.FC = () => {
             </form>
           )}
 
-          {selectedPromotionId === null && <p className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chọn một chương trình ở danh sách bên trái.</p>}
-          {selectedPromotionId !== null && (!vouchersMatchSelection || vouchersLoading) && <p role="status" className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải voucher…</p>}
+          {selectedPromotionId === null && <p className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Chọn một chương trình ở danh sách bên trái.</p>}
+          {selectedPromotionId !== null && (!vouchersMatchSelection || vouchersLoading) && <p role="status" className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Đang tải voucher…</p>}
           {vouchersMatchSelection && !vouchersLoading && vouchersError && (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-3 p-4 text-destructive">
-              <p className="font-body-sm text-body-sm">{vouchersError}</p>
+              <p className="font-sans text-body-sm">{vouchersError}</p>
               <button type="button" onClick={() => setVoucherRetry((value) => value + 1)} className={secondaryButtonClass}>Tải lại voucher</button>
             </div>
           )}
-          {vouchersMatchSelection && !vouchersLoading && !vouchersError && vouchers.length === 0 && <p className="p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chương trình này chưa có voucher.</p>}
+          {vouchersMatchSelection && !vouchersLoading && !vouchersError && vouchers.length === 0 && <p className="p-8 text-center font-sans text-body-sm text-on-surface-variant">Chương trình này chưa có voucher.</p>}
           {vouchersMatchSelection && !vouchersLoading && !vouchersError && vouchers.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left">
-                <thead className="bg-surface-container-low font-label-xs text-label-xs uppercase tracking-wide text-on-surface-variant">
+                <thead className="bg-surface-container-low font-sans text-label-xs uppercase tracking-wide text-on-surface-variant">
                   <tr>
                     <th scope="col" className="px-4 py-3 font-semibold">Mã / voucher</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Mức giảm / đơn tối thiểu</th>
@@ -490,15 +490,15 @@ export const AdminPromotionsPage: React.FC = () => {
                     <tr key={voucher.voucherId} className="align-top hover:bg-surface-container-low/60">
                       <td className="px-4 py-3.5">
                         <span className="block font-mono text-sm font-bold text-primary">{voucher.code}</span>
-                        <span className="mt-1 block font-label-sm text-label-sm font-semibold text-on-surface">{voucher.name}</span>
+                        <span className="mt-1 block font-sans text-label-sm font-semibold text-on-surface">{voucher.name}</span>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="block font-label-sm text-label-sm font-semibold text-on-surface">{voucher.type === 'percentage' ? `${voucher.discountValue}%${voucher.maxDiscount ? ` · tối đa ${formatMoney(voucher.maxDiscount)}` : ''}` : formatMoney(voucher.discountValue)}</span>
-                        <span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">Đơn tối thiểu {formatMoney(voucher.minPrice)}</span>
+                        <span className="block font-sans text-label-sm font-semibold text-on-surface">{voucher.type === 'percentage' ? `${voucher.discountValue}%${voucher.maxDiscount ? ` · tối đa ${formatMoney(voucher.maxDiscount)}` : ''}` : formatMoney(voucher.discountValue)}</span>
+                        <span className="mt-1 block font-sans text-body-xs text-on-surface-variant">Đơn tối thiểu {formatMoney(voucher.minPrice)}</span>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="block whitespace-nowrap font-body-xs text-body-xs text-on-surface-variant">{voucher.startDate.slice(0, 10)} – {voucher.endDate.slice(0, 10)}</span>
-                        <span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">Tổng lượt: {voucher.quantity.toLocaleString('vi-VN')}</span>
+                        <span className="block whitespace-nowrap font-sans text-body-xs text-on-surface-variant">{voucher.startDate.slice(0, 10)} – {voucher.endDate.slice(0, 10)}</span>
+                        <span className="mt-1 block font-sans text-body-xs text-on-surface-variant">Tổng lượt: {voucher.quantity.toLocaleString('vi-VN')}</span>
                       </td>
                       <td className="px-4 py-3.5"><StatusBadge status={voucher.status} /></td>
                       <td className="px-4 py-3.5">

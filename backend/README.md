@@ -61,6 +61,14 @@ Khi nâng cấp dữ liệu, các role vận hành cũ được gom thành `mana
 
 Token thiếu, sai, hết hạn, sai actor (ví dụ customer token gọi API nhân viên), hoặc nhân viên inactive trả `401 Unauthorized`. Nhân viên active nhưng role không được phép trả `403 Forbidden`.
 
+## CORS và triển khai frontend
+
+API dùng cùng danh sách `AUTH_ALLOWED_ORIGINS` cho CORS và kiểm tra `Origin` tại các endpoint refresh/logout của nhân viên và khách hàng. Giá trị là các origin frontend chính xác (scheme, hostname, port), phân cách bằng dấu phẩy; không thêm đường dẫn hoặc dấu `/` cuối và không dùng wildcard. Khi `NODE_ENV=production`, API từ chối khởi động nếu biến này chưa được đặt hoặc danh sách sau khi loại khoảng trắng và mục rỗng không có origin nào.
+
+Ở môi trường local, nếu chưa đặt biến này, API dùng `http://localhost:5173`, `http://localhost:5175`, `http://127.0.0.1:5173` và `http://127.0.0.1:5175`. Cấu hình Vite proxy cùng origin hiện tại tiếp tục dùng được.
+
+Có thể triển khai frontend/API khác origin nhưng cùng site, chẳng hạn `https://shop.example.com`, `https://admin.example.com` và `https://api.example.com`. Đặt `AUTH_ALLOWED_ORIGINS=https://shop.example.com,https://admin.example.com` và gửi request với `credentials: 'include'` để trình duyệt nhận/gửi refresh cookie qua CORS. Cookie vẫn là host-only của API, `HttpOnly`, `SameSite=Lax` và `Secure` trong production. Refresh/logout yêu cầu `Origin` khớp danh sách; nếu có `Sec-Fetch-Site`, chỉ chấp nhận `same-origin` hoặc `same-site`. Triển khai frontend/API khác site không được hỗ trợ.
+
 ## API quản lý nhân viên
 
 Mọi route tại `/admin/employees` yêu cầu employee JWT và role `admin`:

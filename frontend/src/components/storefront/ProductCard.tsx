@@ -16,12 +16,12 @@ function formatPrice(value: string | null): string {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => (
-  <article className="group flex flex-col overflow-hidden rounded-2xl bg-surface shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-    <Link
-      to={`/product/${product.productId}`}
-      aria-label={`Xem chi tiết ${product.name}`}
-      className="relative block aspect-[4/5] w-full overflow-hidden bg-surface-container-high focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-    >
+  <Link
+    to={`/product/${product.productId}`}
+    aria-label={`Xem chi tiết ${product.name}`}
+    className="group flex flex-col overflow-hidden rounded-2xl bg-surface shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+  >
+    <div className="relative block aspect-[4/5] w-full overflow-hidden bg-surface-container-high">
       {product.primaryImageUrl ? (
         <img
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -32,40 +32,37 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => (
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-on-surface-variant" aria-label="Chưa có ảnh sản phẩm">
           <span className="material-symbols-outlined text-5xl">image</span>
-          <span className="font-body-sm text-body-sm">Chưa có ảnh</span>
+          <span className="font-sans text-body-sm">Chưa có ảnh</span>
         </div>
       )}
-    </Link>
+    </div>
 
     <div className="flex flex-1 flex-col gap-2 p-4">
-      <span className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-outline">
+      <span className="font-sans text-label-sm font-semibold uppercase tracking-wider text-outline">
         {product.category.name}
       </span>
       {product.brand && (
-        <span className="font-label-sm text-label-sm font-medium text-on-surface-variant">{product.brand}</span>
+        <span className="font-sans text-label-sm font-medium text-on-surface-variant">{product.brand}</span>
       )}
-      <Link to={`/product/${product.productId}`} className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-        <h3 className="line-clamp-2 font-headline-sm text-headline-sm font-semibold text-on-surface transition-colors group-hover:text-primary">
-          {product.name}
-        </h3>
-      </Link>
+      <h3 className="line-clamp-2 font-sans text-headline-sm font-semibold text-on-surface transition-colors group-hover:text-primary">
+        {product.name}
+      </h3>
       {product.description && (
-        <p className="line-clamp-2 font-body-sm text-body-sm text-on-surface-variant">{product.description}</p>
+        <p className="line-clamp-2 font-sans text-body-sm text-on-surface-variant">{product.description}</p>
       )}
 
       <div className="mt-auto flex items-baseline gap-2 pt-2">
-        <span className="font-label-sm text-label-sm text-outline">Giá từ</span>
-        <span className="font-price-display text-price-display font-bold text-primary">
+        <span className="font-sans text-label-sm text-outline">Giá từ</span>
+        <span className="font-sans text-price-display font-bold text-primary">
           {formatPrice(product.priceFrom)}
         </span>
       </div>
 
-      <Link
-        to={`/product/${product.productId}`}
-        className="mt-2 block w-full rounded-lg bg-surface-container py-2.5 text-center font-label-md text-label-md font-medium text-on-surface transition-colors group-hover:bg-primary group-hover:text-on-primary"
+      <span
+        className="mt-2 block w-full rounded-lg bg-surface-container py-2.5 text-center font-sans text-label-md font-medium text-on-surface transition-colors group-hover:bg-primary group-hover:text-on-primary"
       >
         Xem chi tiết
-      </Link>
+      </span>
     </div>
-  </article>
+  </Link>
 );

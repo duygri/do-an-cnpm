@@ -34,14 +34,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function normalizeCustomerProfile(profile: CustomerProfile): CustomerProfile {
-  return {
-    ...profile,
-    fullName: profile.name ?? profile.fullName,
-    phoneNumber: profile.phone ?? profile.phoneNumber,
-  };
-}
-
 function readStoredProfile<T>(key: string): T | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -65,8 +57,7 @@ function errorMessage(error: unknown): string {
 export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'customer' | 'employee' | 'all' }> = ({ children, scope = 'all' }) => {
   const [customer, setCustomer] = useState<CustomerProfile | null>(() => {
     if (scope === 'employee' || !hasStoredToken(CUSTOMER_TOKEN_KEY)) return null;
-    const saved = readStoredProfile<CustomerProfile>(CUSTOMER_PROFILE_KEY);
-    return saved ? normalizeCustomerProfile(saved) : null;
+    return readStoredProfile<CustomerProfile>(CUSTOMER_PROFILE_KEY);
   });
   const [employee, setEmployee] = useState<EmployeeProfile | null>(() => {
     if (scope === 'customer' || !hasStoredToken(EMPLOYEE_TOKEN_KEY)) return null;
@@ -111,11 +102,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
 
   const customerLogin = useCallback((token: string, profile: CustomerProfile) => {
     customerOperation.current += 1;
-    const normalized = normalizeCustomerProfile(profile);
-    window.localStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(normalized));
+    window.localStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(profile));
     window.localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
     setActiveActorToken('customer', token);
-    setCustomer(normalized);
+    setCustomer(profile);
     setCustomerLoading(false);
     setCustomerRestoreError(null);
   }, []);
@@ -142,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     setCustomerLoading(true);
     setCustomerRestoreError(null);
     try {
-      const profile = normalizeCustomerProfile(await api.getCustomerProfile());
+      const profile = await api.getCustomerProfile();
       const currentToken = window.localStorage.getItem(CUSTOMER_TOKEN_KEY);
       if (operation !== customerOperation.current || !currentToken) return null;
       setActiveActorToken('customer', currentToken);

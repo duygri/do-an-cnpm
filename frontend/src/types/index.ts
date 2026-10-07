@@ -120,10 +120,6 @@ export interface CustomerProfile {
   phone?: string | null;
   address?: string | null;
   gender?: string | null;
-  /** @deprecated Removed when the auth context is converted in Task 2. */
-  fullName?: string;
-  /** @deprecated Removed when the auth context is converted in Task 2. */
-  phoneNumber?: string;
 }
 
 export type EmployeeRole = 'admin' | 'manager';

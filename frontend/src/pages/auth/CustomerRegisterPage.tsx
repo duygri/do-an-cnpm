@@ -42,19 +42,19 @@ export const CustomerRegisterPage: React.FC = () => {
   return (
     <section className="max-w-7xl mx-auto px-gutter py-12 sm:py-16">
       <div className="max-w-2xl mx-auto rounded-2xl border border-border-neutral bg-surface p-6 shadow-sm sm:p-8">
-        <p className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-primary">Tài khoản INDIGO</p>
-        <h1 className="mt-2 font-headline-md text-headline-md font-bold text-on-surface">Tạo tài khoản</h1>
-        <p className="mt-2 font-body-md text-body-md text-on-surface-variant">Các thông tin ngày sinh, số điện thoại và địa chỉ là tùy chọn.</p>
+        <p className="font-sans text-label-sm font-semibold uppercase tracking-wider text-primary">Tài khoản INDIGO</p>
+        <h1 className="mt-2 font-sans text-headline-md font-bold text-on-surface">Tạo tài khoản</h1>
+        <p className="mt-2 font-sans text-body-md text-on-surface-variant">Các thông tin ngày sinh, số điện thoại và địa chỉ là tùy chọn.</p>
 
         {error && (
-          <p role="alert" className="mt-5 rounded-lg bg-error-container px-4 py-3 font-body-sm text-body-sm text-on-error-container">
+          <p role="alert" className="mt-5 rounded-lg bg-error-container px-4 py-3 font-sans text-body-sm text-on-error-container">
             {error}
           </p>
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Họ và tên</span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Họ và tên</span>
             <input
               type="text"
               autoComplete="name"
@@ -62,11 +62,11 @@ export const CustomerRegisterPage: React.FC = () => {
               required
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </label>
           <label className="block sm:col-span-2">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Email</span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Email</span>
             <input
               type="email"
               autoComplete="email"
@@ -74,11 +74,11 @@ export const CustomerRegisterPage: React.FC = () => {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </label>
           <label className="block sm:col-span-2">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Mật khẩu</span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Mật khẩu</span>
             <input
               type="password"
               autoComplete="new-password"
@@ -87,37 +87,37 @@ export const CustomerRegisterPage: React.FC = () => {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
-            <span className="mt-1 block font-body-sm text-body-sm text-outline">Mật khẩu cần có từ 12 đến 128 ký tự.</span>
+            <span className="mt-1 block font-sans text-body-sm text-outline">Mật khẩu cần có từ 12 đến 128 ký tự.</span>
           </label>
           <label className="block">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Ngày sinh <span className="font-normal text-outline">(tùy chọn)</span></span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Ngày sinh <span className="font-normal text-outline">(tùy chọn)</span></span>
             <input
               type="date"
               autoComplete="bday"
               value={dateOfBirth}
               onChange={(event) => setDateOfBirth(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </label>
           <label className="block">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Số điện thoại <span className="font-normal text-outline">(tùy chọn)</span></span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Số điện thoại <span className="font-normal text-outline">(tùy chọn)</span></span>
             <input
               type="tel"
               autoComplete="tel"
               maxLength={30}
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </label>
           <label className="block">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Giới tính <span className="font-normal text-outline">(tùy chọn)</span></span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Giới tính <span className="font-normal text-outline">(tùy chọn)</span></span>
             <select
               value={gender}
               onChange={(event) => setGender(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Chọn giới tính</option>
               <option value="male">Nam</option>
@@ -126,26 +126,26 @@ export const CustomerRegisterPage: React.FC = () => {
             </select>
           </label>
           <label className="block">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Địa chỉ <span className="font-normal text-outline">(tùy chọn)</span></span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Địa chỉ <span className="font-normal text-outline">(tùy chọn)</span></span>
             <input
               type="text"
               autoComplete="street-address"
               maxLength={2000}
               value={address}
               onChange={(event) => setAddress(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </label>
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 w-full rounded-lg bg-primary px-5 py-3 font-label-md text-label-md font-semibold text-on-primary transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60 sm:col-span-2"
+            className="mt-2 w-full rounded-lg bg-primary px-5 py-3 font-sans text-label-md font-semibold text-on-primary transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60 sm:col-span-2"
           >
             {submitting ? 'Đang tạo tài khoản...' : 'Đăng ký'}
           </button>
         </form>
 
-        <p className="mt-6 text-center font-body-sm text-body-sm text-on-surface-variant">
+        <p className="mt-6 text-center font-sans text-body-sm text-on-surface-variant">
           Đã có tài khoản?{' '}
           <Link to="/login" className="font-semibold text-primary hover:underline">Đăng nhập</Link>
         </p>

@@ -28,10 +28,10 @@ const emptyProduct: ProductDraft = {
 };
 const emptyVariant: VariantDraft = { size: '', color: '', price: '' };
 
-const fieldClass = 'mt-1.5 w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
-const labelClass = 'block font-label-sm text-label-sm font-semibold text-on-surface';
-const primaryButtonClass = 'inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-label-sm text-label-sm font-bold text-on-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
-const secondaryButtonClass = 'inline-flex items-center justify-center rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-label-sm text-label-sm font-semibold text-on-surface transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
+const fieldClass = 'mt-1.5 w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 font-sans text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+const labelClass = 'block font-sans text-label-sm font-semibold text-on-surface';
+const primaryButtonClass = 'inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-sans text-label-sm font-bold text-on-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
+const secondaryButtonClass = 'inline-flex items-center justify-center rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-sans text-label-sm font-semibold text-on-surface transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -352,25 +352,25 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
     <div className="min-w-0 space-y-5">
       <header className="flex flex-col gap-4 rounded-2xl border border-outline-variant bg-surface p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between sm:p-6">
         <div>
-          <p className="font-label-sm text-label-sm font-bold uppercase tracking-[0.14em] text-primary">Danh mục & sản phẩm</p>
-          <h2 className="mt-1 font-headline-md text-headline-md font-bold text-on-surface">{pageTitle}</h2>
-          <p className="mt-2 max-w-2xl font-body-sm text-body-sm text-on-surface-variant">Quản lý dữ liệu danh mục, sản phẩm, biến thể và đường dẫn ảnh đang được API lưu trữ.</p>
+          <p className="font-sans text-label-sm font-bold uppercase tracking-[0.14em] text-primary">Danh mục & sản phẩm</p>
+          <h2 className="mt-1 font-sans text-headline-md font-bold text-on-surface">{pageTitle}</h2>
+          <p className="mt-2 max-w-2xl font-sans text-body-sm text-on-surface-variant">Quản lý dữ liệu danh mục, sản phẩm, biến thể và đường dẫn ảnh đang được API lưu trữ.</p>
         </div>
         <nav aria-label="Mô-đun danh mục và sản phẩm" className="flex gap-2">
-          <Link to={`${basePath}/categories`} aria-current={section === 'categories' ? 'page' : undefined} className={`rounded-lg px-4 py-2.5 font-label-sm text-label-sm font-semibold ${section === 'categories' ? 'bg-primary text-on-primary' : 'border border-outline-variant text-on-surface hover:bg-surface-container-low'}`}>Danh mục</Link>
-          <Link to={`${basePath}/products`} aria-current={section === 'products' ? 'page' : undefined} className={`rounded-lg px-4 py-2.5 font-label-sm text-label-sm font-semibold ${section === 'products' ? 'bg-primary text-on-primary' : 'border border-outline-variant text-on-surface hover:bg-surface-container-low'}`}>Sản phẩm</Link>
+          <Link to={`${basePath}/categories`} aria-current={section === 'categories' ? 'page' : undefined} className={`rounded-lg px-4 py-2.5 font-sans text-label-sm font-semibold ${section === 'categories' ? 'bg-primary text-on-primary' : 'border border-outline-variant text-on-surface hover:bg-surface-container-low'}`}>Danh mục</Link>
+          <Link to={`${basePath}/products`} aria-current={section === 'products' ? 'page' : undefined} className={`rounded-lg px-4 py-2.5 font-sans text-label-sm font-semibold ${section === 'products' ? 'bg-primary text-on-primary' : 'border border-outline-variant text-on-surface hover:bg-surface-container-low'}`}>Sản phẩm</Link>
         </nav>
       </header>
 
-      {notice && <p role="status" className="rounded-lg border border-success/20 bg-success-soft px-4 py-3 font-body-sm text-body-sm text-on-surface">{notice}</p>}
-      {actionError && <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive-soft px-4 py-3 font-body-sm text-body-sm text-destructive">{actionError}</p>}
+      {notice && <p role="status" className="rounded-lg border border-success/20 bg-success-soft px-4 py-3 font-sans text-body-sm text-on-surface">{notice}</p>}
+      {actionError && <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive-soft px-4 py-3 font-sans text-body-sm text-destructive">{actionError}</p>}
 
       {section === 'categories' ? (
         <section className="space-y-4 rounded-2xl border border-outline-variant bg-surface p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Danh sách danh mục</h3>
-              <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Danh mục có sản phẩm đang hoạt động sẽ xuất hiện ở storefront.</p>
+              <h3 className="font-sans text-headline-sm font-bold text-on-surface">Danh sách danh mục</h3>
+              <p className="mt-1 font-sans text-body-xs text-on-surface-variant">Danh mục có sản phẩm đang hoạt động sẽ xuất hiện ở storefront.</p>
             </div>
             <button type="button" onClick={startCreateCategory} disabled={actionId !== null} className={primaryButtonClass}><span aria-hidden="true" className="material-symbols-outlined mr-1 text-lg">add</span>Thêm danh mục</button>
           </div>
@@ -379,8 +379,8 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
             <form onSubmit={(event) => void saveCategory(event)}>
               <fieldset disabled={actionId !== null} className="grid gap-4 rounded-xl border border-primary/20 bg-primary-container/20 p-4 sm:grid-cols-2">
               <div className="sm:col-span-2 flex items-center justify-between gap-3">
-                <h4 className="font-label-md text-label-md font-bold text-on-surface">{editingCategoryId === null ? 'Tạo danh mục' : `Sửa danh mục #${editingCategoryId}`}</h4>
-                <button type="button" onClick={() => setCategoryFormOpen(false)} className="rounded px-2 py-1 font-label-sm text-label-sm text-on-surface-variant hover:bg-surface">Đóng</button>
+                <h4 className="font-sans text-label-md font-bold text-on-surface">{editingCategoryId === null ? 'Tạo danh mục' : `Sửa danh mục #${editingCategoryId}`}</h4>
+                <button type="button" onClick={() => setCategoryFormOpen(false)} className="rounded px-2 py-1 font-sans text-label-sm text-on-surface-variant hover:bg-surface">Đóng</button>
               </div>
               <label className={labelClass}>Tên danh mục<input className={fieldClass} value={categoryDraft.name} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, name: event.target.value }))} maxLength={120} required /></label>
               <label className={labelClass}>Mô tả <span className="font-normal text-on-surface-variant">(tùy chọn)</span><input className={fieldClass} value={categoryDraft.description} onChange={(event) => setCategoryDraft((draft) => ({ ...draft, description: event.target.value }))} /></label>
@@ -392,19 +392,19 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
             </form>
           )}
 
-          {loading && <p role="status" className="rounded-xl bg-surface-container-low p-6 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải danh mục…</p>}
-          {!loading && loadError && <div className="rounded-xl bg-destructive-soft p-4"><p role="alert" className="font-body-sm text-body-sm text-destructive">{loadError}</p><button type="button" onClick={() => setRetry((value) => value + 1)} className={`${secondaryButtonClass} mt-3`}>Thử tải lại</button></div>}
-          {!loading && !loadError && categories.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chưa có danh mục. Tạo danh mục để bắt đầu thêm sản phẩm.</p>}
+          {loading && <p role="status" className="rounded-xl bg-surface-container-low p-6 text-center font-sans text-body-sm text-on-surface-variant">Đang tải danh mục…</p>}
+          {!loading && loadError && <div className="rounded-xl bg-destructive-soft p-4"><p role="alert" className="font-sans text-body-sm text-destructive">{loadError}</p><button type="button" onClick={() => setRetry((value) => value + 1)} className={`${secondaryButtonClass} mt-3`}>Thử tải lại</button></div>}
+          {!loading && !loadError && categories.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-8 text-center font-sans text-body-sm text-on-surface-variant">Chưa có danh mục. Tạo danh mục để bắt đầu thêm sản phẩm.</p>}
           {!loading && !loadError && categories.length > 0 && (
             <div className="overflow-x-auto rounded-xl border border-outline-variant">
               <table className="w-full min-w-[600px] text-left">
-                <thead className="bg-surface-container-low font-label-xs text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th className="px-4 py-3">Danh mục</th><th className="px-4 py-3">Mô tả</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
+                <thead className="bg-surface-container-low font-sans text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th className="px-4 py-3">Danh mục</th><th className="px-4 py-3">Mô tả</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
                 <tbody className="divide-y divide-outline-variant">
                   {categories.map((category) => (
                     <tr key={category.categoryId} className="hover:bg-surface-container-low/70">
-                      <td className="px-4 py-3.5"><span className="block font-label-sm text-label-sm font-semibold text-on-surface">{category.name}</span><span className="font-mono text-xs text-on-surface-variant">#{category.categoryId}</span></td>
-                      <td className="max-w-[360px] px-4 py-3.5 font-body-sm text-body-sm text-on-surface-variant">{category.description || '—'}</td>
-                      <td className="px-4 py-3.5"><div className="flex justify-end gap-2"><button type="button" onClick={() => startEditCategory(category)} disabled={actionId !== null} className={secondaryButtonClass}>Sửa</button><button type="button" onClick={() => void deleteCategory(category)} disabled={actionId !== null} className="rounded-lg border border-destructive/30 px-3 py-2 font-label-sm text-label-sm font-semibold text-destructive hover:bg-destructive-soft disabled:opacity-50">{actionId === `category-delete-${category.categoryId}` ? 'Đang xóa…' : 'Xóa'}</button></div></td>
+                      <td className="px-4 py-3.5"><span className="block font-sans text-label-sm font-semibold text-on-surface">{category.name}</span><span className="font-mono text-xs text-on-surface-variant">#{category.categoryId}</span></td>
+                      <td className="max-w-[360px] px-4 py-3.5 font-sans text-body-sm text-on-surface-variant">{category.description || '—'}</td>
+                      <td className="px-4 py-3.5"><div className="flex justify-end gap-2"><button type="button" onClick={() => startEditCategory(category)} disabled={actionId !== null} className={secondaryButtonClass}>Sửa</button><button type="button" onClick={() => void deleteCategory(category)} disabled={actionId !== null} className="rounded-lg border border-destructive/30 px-3 py-2 font-sans text-label-sm font-semibold text-destructive hover:bg-destructive-soft disabled:opacity-50">{actionId === `category-delete-${category.categoryId}` ? 'Đang xóa…' : 'Xóa'}</button></div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -417,8 +417,8 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
           <section className="space-y-4 rounded-2xl border border-outline-variant bg-surface p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Danh sách sản phẩm</h3>
-                <p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Không có theo dõi tồn kho trong MVP. Trạng thái hoạt động quyết định sản phẩm có hiện ở cửa hàng hay không.</p>
+                <h3 className="font-sans text-headline-sm font-bold text-on-surface">Danh sách sản phẩm</h3>
+                <p className="mt-1 font-sans text-body-xs text-on-surface-variant">Không có theo dõi tồn kho trong MVP. Trạng thái hoạt động quyết định sản phẩm có hiện ở cửa hàng hay không.</p>
               </div>
               <button type="button" onClick={startCreateProduct} disabled={categories.length === 0 || loading || actionId !== null} className={primaryButtonClass}><span aria-hidden="true" className="material-symbols-outlined mr-1 text-lg">add</span>Thêm sản phẩm</button>
             </div>
@@ -428,8 +428,8 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
               <form onSubmit={(event) => void saveProduct(event)}>
                 <fieldset disabled={actionId !== null} className="space-y-4 rounded-xl border border-primary/20 bg-primary-container/20 p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <div><h4 className="font-label-md text-label-md font-bold text-on-surface">{editingProductId === null ? 'Tạo sản phẩm' : `Sửa sản phẩm #${editingProductId}`}</h4><p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Ảnh dùng URL HTTPS; hệ thống không tải tệp lên.</p></div>
-                  <button type="button" onClick={() => setProductFormOpen(false)} className="rounded px-2 py-1 font-label-sm text-label-sm text-on-surface-variant hover:bg-surface">Đóng</button>
+                  <div><h4 className="font-sans text-label-md font-bold text-on-surface">{editingProductId === null ? 'Tạo sản phẩm' : `Sửa sản phẩm #${editingProductId}`}</h4><p className="mt-1 font-sans text-body-xs text-on-surface-variant">Ảnh dùng URL HTTPS; hệ thống không tải tệp lên.</p></div>
+                  <button type="button" onClick={() => setProductFormOpen(false)} className="rounded px-2 py-1 font-sans text-label-sm text-on-surface-variant hover:bg-surface">Đóng</button>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className={labelClass}>Tên sản phẩm<input className={fieldClass} value={productDraft.name} onChange={(event) => setProductDraft((draft) => ({ ...draft, name: event.target.value }))} maxLength={200} required /></label>
@@ -440,7 +440,7 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
                 </div>
 
                 <section className="space-y-3 rounded-xl border border-outline-variant bg-surface p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2"><div><h5 className="font-label-sm text-label-sm font-bold text-on-surface">Ảnh sản phẩm ({productDraft.images.length}/12)</h5><p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Nếu không chọn ảnh chính, máy chủ chọn ảnh có thứ tự hiển thị thấp nhất.</p></div><button type="button" disabled={productDraft.images.length >= 12} onClick={() => setProductDraft((draft) => ({ ...draft, images: [...draft.images, { imageUrl: '', altText: '', sortOrder: draft.images.length, isPrimary: draft.images.length === 0 }] }))} className={secondaryButtonClass}>Thêm URL ảnh</button></div>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><div><h5 className="font-sans text-label-sm font-bold text-on-surface">Ảnh sản phẩm ({productDraft.images.length}/12)</h5><p className="mt-1 font-sans text-body-xs text-on-surface-variant">Nếu không chọn ảnh chính, máy chủ chọn ảnh có thứ tự hiển thị thấp nhất.</p></div><button type="button" disabled={productDraft.images.length >= 12} onClick={() => setProductDraft((draft) => ({ ...draft, images: [...draft.images, { imageUrl: '', altText: '', sortOrder: draft.images.length, isPrimary: draft.images.length === 0 }] }))} className={secondaryButtonClass}>Thêm URL ảnh</button></div>
                   {productDraft.images.length === 0 && <p className="text-sm text-on-surface-variant">Chưa thêm ảnh.</p>}
                   {productDraft.images.map((image, index) => (
                     <div key={`image-${index}`} className="grid gap-3 rounded-lg bg-surface-container-low p-3 sm:grid-cols-12">
@@ -448,8 +448,8 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
                       <label className={`${labelClass} sm:col-span-3`}>Alt text<input className={fieldClass} value={image.altText ?? ''} maxLength={200} onChange={(event) => setProductDraft((draft) => ({ ...draft, images: draft.images.map((item, itemIndex) => itemIndex === index ? { ...item, altText: event.target.value } : item) }))} /></label>
                       <label className={`${labelClass} sm:col-span-2`}>Thứ tự<input className={fieldClass} type="number" min={0} step={1} value={image.sortOrder ?? index} onChange={(event) => setProductDraft((draft) => ({ ...draft, images: draft.images.map((item, itemIndex) => itemIndex === index ? { ...item, sortOrder: event.target.value === '' ? index : Number(event.target.value) } : item) }))} /></label>
                       <div className="flex items-end justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-center sm:justify-center">
-                        <label className="flex items-center gap-2 font-body-xs text-body-xs text-on-surface"><input type="radio" name="primary-product-image" checked={image.isPrimary === true} onChange={() => setProductDraft((draft) => ({ ...draft, images: draft.images.map((item, itemIndex) => ({ ...item, isPrimary: itemIndex === index })) }))} />Chính</label>
-                        <button type="button" aria-label={`Xóa ảnh thứ ${index + 1}`} onClick={() => setProductDraft((draft) => ({ ...draft, images: draft.images.filter((_item, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, sortOrder: item.sortOrder ?? itemIndex })) }))} className="rounded p-1 font-label-xs text-label-xs font-semibold text-destructive hover:bg-destructive-soft">Xóa</button>
+                        <label className="flex items-center gap-2 font-sans text-body-xs text-on-surface"><input type="radio" name="primary-product-image" checked={image.isPrimary === true} onChange={() => setProductDraft((draft) => ({ ...draft, images: draft.images.map((item, itemIndex) => ({ ...item, isPrimary: itemIndex === index })) }))} />Chính</label>
+                        <button type="button" aria-label={`Xóa ảnh thứ ${index + 1}`} onClick={() => setProductDraft((draft) => ({ ...draft, images: draft.images.filter((_item, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, sortOrder: item.sortOrder ?? itemIndex })) }))} className="rounded p-1 font-sans text-label-xs font-semibold text-destructive hover:bg-destructive-soft">Xóa</button>
                       </div>
                     </div>
                   ))}
@@ -459,14 +459,14 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
               </form>
             )}
 
-            {loading && <p role="status" className="rounded-xl bg-surface-container-low p-6 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải sản phẩm…</p>}
-            {!loading && loadError && <div className="rounded-xl bg-destructive-soft p-4"><p role="alert" className="font-body-sm text-body-sm text-destructive">{loadError}</p><button type="button" onClick={() => setRetry((value) => value + 1)} className={`${secondaryButtonClass} mt-3`}>Thử tải lại</button></div>}
-            {!loading && !loadError && products.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Chưa có sản phẩm. Tạo sản phẩm rồi thêm biến thể và giá bán.</p>}
-            {!loading && !loadError && products.length > 0 && visibleProducts.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-8 text-center font-body-sm text-body-sm text-on-surface-variant">Không tìm thấy sản phẩm phù hợp.</p>}
+            {loading && <p role="status" className="rounded-xl bg-surface-container-low p-6 text-center font-sans text-body-sm text-on-surface-variant">Đang tải sản phẩm…</p>}
+            {!loading && loadError && <div className="rounded-xl bg-destructive-soft p-4"><p role="alert" className="font-sans text-body-sm text-destructive">{loadError}</p><button type="button" onClick={() => setRetry((value) => value + 1)} className={`${secondaryButtonClass} mt-3`}>Thử tải lại</button></div>}
+            {!loading && !loadError && products.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-8 text-center font-sans text-body-sm text-on-surface-variant">Chưa có sản phẩm. Tạo sản phẩm rồi thêm biến thể và giá bán.</p>}
+            {!loading && !loadError && products.length > 0 && visibleProducts.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-8 text-center font-sans text-body-sm text-on-surface-variant">Không tìm thấy sản phẩm phù hợp.</p>}
             {!loading && !loadError && visibleProducts.length > 0 && (
               <div className="overflow-x-auto rounded-xl border border-outline-variant">
                 <table className="w-full min-w-[860px] text-left">
-                  <thead className="bg-surface-container-low font-label-xs text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th className="px-4 py-3">Sản phẩm</th><th className="px-4 py-3">Danh mục</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
+                  <thead className="bg-surface-container-low font-sans text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th className="px-4 py-3">Sản phẩm</th><th className="px-4 py-3">Danh mục</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead>
                   <tbody className="divide-y divide-outline-variant">
                     {visibleProducts.map((product) => {
                       const categoryName = product.category?.name ?? categories.find((category) => category.categoryId === product.categoryId)?.name ?? `Danh mục #${product.categoryId}`;
@@ -474,10 +474,10 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
                       const active = product.status === 'active';
                       return (
                         <tr key={product.productId} className={selectedProductId === product.productId ? 'bg-primary-container/20' : 'hover:bg-surface-container-low/70'}>
-                          <td className="px-4 py-3.5"><div className="flex items-center gap-3">{primaryImage ? <img src={primaryImage.imageUrl} alt={primaryImage.altText || product.name} className="h-14 w-12 rounded-lg border border-outline-variant object-cover" loading="lazy" /> : <div aria-hidden="true" className="flex h-14 w-12 items-center justify-center rounded-lg bg-surface-container-low text-on-surface-variant"><span className="material-symbols-outlined">image</span></div>}<div className="min-w-0"><span className="block max-w-[300px] truncate font-label-sm text-label-sm font-semibold text-on-surface">{product.name}</span><span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">#{product.productId}{product.brand ? ` · ${product.brand}` : ''}</span><span className="mt-1 block font-body-xs text-body-xs text-on-surface-variant">{product.images?.length ?? 0} ảnh</span></div></div></td>
-                          <td className="px-4 py-3.5 font-body-sm text-body-sm text-on-surface">{categoryName}</td>
+                          <td className="px-4 py-3.5"><div className="flex items-center gap-3">{primaryImage ? <img src={primaryImage.imageUrl} alt={primaryImage.altText || product.name} className="h-14 w-12 rounded-lg border border-outline-variant object-cover" loading="lazy" /> : <div aria-hidden="true" className="flex h-14 w-12 items-center justify-center rounded-lg bg-surface-container-low text-on-surface-variant"><span className="material-symbols-outlined">image</span></div>}<div className="min-w-0"><span className="block max-w-[300px] truncate font-sans text-label-sm font-semibold text-on-surface">{product.name}</span><span className="mt-1 block font-sans text-body-xs text-on-surface-variant">#{product.productId}{product.brand ? ` · ${product.brand}` : ''}</span><span className="mt-1 block font-sans text-body-xs text-on-surface-variant">{product.images?.length ?? 0} ảnh</span></div></div></td>
+                          <td className="px-4 py-3.5 font-sans text-body-sm text-on-surface">{categoryName}</td>
                           <td className="px-4 py-3.5"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${active ? 'bg-success-soft text-success' : 'bg-surface-container-high text-on-surface-variant'}`}>{active ? 'Đang hoạt động' : product.status === 'inactive' ? 'Đã ẩn' : `Trạng thái: ${product.status}`}</span></td>
-                          <td className="px-4 py-3.5"><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => { setSelectedProductId(product.productId); setVariantFormId(undefined); }} disabled={actionId !== null} className={secondaryButtonClass}>{selectedProductId === product.productId ? 'Đang mở biến thể' : 'Biến thể'}</button><button type="button" onClick={() => startEditProduct(product)} disabled={actionId !== null} className={secondaryButtonClass}>Sửa</button><button type="button" onClick={() => void changeProductStatus(product, active ? 'inactive' : 'active')} disabled={actionId !== null} className="rounded-lg border border-outline-variant px-3 py-2 font-label-sm text-label-sm font-semibold text-on-surface hover:bg-surface-container-low disabled:opacity-50">{active ? 'Ẩn' : 'Kích hoạt'}</button><button type="button" onClick={() => void deleteProduct(product)} disabled={actionId !== null} className="rounded-lg border border-destructive/30 px-3 py-2 font-label-sm text-label-sm font-semibold text-destructive hover:bg-destructive-soft disabled:opacity-50">Xóa</button></div></td>
+                          <td className="px-4 py-3.5"><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => { setSelectedProductId(product.productId); setVariantFormId(undefined); }} disabled={actionId !== null} className={secondaryButtonClass}>{selectedProductId === product.productId ? 'Đang mở biến thể' : 'Biến thể'}</button><button type="button" onClick={() => startEditProduct(product)} disabled={actionId !== null} className={secondaryButtonClass}>Sửa</button><button type="button" onClick={() => void changeProductStatus(product, active ? 'inactive' : 'active')} disabled={actionId !== null} className="rounded-lg border border-outline-variant px-3 py-2 font-sans text-label-sm font-semibold text-on-surface hover:bg-surface-container-low disabled:opacity-50">{active ? 'Ẩn' : 'Kích hoạt'}</button><button type="button" onClick={() => void deleteProduct(product)} disabled={actionId !== null} className="rounded-lg border border-destructive/30 px-3 py-2 font-sans text-label-sm font-semibold text-destructive hover:bg-destructive-soft disabled:opacity-50">Xóa</button></div></td>
                         </tr>
                       );
                     })}
@@ -487,12 +487,12 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
             )}
           </section>
 
-          {categories.length === 0 && !loading && !loadError && <p className="rounded-lg border border-warning/30 bg-warning-soft p-4 font-body-sm text-body-sm text-on-surface">Cần tạo danh mục trước khi thêm sản phẩm. <Link to={`${basePath}/categories`} className="font-semibold text-primary underline">Mở quản lý danh mục</Link>.</p>}
+          {categories.length === 0 && !loading && !loadError && <p className="rounded-lg border border-warning/30 bg-warning-soft p-4 font-sans text-body-sm text-on-surface">Cần tạo danh mục trước khi thêm sản phẩm. <Link to={`${basePath}/categories`} className="font-semibold text-primary underline">Mở quản lý danh mục</Link>.</p>}
 
           {selectedProduct && (
             <section className="space-y-4 rounded-2xl border border-outline-variant bg-surface p-5 shadow-sm sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div><p className="font-label-xs text-label-xs font-bold uppercase tracking-wide text-primary">Biến thể sản phẩm</p><h3 className="mt-1 font-headline-sm text-headline-sm font-bold text-on-surface">{selectedProduct.name}</h3><p className="mt-1 font-body-xs text-body-xs text-on-surface-variant">Quản lý size, màu sắc và giá; hệ thống không lưu số lượng tồn.</p></div>
+                <div><p className="font-sans text-label-xs font-bold uppercase tracking-wide text-primary">Biến thể sản phẩm</p><h3 className="mt-1 font-sans text-headline-sm font-bold text-on-surface">{selectedProduct.name}</h3><p className="mt-1 font-sans text-body-xs text-on-surface-variant">Quản lý size, màu sắc và giá; hệ thống không lưu số lượng tồn.</p></div>
                 <button type="button" onClick={startCreateVariant} disabled={actionId !== null} className={primaryButtonClass}><span aria-hidden="true" className="material-symbols-outlined mr-1 text-lg">add</span>Thêm biến thể</button>
               </div>
 
@@ -507,12 +507,12 @@ export const AdminCatalogPage: React.FC<{ section: CatalogSection; basePath: '/a
                 </form>
               )}
 
-              {variantsLoading && <p role="status" className="rounded-xl bg-surface-container-low p-5 text-center font-body-sm text-body-sm text-on-surface-variant">Đang tải biến thể…</p>}
-              {!variantsLoading && variantsError && <div className="rounded-xl bg-destructive-soft p-4"><p role="alert" className="font-body-sm text-body-sm text-destructive">{variantsError}</p><button type="button" onClick={() => void loadVariants(selectedProduct.productId)} className={`${secondaryButtonClass} mt-3`}>Thử tải lại</button></div>}
-              {!variantsLoading && !variantsError && variants.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-6 text-center font-body-sm text-body-sm text-on-surface-variant">Sản phẩm chưa có biến thể. Thêm ít nhất một biến thể để sản phẩm có giá hiển thị trên storefront.</p>}
+              {variantsLoading && <p role="status" className="rounded-xl bg-surface-container-low p-5 text-center font-sans text-body-sm text-on-surface-variant">Đang tải biến thể…</p>}
+              {!variantsLoading && variantsError && <div className="rounded-xl bg-destructive-soft p-4"><p role="alert" className="font-sans text-body-sm text-destructive">{variantsError}</p><button type="button" onClick={() => void loadVariants(selectedProduct.productId)} className={`${secondaryButtonClass} mt-3`}>Thử tải lại</button></div>}
+              {!variantsLoading && !variantsError && variants.length === 0 && <p className="rounded-xl border border-dashed border-outline-variant p-6 text-center font-sans text-body-sm text-on-surface-variant">Sản phẩm chưa có biến thể. Thêm ít nhất một biến thể để sản phẩm có giá hiển thị trên storefront.</p>}
               {!variantsLoading && !variantsError && variants.length > 0 && (
                 <div className="overflow-x-auto rounded-xl border border-outline-variant">
-                  <table className="w-full min-w-[540px] text-left"><thead className="bg-surface-container-low font-label-xs text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th className="px-4 py-3">Mã</th><th className="px-4 py-3">Size</th><th className="px-4 py-3">Màu</th><th className="px-4 py-3 text-right">Giá bán</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-outline-variant">{variants.map((variant) => <tr key={variant.variantId} className="hover:bg-surface-container-low/70"><td className="px-4 py-3 font-mono text-xs text-on-surface-variant">#{variant.variantId}</td><td className="px-4 py-3 font-body-sm text-body-sm text-on-surface">{variant.size || '—'}</td><td className="px-4 py-3 font-body-sm text-body-sm text-on-surface">{variant.color || '—'}</td><td className="px-4 py-3 text-right font-label-sm text-label-sm font-semibold text-on-surface">{formatPrice(variant.price)}</td><td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => startEditVariant(variant)} disabled={actionId !== null} className={secondaryButtonClass}>Sửa</button><button type="button" onClick={() => void deleteVariant(variant)} disabled={actionId !== null} className="rounded-lg border border-destructive/30 px-3 py-2 font-label-sm text-label-sm font-semibold text-destructive hover:bg-destructive-soft disabled:opacity-50">Xóa</button></div></td></tr>)}</tbody></table>
+                  <table className="w-full min-w-[540px] text-left"><thead className="bg-surface-container-low font-sans text-label-xs uppercase tracking-wide text-on-surface-variant"><tr><th className="px-4 py-3">Mã</th><th className="px-4 py-3">Size</th><th className="px-4 py-3">Màu</th><th className="px-4 py-3 text-right">Giá bán</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-outline-variant">{variants.map((variant) => <tr key={variant.variantId} className="hover:bg-surface-container-low/70"><td className="px-4 py-3 font-mono text-xs text-on-surface-variant">#{variant.variantId}</td><td className="px-4 py-3 font-sans text-body-sm text-on-surface">{variant.size || '—'}</td><td className="px-4 py-3 font-sans text-body-sm text-on-surface">{variant.color || '—'}</td><td className="px-4 py-3 text-right font-sans text-label-sm font-semibold text-on-surface">{formatPrice(variant.price)}</td><td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => startEditVariant(variant)} disabled={actionId !== null} className={secondaryButtonClass}>Sửa</button><button type="button" onClick={() => void deleteVariant(variant)} disabled={actionId !== null} className="rounded-lg border border-destructive/30 px-3 py-2 font-sans text-label-sm font-semibold text-destructive hover:bg-destructive-soft disabled:opacity-50">Xóa</button></div></td></tr>)}</tbody></table>
                 </div>
               )}
             </section>

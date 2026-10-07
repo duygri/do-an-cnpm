@@ -90,18 +90,18 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
           <div className="pointer-events-none absolute -bottom-24 left-1/3 h-72 w-72 rounded-full bg-secondary/10 blur-3xl" />
           <div className="relative grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
             <div className="flex flex-col items-start gap-5 lg:col-span-8">
-              <span className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3.5 py-1.5 font-label-md text-label-md text-primary">
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3.5 py-1.5 font-sans text-label-md text-primary">
                 <span className="material-symbols-outlined text-base">checkroom</span>
                 Thời trang và phong cách của bạn
               </span>
-              <h1 className="font-headline-xl text-headline-xl leading-tight tracking-tight text-on-surface">
+              <h1 className="font-sans text-headline-xl leading-tight tracking-tight text-on-surface">
                 Khám phá những thiết kế phù hợp với bạn
               </h1>
-              <p className="max-w-2xl font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
+              <p className="max-w-2xl font-sans text-body-lg leading-relaxed text-on-surface-variant">
                 Xem danh mục và sản phẩm đang được cửa hàng giới thiệu.
               </p>
               <a
-                className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-label-lg text-label-lg text-on-primary shadow-md transition-colors hover:bg-primary-hover"
+                className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 font-sans text-label-lg text-on-primary shadow-md transition-colors hover:bg-primary-hover"
                 href="#catalog-grid"
               >
                 Khám phá sản phẩm
@@ -121,16 +121,16 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
             <div>
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-outline">
+                <span className="font-sans text-label-sm uppercase tracking-wider text-outline">
                   Danh mục cửa hàng
                 </span>
               </div>
-              <h2 className="font-headline-lg text-headline-lg font-bold tracking-tight text-on-surface">
+              <h2 className="font-sans text-headline-lg font-bold tracking-tight text-on-surface">
                 Sản phẩm
               </h2>
             </div>
             {!productsLoading && !productsError && (
-              <span className="font-body-sm text-body-sm text-on-surface-variant">
+              <span className="font-sans text-body-sm text-on-surface-variant">
                 {pagination.total} sản phẩm
               </span>
             )}
@@ -142,7 +142,7 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
               <button
                 type="button"
                 onClick={() => setCategoriesRetry((value) => value + 1)}
-                className="rounded-lg bg-surface px-4 py-2 font-label-md text-label-md text-on-surface"
+                className="rounded-lg bg-surface px-4 py-2 font-sans text-label-md text-on-surface"
               >
                 Thử lại
               </button>
@@ -155,7 +155,7 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
                 type="button"
                 onClick={() => selectCategory(undefined)}
                 aria-pressed={filters.categoryId === undefined}
-                className={`shrink-0 rounded-full px-4 py-2 font-label-md text-label-md shadow-sm transition-colors ${filters.categoryId === undefined ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'}`}
+                className={`shrink-0 rounded-full px-4 py-2 font-sans text-label-md shadow-sm transition-colors ${filters.categoryId === undefined ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'}`}
               >
                 Tất cả
               </button>
@@ -165,30 +165,30 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
                   type="button"
                   onClick={() => selectCategory(category.categoryId)}
                   aria-pressed={filters.categoryId === category.categoryId}
-                  className={`shrink-0 rounded-full px-4 py-2 font-label-md text-label-md shadow-sm transition-colors ${filters.categoryId === category.categoryId ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'}`}
+                  className={`shrink-0 rounded-full px-4 py-2 font-sans text-label-md shadow-sm transition-colors ${filters.categoryId === category.categoryId ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'}`}
                 >
                   {category.name}
                 </button>
               ))}
-              {categoriesLoading && <span className="font-body-sm text-body-sm text-outline">Đang tải danh mục…</span>}
+              {categoriesLoading && <span className="font-sans text-body-sm text-outline">Đang tải danh mục…</span>}
             </div>
           )}
 
           {productsLoading ? (
-            <div role="status" className="rounded-2xl bg-surface p-12 text-center font-body-md text-body-md text-on-surface-variant">
+            <div role="status" className="rounded-2xl bg-surface p-12 text-center font-sans text-body-md text-on-surface-variant">
               Đang tải sản phẩm…
             </div>
           ) : productsError ? (
             <div role="alert" className="flex flex-col items-center gap-4 rounded-2xl bg-surface p-10 text-center shadow-sm">
               <span className="material-symbols-outlined text-4xl text-destructive">cloud_off</span>
               <div>
-                <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">Chưa tải được sản phẩm</h3>
-                <p className="mt-1 max-w-xl font-body-sm text-body-sm text-on-surface-variant">{productsError}</p>
+                <h3 className="font-sans text-headline-sm font-semibold text-on-surface">Chưa tải được sản phẩm</h3>
+                <p className="mt-1 max-w-xl font-sans text-body-sm text-on-surface-variant">{productsError}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setProductsRetry((value) => value + 1)}
-                className="rounded-lg bg-primary px-5 py-2.5 font-label-md text-label-md text-on-primary hover:bg-primary-hover"
+                className="rounded-lg bg-primary px-5 py-2.5 font-sans text-label-md text-on-primary hover:bg-primary-hover"
               >
                 Thử tải lại
               </button>
@@ -196,8 +196,8 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
           ) : products.length === 0 ? (
             <div className="rounded-2xl bg-surface p-12 text-center shadow-sm">
               <span className="material-symbols-outlined text-4xl text-outline">search_off</span>
-              <h3 className="mt-3 font-headline-sm text-headline-sm font-semibold text-on-surface">Không tìm thấy sản phẩm</h3>
-              <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+              <h3 className="mt-3 font-sans text-headline-sm font-semibold text-on-surface">Không tìm thấy sản phẩm</h3>
+              <p className="mt-1 font-sans text-body-sm text-on-surface-variant">
                 Thử đổi từ khóa tìm kiếm hoặc chọn danh mục khác.
               </p>
             </div>
@@ -208,7 +208,7 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
               </section>
 
               <div className="flex flex-col items-center justify-between gap-4 pt-2 sm:flex-row">
-                <span className="font-body-sm text-body-sm text-on-surface-variant">
+                <span className="font-sans text-body-sm text-on-surface-variant">
                   Trang {pagination.page} / {pageCount} · {pagination.total} sản phẩm
                 </span>
                 <div className="flex items-center gap-2">
@@ -216,7 +216,7 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
                     type="button"
                     disabled={pagination.page <= 1 || productsLoading}
                     onClick={() => setFilters((current) => ({ ...current, page: Math.max(1, pagination.page - 1), query: normalizedQuery }))}
-                    className="inline-flex items-center gap-1 rounded-lg bg-surface px-4 py-2.5 font-label-md text-label-md text-on-surface shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex items-center gap-1 rounded-lg bg-surface px-4 py-2.5 font-sans text-label-md text-on-surface shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <span className="material-symbols-outlined text-lg">chevron_left</span>
                     Trước
@@ -225,7 +225,7 @@ export const HomePage: React.FC<{ searchQuery?: string }> = ({ searchQuery }) =>
                     type="button"
                     disabled={pagination.page >= pageCount || productsLoading}
                     onClick={() => setFilters((current) => ({ ...current, page: Math.min(pageCount, pagination.page + 1), query: normalizedQuery }))}
-                    className="inline-flex items-center gap-1 rounded-lg bg-surface px-4 py-2.5 font-label-md text-label-md text-on-surface shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex items-center gap-1 rounded-lg bg-surface px-4 py-2.5 font-sans text-label-md text-on-surface shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Sau
                     <span className="material-symbols-outlined text-lg">chevron_right</span>

@@ -92,7 +92,7 @@ export const ProductDetailPage: React.FC = () => {
   if (loadState === 'loading') {
     return (
       <div className="mx-auto w-full max-w-7xl px-gutter py-16">
-        <div role="status" className="rounded-2xl bg-surface p-12 text-center font-body-md text-body-md text-on-surface-variant shadow-sm">
+        <div role="status" className="rounded-2xl bg-surface p-12 text-center font-sans text-body-md text-on-surface-variant shadow-sm">
           Đang tải thông tin sản phẩm…
         </div>
       </div>
@@ -103,9 +103,9 @@ export const ProductDetailPage: React.FC = () => {
     return (
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center px-gutter py-20 text-center">
         <span className="material-symbols-outlined text-5xl text-outline">inventory_2</span>
-        <h1 className="mt-4 font-headline-lg text-headline-lg font-bold text-on-surface">Không tìm thấy sản phẩm</h1>
-        <p className="mt-2 font-body-md text-body-md text-on-surface-variant">Sản phẩm có thể không còn được hiển thị.</p>
-        <Link to="/#catalog-grid" className="mt-6 rounded-lg bg-primary px-5 py-3 font-label-md text-label-md text-on-primary hover:bg-primary-hover">
+        <h1 className="mt-4 font-sans text-headline-lg font-bold text-on-surface">Không tìm thấy sản phẩm</h1>
+        <p className="mt-2 font-sans text-body-md text-on-surface-variant">Sản phẩm có thể không còn được hiển thị.</p>
+        <Link to="/#catalog-grid" className="mt-6 rounded-lg bg-primary px-5 py-3 font-sans text-label-md text-on-primary hover:bg-primary-hover">
           Quay lại danh sách sản phẩm
         </Link>
       </div>
@@ -116,15 +116,15 @@ export const ProductDetailPage: React.FC = () => {
     return (
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center px-gutter py-20 text-center">
         <span className="material-symbols-outlined text-5xl text-destructive">cloud_off</span>
-        <h1 className="mt-4 font-headline-lg text-headline-lg font-bold text-on-surface">Chưa tải được sản phẩm</h1>
-        <p role="alert" className="mt-2 max-w-2xl font-body-md text-body-md text-on-surface-variant">
+        <h1 className="mt-4 font-sans text-headline-lg font-bold text-on-surface">Chưa tải được sản phẩm</h1>
+        <p role="alert" className="mt-2 max-w-2xl font-sans text-body-md text-on-surface-variant">
           {error ?? 'Đã xảy ra lỗi khi tải thông tin sản phẩm.'}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <button type="button" onClick={() => setRetry((value) => value + 1)} className="rounded-lg bg-primary px-5 py-3 font-label-md text-label-md text-on-primary hover:bg-primary-hover">
+          <button type="button" onClick={() => setRetry((value) => value + 1)} className="rounded-lg bg-primary px-5 py-3 font-sans text-label-md text-on-primary hover:bg-primary-hover">
             Thử tải lại
           </button>
-          <Link to="/#catalog-grid" className="rounded-lg bg-surface px-5 py-3 font-label-md text-label-md text-on-surface shadow-sm">
+          <Link to="/#catalog-grid" className="rounded-lg bg-surface px-5 py-3 font-sans text-label-md text-on-surface shadow-sm">
             Về danh sách
           </Link>
         </div>
@@ -135,7 +135,7 @@ export const ProductDetailPage: React.FC = () => {
   return (
     <div className="w-full pb-space-xl">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-7 px-gutter">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 pt-5 font-label-md text-label-md text-on-surface-variant">
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 pt-5 font-sans text-label-md text-on-surface-variant">
           <Link to="/" className="inline-flex items-center gap-1 hover:text-primary">
             <span className="material-symbols-outlined text-base">home</span>
             Trang chủ
@@ -158,7 +158,7 @@ export const ProductDetailPage: React.FC = () => {
               ) : (
                 <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-on-surface-variant">
                   <span className="material-symbols-outlined text-6xl">image</span>
-                  <span className="font-body-md text-body-md">Sản phẩm chưa có ảnh</span>
+                  <span className="font-sans text-body-md">Sản phẩm chưa có ảnh</span>
                 </div>
               )}
             </div>
@@ -182,29 +182,29 @@ export const ProductDetailPage: React.FC = () => {
 
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <span className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-outline">
+              <span className="font-sans text-label-sm font-semibold uppercase tracking-wider text-outline">
                 {product.category.name}
               </span>
-              {product.brand && <span className="font-label-md text-label-md text-on-surface-variant">{product.brand}</span>}
-              <h1 className="font-headline-xl text-headline-xl font-bold leading-tight tracking-tight text-on-surface">{product.name}</h1>
+              {product.brand && <span className="font-sans text-label-md text-on-surface-variant">{product.brand}</span>}
+              <h1 className="font-sans text-headline-xl font-bold leading-tight tracking-tight text-on-surface">{product.name}</h1>
             </div>
 
             <div className="rounded-xl bg-surface p-space-md shadow-sm">
-              <span className="font-body-sm text-body-sm text-on-surface-variant">
+              <span className="font-sans text-body-sm text-on-surface-variant">
                 {selectedVariant ? 'Giá của biến thể đã chọn' : 'Giá'}
               </span>
-              <p className="mt-1 font-headline-xl text-headline-xl font-bold tracking-tight text-primary">
+              <p className="mt-1 font-sans text-headline-xl font-bold tracking-tight text-primary">
                 {formatPrice(selectedVariant?.price)}
               </p>
             </div>
 
             <div className="space-y-3 rounded-xl bg-surface p-space-md shadow-sm">
               <div>
-                <h2 className="font-label-lg text-label-lg font-semibold text-on-surface">Biến thể</h2>
-                <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">Chọn đúng size và màu trước khi thêm sản phẩm vào giỏ.</p>
+                <h2 className="font-sans text-label-lg font-semibold text-on-surface">Biến thể</h2>
+                <p className="mt-1 font-sans text-body-sm text-on-surface-variant">Chọn đúng size và màu trước khi thêm sản phẩm vào giỏ.</p>
               </div>
               {product.variants.length === 0 ? (
-                <p className="rounded-lg bg-surface-container-low p-4 font-body-sm text-body-sm text-on-surface-variant">
+                <p className="rounded-lg bg-surface-container-low p-4 font-sans text-body-sm text-on-surface-variant">
                   Sản phẩm hiện chưa có biến thể để đặt hàng.
                 </p>
               ) : (
@@ -221,8 +221,8 @@ export const ProductDetailPage: React.FC = () => {
                         aria-pressed={isSelected}
                         className={`flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors ${isSelected ? 'border-primary bg-primary-soft' : 'border-outline-variant bg-surface hover:bg-surface-container-low'}`}
                       >
-                        <span className="font-label-md text-label-md font-semibold text-on-surface">{label}</span>
-                        <span className="shrink-0 font-label-sm text-label-sm font-semibold text-primary">{formatPrice(variant.price)}</span>
+                        <span className="font-sans text-label-md font-semibold text-on-surface">{label}</span>
+                        <span className="shrink-0 font-sans text-label-sm font-semibold text-primary">{formatPrice(variant.price)}</span>
                       </button>
                     );
                   })}
@@ -231,7 +231,7 @@ export const ProductDetailPage: React.FC = () => {
 
               {selectedVariant && (
                 <div className="flex items-center justify-between border-t border-outline-variant pt-4">
-                  <span className="font-label-md text-label-md font-semibold text-on-surface">Số lượng</span>
+                  <span className="font-sans text-label-md font-semibold text-on-surface">Số lượng</span>
                   <div className="flex items-center gap-1 rounded-lg bg-surface-container-low p-1">
                     <button
                       type="button"
@@ -242,7 +242,7 @@ export const ProductDetailPage: React.FC = () => {
                     >
                       <span className="material-symbols-outlined text-lg">remove</span>
                     </button>
-                    <span aria-live="polite" className="w-10 text-center font-label-lg text-label-lg font-bold text-on-surface">{quantity}</span>
+                    <span aria-live="polite" className="w-10 text-center font-sans text-label-lg font-bold text-on-surface">{quantity}</span>
                     <button
                       type="button"
                       onClick={() => setQuantity((value) => value + 1)}
@@ -261,7 +261,7 @@ export const ProductDetailPage: React.FC = () => {
                 type="button"
                 onClick={addSelectedVariant}
                 disabled={!selectedVariant}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3.5 font-label-lg text-label-lg font-semibold text-on-primary shadow-md transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3.5 font-sans text-label-lg font-semibold text-on-primary shadow-md transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span className="material-symbols-outlined">shopping_bag</span>
                 Thêm vào giỏ
@@ -273,7 +273,7 @@ export const ProductDetailPage: React.FC = () => {
                   if (selectedVariant) navigate('/cart');
                 }}
                 disabled={!selectedVariant}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-on-surface px-5 py-3.5 font-label-lg text-label-lg font-semibold text-surface transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-on-surface px-5 py-3.5 font-sans text-label-lg font-semibold text-surface transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Mua ngay
                 <span className="material-symbols-outlined">arrow_forward</span>
@@ -281,7 +281,7 @@ export const ProductDetailPage: React.FC = () => {
             </div>
 
             {addedToCart && (
-              <div role="status" className="flex items-center justify-between gap-3 rounded-lg bg-success p-3 font-body-sm text-body-sm text-on-primary">
+              <div role="status" className="flex items-center justify-between gap-3 rounded-lg bg-success p-3 font-sans text-body-sm text-on-primary">
                 <span className="inline-flex items-center gap-2">
                   <span className="material-symbols-outlined text-lg">check_circle</span>
                   Đã thêm {product.name} vào giỏ hàng.
@@ -291,8 +291,8 @@ export const ProductDetailPage: React.FC = () => {
             )}
 
             <section className="rounded-xl bg-surface p-space-md shadow-sm">
-              <h2 className="font-label-lg text-label-lg font-semibold text-on-surface">Mô tả sản phẩm</h2>
-              <p className="mt-2 whitespace-pre-line font-body-md text-body-md leading-relaxed text-on-surface-variant">
+              <h2 className="font-sans text-label-lg font-semibold text-on-surface">Mô tả sản phẩm</h2>
+              <p className="mt-2 whitespace-pre-line font-sans text-body-md leading-relaxed text-on-surface-variant">
                 {product.description || 'Chưa có mô tả cho sản phẩm này.'}
               </p>
             </section>

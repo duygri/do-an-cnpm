@@ -42,53 +42,53 @@ export const CustomerLoginPage: React.FC = () => {
   return (
     <section className="max-w-7xl mx-auto px-gutter py-12 sm:py-16">
       <div className="max-w-md mx-auto rounded-2xl border border-border-neutral bg-surface p-6 shadow-sm sm:p-8">
-        <p className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-primary">Tài khoản INDIGO</p>
-        <h1 className="mt-2 font-headline-md text-headline-md font-bold text-on-surface">Đăng nhập</h1>
-        <p className="mt-2 font-body-md text-body-md text-on-surface-variant">Đăng nhập để xem đơn hàng và tiếp tục mua sắm.</p>
+        <p className="font-sans text-label-sm font-semibold uppercase tracking-wider text-primary">Tài khoản INDIGO</p>
+        <h1 className="mt-2 font-sans text-headline-md font-bold text-on-surface">Đăng nhập</h1>
+        <p className="mt-2 font-sans text-body-md text-on-surface-variant">Đăng nhập để xem đơn hàng và tiếp tục mua sắm.</p>
 
         {error && (
-          <p role="alert" className="mt-5 rounded-lg bg-error-container px-4 py-3 font-body-sm text-body-sm text-on-error-container">
+          <p role="alert" className="mt-5 rounded-lg bg-error-container px-4 py-3 font-sans text-body-sm text-on-error-container">
             {error}
           </p>
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <label className="block">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Email</span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Email</span>
             <input
               type="email"
               autoComplete="email"
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </label>
           <label className="block">
-            <span className="font-label-md text-label-md font-medium text-on-surface">Mật khẩu</span>
+            <span className="font-sans text-label-md font-medium text-on-surface">Mật khẩu</span>
             <input
               type="password"
               autoComplete="current-password"
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="mt-1.5 w-full rounded-lg border border-border-neutral bg-surface px-3.5 py-3 font-sans text-body-md text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </label>
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-lg bg-primary px-5 py-3 font-label-md text-label-md font-semibold text-on-primary transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+            className="w-full rounded-lg bg-primary px-5 py-3 font-sans text-label-md font-semibold text-on-primary transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             {submitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
 
-        <p className="mt-6 text-center font-body-sm text-body-sm text-on-surface-variant">
+        <p className="mt-6 text-center font-sans text-body-sm text-on-surface-variant">
           Chưa có tài khoản?{' '}
           <Link to="/register" className="font-semibold text-primary hover:underline">Đăng ký</Link>
         </p>
-        <p className="mt-3 text-center font-body-sm text-body-sm text-on-surface-variant">
+        <p className="mt-3 text-center font-sans text-body-sm text-on-surface-variant">
           Là nhân viên?{' '}
           <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="font-semibold text-primary hover:underline">Đăng nhập nhân viên</a>
         </p>

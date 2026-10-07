@@ -1,6 +1,10 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
 import { CartItem } from '../types';
 import { useAuth } from './AuthContext';
+import { OwnedCart } from './cart/cart-types';
+import { useCartPersistence } from './cart/useCartPersistence';
+import { useGuestHandoff } from './cart/useGuestHandoff';
+import { useCartSync } from './cart/useCartSync';
 
 interface CartContextType {
   items: CartItem[];
@@ -14,266 +18,20 @@ interface CartContextType {
   totalCount: number;
 }
 
-interface OwnedCart {
-  owner: string;
-  items: CartItem[];
-}
-
-interface StoredCart {
-  items: CartItem[];
-  guestHandoff?: { guestSnapshot: string | null };
-}
-
-interface GuestHandoff {
-  owner: string;
-  persisted: boolean;
-  guestSnapshot: string | null;
-}
-
-const CART_STORAGE_PREFIX = 'indigo_cart_v2';
 const CartContext = createContext<CartContextType | undefined>(undefined);
-
-function cartStorageKey(owner: string): string {
-  return `${CART_STORAGE_PREFIX}:${owner}`;
-}
-
-function isCartItem(value: unknown): value is CartItem {
-  if (typeof value !== 'object' || value === null) return false;
-  const item = value as Partial<CartItem>;
-  return Number.isSafeInteger(item.productId) && Number(item.productId) > 0
-    && Number.isSafeInteger(item.variantId) && Number(item.variantId) > 0
-    && typeof item.name === 'string'
-    && (typeof item.size === 'string' || item.size === null)
-    && (typeof item.color === 'string' || item.color === null)
-    && typeof item.price === 'string' && /^\d+(?:\.\d{1,2})?$/.test(item.price)
-    && Number.isSafeInteger(item.quantity) && Number(item.quantity) > 0
-    && (item.imageUrl === undefined || typeof item.imageUrl === 'string');
-}
-
-function parseStoredCart(saved: string): StoredCart | null {
-  const parsed: unknown = JSON.parse(saved);
-  if (Array.isArray(parsed)) return { items: parsed.filter(isCartItem) };
-  if (typeof parsed !== 'object' || parsed === null) return null;
-  const record = parsed as Partial<StoredCart>;
-  if (!Array.isArray(record.items)) return null;
-  return {
-    items: record.items.filter(isCartItem),
-    ...(typeof record.guestHandoff?.guestSnapshot === 'string' || record.guestHandoff?.guestSnapshot === null
-      ? { guestHandoff: { guestSnapshot: record.guestHandoff.guestSnapshot } }
-      : {}),
-  };
-}
-
-function readPersistedGuestHandoff(): GuestHandoff | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key?.startsWith(`${CART_STORAGE_PREFIX}:customer-`)) continue;
-      const saved = window.localStorage.getItem(key);
-      if (!saved) continue;
-      let record: StoredCart | null;
-      try { record = parseStoredCart(saved); } catch { continue; }
-      if (record?.guestHandoff) {
-        return { owner: key.slice(CART_STORAGE_PREFIX.length + 1), persisted: true, ...record.guestHandoff };
-      }
-    }
-  } catch {
-    // Storage can be temporarily unavailable; in-memory handoffs still retry.
-  }
-  return null;
-}
-
-function readCart(owner: string): CartItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const saved = window.localStorage.getItem(cartStorageKey(owner));
-    if (!saved) return [];
-    return parseStoredCart(saved)?.items ?? [];
-  } catch {
-    return [];
-  }
-}
-
-function mergeGuestCartIntoCustomer(customerOwner: string, guestItems: CartItem[]): CartItem[] {
-  const customerItems = readCart(customerOwner);
-  if (guestItems.length === 0) return customerItems;
-
-  const merged = [...customerItems];
-  for (const guestItem of guestItems) {
-    const existingIndex = merged.findIndex((item) => item.variantId === guestItem.variantId);
-    if (existingIndex === -1) {
-      merged.push(guestItem);
-    } else {
-      merged[existingIndex] = {
-        ...merged[existingIndex],
-        quantity: merged[existingIndex].quantity + guestItem.quantity,
-      };
-    }
-  }
-
-  return merged;
-}
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { customer } = useAuth();
   const owner = customer ? `customer-${customer.customerId}` : 'guest';
-  const guestHandoffRef = useRef<GuestHandoff | null>(null);
-  const lastPersistedGuestSnapshotRef = useRef<string | null>(null);
-  const lastVisibleGuestBaselineRef = useRef<CartItem[]>([]);
-  const refreshPersistedGuestSnapshot = () => {
-    try {
-      lastPersistedGuestSnapshotRef.current = window.localStorage.getItem(cartStorageKey('guest'));
-    } catch {
-      // Retain the exact last readable/successfully written snapshot during outages.
-    }
-    return lastPersistedGuestSnapshotRef.current;
-  };
-  const readOwnerCart = (cartOwner: string) => {
-    guestHandoffRef.current ??= readPersistedGuestHandoff();
-    if (cartOwner === 'guest') refreshPersistedGuestSnapshot();
-    if (cartOwner === 'guest' && guestHandoffRef.current?.persisted) {
-      try {
-        const guest = window.localStorage.getItem(cartStorageKey('guest'));
-        if (guest === null || guest === guestHandoffRef.current.guestSnapshot) {
-          lastVisibleGuestBaselineRef.current = [];
-          return [];
-        }
-      } catch {
-        lastVisibleGuestBaselineRef.current = [];
-        return [];
-      }
-    }
-    const storedItems = readCart(cartOwner);
-    if (cartOwner === 'guest') lastVisibleGuestBaselineRef.current = storedItems;
-    return storedItems;
-  };
+  const persistence = useCartPersistence();
+  const handoff = useGuestHandoff(persistence);
+  const { handoffRef, readOwnerCart, reconcileGuestItems, persistCart } = handoff;
   const [cart, setCart] = useState<OwnedCart>(() => ({ owner, items: readOwnerCart(owner) }));
   const cartRef = useRef(cart);
   cartRef.current = cart;
-  const reconcileGuestItems = (currentItems: CartItem[]) => {
-    // Rebase local unsaved quantity changes on the latest storage contents.
-    // A receipt from another tab consumes the persisted baseline, not local additions.
-    const previousBaseline = lastVisibleGuestBaselineRef.current;
-    guestHandoffRef.current ??= readPersistedGuestHandoff();
-    const latestSnapshot = refreshPersistedGuestSnapshot();
-    let latestBaseline: CartItem[] = [];
-    try {
-      latestBaseline = latestSnapshot ? parseStoredCart(latestSnapshot)?.items ?? [] : [];
-    } catch {
-      // Invalid persisted carts are treated as empty, matching ordinary cart reads.
-    }
-    if (guestHandoffRef.current?.persisted
-      && latestSnapshot === guestHandoffRef.current.guestSnapshot) latestBaseline = [];
-
-    const localDeltas = new Map<number, number>();
-    for (const item of currentItems) localDeltas.set(item.variantId, item.quantity);
-    for (const item of previousBaseline) {
-      localDeltas.set(item.variantId, (localDeltas.get(item.variantId) ?? 0) - item.quantity);
-    }
-    const rebased = latestBaseline.map((item) => ({
-      ...item,
-      quantity: item.quantity + (localDeltas.get(item.variantId) ?? 0),
-    }));
-    for (const item of currentItems) {
-      if (!latestBaseline.some((stored) => stored.variantId === item.variantId)) {
-        rebased.push({ ...item, quantity: localDeltas.get(item.variantId) ?? 0 });
-      }
-    }
-    lastVisibleGuestBaselineRef.current = latestBaseline;
-    return rebased.filter((item) => item.quantity > 0);
-  };
-  const consumePersistedGuest = () => {
-    const handoff = guestHandoffRef.current;
-    if (!handoff?.persisted) return true;
-    try {
-      const guestKey = cartStorageKey('guest');
-      const guest = window.localStorage.getItem(guestKey);
-      if (guest !== null && guest === handoff.guestSnapshot) {
-        window.localStorage.removeItem(guestKey);
-        if (window.localStorage.getItem(guestKey) !== null) return false;
-        lastPersistedGuestSnapshotRef.current = null;
-        lastVisibleGuestBaselineRef.current = [];
-      }
-      // Keep the durable receipt until the stale guest snapshot is consumed.
-      // A different snapshot belongs to a later guest cart and must be preserved.
-      const customerKey = cartStorageKey(handoff.owner);
-      const saved = window.localStorage.getItem(customerKey);
-      const record = saved ? parseStoredCart(saved) : null;
-      if (record?.guestHandoff?.guestSnapshot === handoff.guestSnapshot) {
-        const serialized = JSON.stringify(record.items);
-        window.localStorage.setItem(customerKey, serialized);
-        if (window.localStorage.getItem(customerKey) !== serialized) return false;
-      }
-      guestHandoffRef.current = null;
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  const persistCart = (ownedCart: OwnedCart) => {
-    // A saved handoff must be consumed before this tab writes a new guest cart.
-    if (ownedCart.owner === 'guest' && !consumePersistedGuest()) return false;
-    try {
-      const handoff = guestHandoffRef.current?.owner === ownedCart.owner ? guestHandoffRef.current : null;
-      // Items and the handoff receipt share one atomic localStorage write.
-      const serialized = JSON.stringify(handoff
-        ? { items: ownedCart.items, guestHandoff: { guestSnapshot: handoff.guestSnapshot } }
-        : ownedCart.items);
-      const key = cartStorageKey(ownedCart.owner);
-      window.localStorage.setItem(key, serialized);
-      if (ownedCart.owner === 'guest') {
-        lastPersistedGuestSnapshotRef.current = serialized;
-        lastVisibleGuestBaselineRef.current = ownedCart.items;
-      }
-      if (window.localStorage.getItem(key) !== serialized) return false;
-      if (guestHandoffRef.current?.owner === ownedCart.owner) {
-        guestHandoffRef.current.persisted = true;
-        consumePersistedGuest();
-      }
-      return true;
-    } catch {
-      // Keep the handoff pending along with the usable in-memory cart.
-      return false;
-    }
-  };
   const items = cart.owner === owner ? cart.items : readOwnerCart(owner);
 
-  useEffect(() => {
-    if (cart.owner !== owner) {
-      const previous = cartRef.current;
-      if (guestHandoffRef.current?.owner === previous.owner) persistCart(previous);
-      const isGuestLogin = previous.owner === 'guest' && owner.startsWith('customer-');
-      const guestItems = isGuestLogin ? reconcileGuestItems(previous.items) : [];
-      const items = isGuestLogin
-        ? mergeGuestCartIntoCustomer(owner, guestItems)
-        : readOwnerCart(owner);
-      if (isGuestLogin && guestItems.length > 0) {
-        guestHandoffRef.current = { owner, persisted: false, guestSnapshot: refreshPersistedGuestSnapshot() };
-      }
-      const next = { owner, items };
-      persistCart(next);
-      cartRef.current = next;
-      setCart(next);
-      return;
-    }
-    persistCart(cart);
-  }, [cart, owner]);
-
-  useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== null && event.key !== cartStorageKey(owner)) return;
-      if (guestHandoffRef.current?.owner === owner && !guestHandoffRef.current.persisted
-        && !persistCart(cartRef.current)) return;
-      const refreshed = { owner, items: owner === 'guest' && cartRef.current.owner === owner
-        ? reconcileGuestItems(cartRef.current.items)
-        : readOwnerCart(owner) };
-      cartRef.current = refreshed;
-      setCart(refreshed);
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [owner]);
+  useCartSync({ owner, cart, cartRef, setCart, handoff });
 
   const setCurrentItems = (update: (current: CartItem[]) => CartItem[]) => {
     const current = cartRef.current;
@@ -308,7 +66,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => setCurrentItems(() => []);
   const refreshFromStorage = () => {
-    if (guestHandoffRef.current?.owner === owner && !guestHandoffRef.current.persisted
+    if (handoffRef.current?.owner === owner && !handoffRef.current.persisted
       && !persistCart(cartRef.current)) return;
     const refreshed = { owner, items: owner === 'guest' && cartRef.current.owner === owner
       ? reconcileGuestItems(cartRef.current.items)
@@ -318,18 +76,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   const validateOrderQuantities = (customerId: number, details: Array<{ variantId: number; quantity: number }>) => {
     const cartOwner = `customer-${customerId}`;
-    const key = cartStorageKey(cartOwner);
     let sourceItems: CartItem[];
     try {
-      const saved = window.localStorage.getItem(key);
-      if (saved === null) {
+      const record = persistence.readStoredCart(cartOwner);
+      if (record === null) {
         const current = cartRef.current;
         if (current.owner !== cartOwner) return 'unavailable' as const;
         sourceItems = current.items;
         if (!persistCart(current)) return 'unavailable' as const;
       } else {
-        const record = parseStoredCart(saved);
-        if (!record) return 'unavailable' as const;
         sourceItems = record.items;
       }
     } catch {
@@ -346,10 +101,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let storedItems: CartItem[] | null = null;
     let storageReadable = true;
     try {
-      const saved = window.localStorage.getItem(cartStorageKey(orderOwner));
-      if (saved !== null) {
-        const record = parseStoredCart(saved);
-        if (!record) throw new Error('Stored cart is invalid');
+      const record = persistence.readStoredCart(orderOwner);
+      if (record !== null) {
         storedItems = record.items;
       }
     } catch {

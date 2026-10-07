@@ -19,7 +19,7 @@ import { LoginCustomerDto } from './dto/login-customer.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { UpdateCustomerProfileDto } from './dto/update-customer-profile.dto';
 import {
-  assertSameOriginRequest,
+  assertAllowedSameSiteRequest,
   clearRefreshCookie,
   readRefreshCookie,
   setRefreshCookie,
@@ -63,7 +63,7 @@ export class CustomersController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    assertSameOriginRequest(request, this.config);
+    assertAllowedSameSiteRequest(request, this.config);
     const refreshToken = readRefreshCookie(request, 'customer');
     if (!refreshToken) {
       clearRefreshCookie(response, this.config, 'customer');
@@ -93,7 +93,7 @@ export class CustomersController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    assertSameOriginRequest(request, this.config);
+    assertAllowedSameSiteRequest(request, this.config);
     await this.sessions.revokeCurrentFamily(
       'customer',
       readRefreshCookie(request, 'customer'),

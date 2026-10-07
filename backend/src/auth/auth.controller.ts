@@ -17,7 +17,7 @@ import { EmployeeLoginDto } from './dto/employee-login.dto';
 import { EmployeeJwtGuard } from './employee-jwt.guard';
 import type { AuthenticatedRequest } from './authenticated-request';
 import {
-  assertSameOriginRequest,
+  assertAllowedSameSiteRequest,
   clearRefreshCookie,
   readRefreshCookie,
   setRefreshCookie,
@@ -50,7 +50,7 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    assertSameOriginRequest(request, this.config);
+    assertAllowedSameSiteRequest(request, this.config);
     const refreshToken = readRefreshCookie(request, 'employee');
     if (!refreshToken) {
       clearRefreshCookie(response, this.config, 'employee');
@@ -80,7 +80,7 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    assertSameOriginRequest(request, this.config);
+    assertAllowedSameSiteRequest(request, this.config);
     await this.sessions.revokeCurrentFamily(
       'employee',
       readRefreshCookie(request, 'employee'),

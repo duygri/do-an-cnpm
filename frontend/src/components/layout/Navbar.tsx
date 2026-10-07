@@ -21,7 +21,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       {/* Top Notification Bar */}
-      <div className="bg-primary-container text-on-primary font-label-sm text-label-sm py-1.5 px-margin-sm text-center font-medium tracking-wide flex items-center justify-center gap-space-sm">
+      <div className="bg-primary-container text-on-primary font-sans text-label-sm py-1.5 px-margin-sm text-center font-medium tracking-wide flex items-center justify-center gap-space-sm">
         <span>
           Miễn phí vận chuyển toàn quốc cho đơn hàng từ 499.000đ | Giảm thêm 10% đơn đầu tiên với mã{' '}
           <strong className="underline font-semibold tracking-wider">INDIGO10</strong>
@@ -39,7 +39,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
               <circle cx="12" cy="3.5" r="1.5" fill="#38BDF8" />
             </svg>
           </div>
-          <span className="font-headline-sm text-headline-sm font-bold tracking-tight text-on-surface hidden sm:inline-block">
+          <span className="font-sans text-headline-sm font-bold tracking-tight text-on-surface hidden sm:inline-block">
             INDIGO STUDIO
           </span>
         </Link>
@@ -57,7 +57,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
                 setSearchValue(e.target.value);
                 if (onSearch) onSearch(e.target.value);
               }}
-              className="w-full h-11 pl-11 pr-4 bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface transition-all shadow-none"
+              className="w-full h-11 pl-11 pr-4 bg-surface-container-low rounded-lg font-sans text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface transition-all shadow-none"
               placeholder="Tìm kiếm áo sơ mi, polo, quần tây, đầm..."
             />
             <div className="hidden lg:flex items-center gap-1.5 absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -67,7 +67,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
                   setSearchValue('Polo');
                   if (onSearch) onSearch('Polo');
                 }}
-                className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container transition-colors"
+                className="font-sans text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container transition-colors"
               >
                 Polo
               </button>
@@ -77,7 +77,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
                   setSearchValue('Linen');
                   if (onSearch) onSearch('Linen');
                 }}
-                className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container transition-colors"
+                className="font-sans text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container transition-colors"
               >
                 Linen
               </button>
@@ -93,7 +93,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
             className="relative p-2 rounded-full hover:bg-surface-container-low transition-colors text-on-surface-variant hover:text-on-surface"
           >
             <span className="material-symbols-outlined text-2xl">favorite</span>
-            <span className="absolute top-1 right-1 w-4 h-4 bg-error text-on-error font-label-sm text-[10px] leading-none rounded-full flex items-center justify-center font-bold">
+            <span className="absolute top-1 right-1 w-4 h-4 bg-error text-on-error font-sans text-[10px] leading-none rounded-full flex items-center justify-center font-bold">
               2
             </span>
           </button>
@@ -105,8 +105,8 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
             className="relative flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-container-low hover:bg-surface-container hover:text-on-surface transition-colors text-on-surface"
           >
             <span className="material-symbols-outlined text-2xl text-primary">shopping_bag</span>
-            <span className="hidden sm:inline font-label-md text-label-md font-semibold">Giỏ hàng</span>
-            <span className="w-5 h-5 bg-primary text-on-primary font-label-sm text-label-sm rounded-full flex items-center justify-center font-bold">
+            <span className="hidden sm:inline font-sans text-label-md font-semibold">Giỏ hàng</span>
+            <span className="w-5 h-5 bg-primary text-on-primary font-sans text-label-sm rounded-full flex items-center justify-center font-bold">
               {totalCount}
             </span>
           </Link>
@@ -120,14 +120,14 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 pl-space-xs group"
               >
-                <span className="w-8 h-8 rounded-full bg-primary-soft ring-2 ring-primary-soft flex items-center justify-center font-label-md text-label-md font-bold text-primary">
-                  {(customer.fullName || customer.name || customer.email).charAt(0).toUpperCase()}
+                <span className="w-8 h-8 rounded-full bg-primary-soft ring-2 ring-primary-soft flex items-center justify-center font-sans text-label-md font-bold text-primary">
+                  {(customer.name || customer.email).charAt(0).toUpperCase()}
                 </span>
                 <span className="hidden xl:flex flex-col text-left">
-                  <span className="font-label-md text-label-md font-semibold text-on-surface leading-tight">
-                    {customer.fullName || customer.name || 'Khách hàng'}
+                  <span className="font-sans text-label-md font-semibold text-on-surface leading-tight">
+                    {customer.name || customer.email || 'Khách hàng'}
                   </span>
-                  <span className="font-label-sm text-label-sm text-outline leading-none">Tài khoản khách hàng</span>
+                  <span className="font-sans text-label-sm text-outline leading-none">Tài khoản khách hàng</span>
                 </span>
                 <span className="material-symbols-outlined text-outline group-hover:text-on-surface transition-colors text-lg">
                   expand_more
@@ -162,7 +162,7 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
           ) : (
             <Link
               to="/login"
-              className="rounded-lg bg-primary px-3 py-2 font-label-md text-label-md font-semibold text-on-primary transition hover:opacity-90"
+              className="rounded-lg bg-primary px-3 py-2 font-sans text-label-md font-semibold text-on-primary transition hover:opacity-90"
             >
               Đăng nhập
             </Link>
@@ -174,31 +174,31 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
       <div className="bg-surface/95 border-t border-border-neutral/60">
         <div className="max-w-7xl mx-auto px-gutter">
           <nav className="flex items-center gap-gutter overflow-x-auto py-2">
-            <Link to="/" className="font-label-lg text-label-lg text-primary font-bold whitespace-nowrap py-1">
+            <Link to="/" className="font-sans text-label-lg text-primary font-bold whitespace-nowrap py-1">
               Trang chủ
             </Link>
-            <a href="#catalog-grid" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
+            <a href="#catalog-grid" className="font-sans text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
               Bộ sưu tập mới
             </a>
-            <a href="#catalog-grid" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
+            <a href="#catalog-grid" className="font-sans text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
               Nam
             </a>
-            <a href="#catalog-grid" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
+            <a href="#catalog-grid" className="font-sans text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
               Nữ
             </a>
-            <a href="#catalog-grid" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
+            <a href="#catalog-grid" className="font-sans text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 transition-colors">
               Phụ kiện
             </a>
-            <a href="#catalog-grid" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 flex items-center gap-1.5 transition-colors">
+            <a href="#catalog-grid" className="font-sans text-label-lg text-on-surface-variant hover:text-on-surface whitespace-nowrap py-1 flex items-center gap-1.5 transition-colors">
               <span>Khuyến mãi</span>
-              <span className="px-1.5 py-0.5 bg-error text-on-error font-label-sm text-[10px] leading-tight font-bold rounded-full uppercase">
+              <span className="px-1.5 py-0.5 bg-error text-on-error font-sans text-[10px] leading-tight font-bold rounded-full uppercase">
                 HOT
               </span>
             </a>
-            <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="ml-auto font-label-md text-label-md text-primary bg-primary-soft px-3 py-1 rounded-full hover:bg-primary hover:text-on-primary transition-all">
+            <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="ml-auto font-sans text-label-md text-primary bg-primary-soft px-3 py-1 rounded-full hover:bg-primary hover:text-on-primary transition-all">
               Đăng nhập nhân viên
             </a>
-            <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="font-label-md text-label-md text-primary whitespace-nowrap hover:underline">Cổng quản trị</a>
+            <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="font-sans text-label-md text-primary whitespace-nowrap hover:underline">Cổng quản trị</a>
           </nav>
         </div>
       </div>

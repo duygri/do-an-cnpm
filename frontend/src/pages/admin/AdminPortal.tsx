@@ -23,11 +23,11 @@ const moduleLabels: Record<string, string> = {
 const AccessDenied: React.FC<{ moduleName: string; returnPath: string }> = ({ moduleName, returnPath }) => (
   <section className="rounded-2xl border border-destructive/20 bg-surface p-8 text-center shadow-sm sm:p-12">
     <span aria-hidden="true" className="material-symbols-outlined text-4xl text-destructive">lock</span>
-    <h2 className="mt-3 font-headline-sm text-headline-sm font-bold text-on-surface">Không có quyền truy cập</h2>
-    <p role="alert" className="mx-auto mt-2 max-w-xl font-body-md text-body-md text-on-surface-variant">
+    <h2 className="mt-3 font-sans text-headline-sm font-bold text-on-surface">Không có quyền truy cập</h2>
+    <p role="alert" className="mx-auto mt-2 max-w-xl font-sans text-body-md text-on-surface-variant">
       Vai trò hiện tại không được phép truy cập mô-đun {moduleName.toLowerCase()}. Nếu cần quyền này, hãy liên hệ quản trị viên.
     </p>
-    <Link to={returnPath} className="mt-6 inline-flex rounded-lg bg-primary px-5 py-2.5 font-label-md text-label-md font-semibold text-on-primary hover:opacity-90">
+    <Link to={returnPath} className="mt-6 inline-flex rounded-lg bg-primary px-5 py-2.5 font-sans text-label-md font-semibold text-on-primary hover:opacity-90">
       Về mô-đun được cấp quyền
     </Link>
   </section>
@@ -36,8 +36,8 @@ const AccessDenied: React.FC<{ moduleName: string; returnPath: string }> = ({ mo
 const ComingSoon: React.FC<{ title: string }> = ({ title }) => (
   <section className="rounded-2xl border border-outline-variant bg-surface p-8 text-center shadow-sm sm:p-12">
     <span aria-hidden="true" className="material-symbols-outlined text-4xl text-primary">construction</span>
-    <h2 className="mt-3 font-headline-sm text-headline-sm font-bold text-on-surface">{title}</h2>
-    <p className="mx-auto mt-2 max-w-xl font-body-md text-body-md text-on-surface-variant">
+    <h2 className="mt-3 font-sans text-headline-sm font-bold text-on-surface">{title}</h2>
+    <p className="mx-auto mt-2 max-w-xl font-sans text-body-md text-on-surface-variant">
       Màn hình sẽ kết nối với hệ thống quản lý trong bước tiếp theo.
     </p>
   </section>
@@ -45,9 +45,9 @@ const ComingSoon: React.FC<{ title: string }> = ({ title }) => (
 
 const NotFound: React.FC<{ returnPath: string }> = ({ returnPath }) => (
   <section className="rounded-2xl border border-outline-variant bg-surface p-8 text-center shadow-sm sm:p-12">
-    <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Không tìm thấy trang quản lý</h2>
-    <p className="mt-2 font-body-md text-body-md text-on-surface-variant">Đường dẫn không thuộc mô-đun quản lý nào.</p>
-    <Link to={returnPath} className="mt-6 inline-flex rounded-lg bg-primary px-5 py-2.5 font-label-md text-label-md font-semibold text-on-primary hover:opacity-90">
+    <h2 className="font-sans text-headline-sm font-bold text-on-surface">Không tìm thấy trang quản lý</h2>
+    <p className="mt-2 font-sans text-body-md text-on-surface-variant">Đường dẫn không thuộc mô-đun quản lý nào.</p>
+    <Link to={returnPath} className="mt-6 inline-flex rounded-lg bg-primary px-5 py-2.5 font-sans text-label-md font-semibold text-on-primary hover:opacity-90">
       Về mô-đun được cấp quyền
     </Link>
   </section>

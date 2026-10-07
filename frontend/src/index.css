@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --scrollbar-thumb: theme('colors.slate.300');
+  --scrollbar-thumb-hover: theme('colors.slate.400');
+}
+.dark {
+  --scrollbar-thumb: theme('colors.slate.600');
+  --scrollbar-thumb-hover: theme('colors.slate.500');
+}
+
 @layer base {
   html, body {
     margin: 0;
@@ -27,11 +36,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--scrollbar-thumb-hover);
 }
 
 .scrollbar-none::-webkit-scrollbar {

@@ -29,7 +29,7 @@ function EmployeeMenu() {
   return (
     <nav aria-label="Khu vực quản lý">
       <Menu>
-        {operationalLinks.map((item) => <CanAccess key={item.resource} action="list" resource={item.resource}><Menu.Item to={item.to} primaryText={item.label} /></CanAccess>)}
+        {operationalLinks.map((item) => <CanAccess key={item.to} action="list" resource={item.resource}><Menu.Item to={item.to} primaryText={item.label} /></CanAccess>)}
         <Menu.ResourceItem name="categories" />
         <Menu.ResourceItem name="products" />
         <Menu.ResourceItem name="promotions" />

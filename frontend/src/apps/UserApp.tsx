@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CartProvider } from '../context/CartContext';
 import { AuthProvider } from '../context/AuthContext';
@@ -7,20 +7,17 @@ import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 import { HomePage } from '../pages/storefront/HomePage';
 import { ProductDetailPage } from '../pages/storefront/ProductDetailPage';
+import { NotFoundPage } from '../pages/storefront/NotFoundPage';
 import { CartPage } from '../pages/storefront/CartPage';
 import { OrderHistoryPage } from '../pages/storefront/OrderHistoryPage';
 import { OrderDetailPage } from '../pages/storefront/OrderDetailPage';
 import { CustomerLoginPage } from '../pages/auth/CustomerLoginPage';
 import { CustomerRegisterPage } from '../pages/auth/CustomerRegisterPage';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
 const AppLayout: React.FC = () => {
   const [searchInput, setSearchInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setSearchQuery(searchInput), 300);
-    return () => window.clearTimeout(timeout);
-  }, [searchInput]);
+  const searchQuery = useDebouncedValue(searchInput, 300);
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas text-on-surface">
@@ -34,7 +31,7 @@ const AppLayout: React.FC = () => {
           <Route path="/register" element={<CustomerRegisterPage />} />
           <Route path="/orders" element={<CustomerRoute><OrderHistoryPage /></CustomerRoute>} />
           <Route path="/orders/:orderId" element={<CustomerRoute><OrderDetailPage /></CustomerRoute>} />
-          <Route path="*" element={<section className="mx-auto max-w-7xl px-gutter py-16"><h1 className="font-headline-md font-bold">Không tìm thấy trang</h1></section>} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
       <Footer />
