@@ -9,7 +9,7 @@ import { createServer, loadConfigFromFile } from 'vite';
 
 const frontendRoot = fileURLToPath(new URL('..', import.meta.url));
 const portals = [
-  { name: 'user', deepLink: '/products', title: 'Modern Apparel', bootstrap: 'main.tsx' },
+  { name: 'user', deepLink: '/products', title: 'NOVA Supply', bootstrap: 'main.tsx' },
   { name: 'admin', deepLink: '/admin/employees', title: 'Cổng quản lý', bootstrap: 'main.admin.tsx' },
 ];
 
@@ -123,7 +123,7 @@ test('portal roots, deep links, API proxies, and strict ports', { timeout: 60_00
         const response = await request(portal.origin, path, { headers: { Accept: 'application/json' } });
         assert.equal(response.status, 200);
         assert.match(response.headers.get('content-type'), /application\/json/);
-        assert.deepEqual(await response.json(), { fixture: 'portal-smoke', method: 'GET', path, body: '' });
+        assert.deepEqual(await response.json(), { fixture: 'portal-smoke', method: 'GET', path: prefix === '/api' ? path.slice(4) : path, body: '' });
       }
       const body = JSON.stringify({ portal: portal.name });
       const response = await request(portal.origin, '/orders/smoke', {

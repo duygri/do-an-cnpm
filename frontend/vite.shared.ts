@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
-import type { ProxyOptions, UserConfig } from 'vite';
+import { loadEnv, type ProxyOptions, type UserConfig } from 'vite';
 
 export interface PortalViteOptions {
   portalRoot: string;
@@ -23,6 +23,8 @@ export function createPortalViteConfig(options: PortalViteOptions): UserConfig {
       }
     },
   } satisfies ProxyOptions]));
+
+  proxy['/api'] = { target: options.apiTarget ?? process.env.API_TARGET ?? loadEnv('development', frontendRoot, '').API_TARGET ?? 'http://127.0.0.1:3000', changeOrigin: true, cookiePathRewrite: { '/auth/customer': '/api/auth/customer' }, rewrite: path => path.replace(/^\/api/, '') };
 
   return {
     root: resolve(frontendRoot, options.portalRoot),

@@ -8,3 +8,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <UserApp />
   </React.StrictMode>
 );
+
+import './nova/nova.css';

@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../src/App';
+import { session } from '../src/nova/api';
 import { useAuth } from '../src/context/AuthContext';
 import { api } from '../src/services/api';
 import type { EmployeeRole } from '../src/types';
@@ -100,6 +101,8 @@ function auth(role: EmployeeRole | null = null) {
 
 beforeEach(() => {
   vi.mocked(useAuth).mockReturnValue(auth());
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  vi.stubGlobal('fetch', vi.fn(async (url) => new Response(JSON.stringify(String(url).includes('/profile') ? { customerId: 2, name: 'Customer', email: 'customer@example.test' } : String(url).includes('/orders') ? { items: [], page: 1, limit: 10, total: 0 } : []), { status: 200 })));
   vi.stubEnv('VITE_ADMIN_PORTAL_URL', 'https://admin.example.test');
   vi.stubEnv('VITE_USER_PORTAL_URL', 'https://shop.example.test');
   window.history.replaceState({}, '', '/login');
@@ -224,14 +227,15 @@ describe('Customer routes', () => {
     vi.mocked(useAuth).mockReturnValue(auth('admin'));
     window.history.replaceState({}, '', '/orders');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Đăng nhập', exact: true })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'WELCOME BACK', exact: true })).toBeTruthy();
     expect(api.getCustomerOrders).not.toHaveBeenCalled();
   });
   it('allows an authenticated customer into orders', async () => {
+    session.set('customer-token');
     vi.mocked(useAuth).mockReturnValue({ ...auth(), customer: { customerId: 2, name: 'Customer', email: 'customer@example.test' } });
     window.history.replaceState({}, '', '/orders');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Đơn hàng của tôi', exact: true })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'ĐƠN HÀNG', exact: true })).toBeTruthy();
   });
   it.each(['/admin/employees', '/staff/orders'])('does not mount employee modules at %s on User', async (path) => {
     vi.mocked(useAuth).mockReturnValue(auth('admin'));
@@ -286,7 +290,7 @@ describe('Portal URLs', () => {
   });
 });
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); sessionStorage.clear(); });
 
 describe('User portal separation', () => {
   it('keeps employee sign-in entry points off the storefront', () => {
@@ -335,7 +339,7 @@ describe('Portal authentication ownership', () => {
     window.localStorage.setItem('employee_token', 'employee-token');
     const employeeProfile = vi.spyOn(api, 'getEmployeeProfile').mockResolvedValue(auth('admin').employee!);
     render(<App />);
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Đăng nhập', exact: true })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'WELCOME BACK', exact: true })).toBeTruthy());
     expect(employeeProfile).not.toHaveBeenCalled();
   });
   it('does not restore a customer token in the management portal', async () => {

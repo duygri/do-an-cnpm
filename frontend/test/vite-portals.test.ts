@@ -67,7 +67,8 @@ describe('portal Vite configuration', () => {
     expect(config.envDir).toBe(frontendRoot);
     expect(config.publicDir).toBe(resolve(frontendRoot, 'public'));
     expect(config.cacheDir).toBe(resolve(frontendRoot, 'node_modules/.vite', String(port)));
-    expect(Object.keys(config.proxies).sort()).toEqual([...apiPaths].sort());
+    expect(Object.keys(config.proxies).sort()).toEqual([...apiPaths, '/api'].sort());
+    expect(config.proxies['/api'].target).toBe('http://127.0.0.1:3000');
     for (const path of apiPaths) {
       expect(config.proxies[path]).toEqual({
         target: 'http://localhost:3000',
