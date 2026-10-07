@@ -2,7 +2,6 @@ import React, { FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import { getPortalUrl } from '../../portals/portal-url';
 
 function returnToLocation(state: unknown): string {
   if (typeof state !== 'object' || state === null || !('from' in state)) return '/';
@@ -87,10 +86,6 @@ export const CustomerLoginPage: React.FC = () => {
         <p className="mt-6 text-center font-sans text-body-sm text-on-surface-variant">
           Chưa có tài khoản?{' '}
           <Link to="/register" className="font-semibold text-primary hover:underline">Đăng ký</Link>
-        </p>
-        <p className="mt-3 text-center font-sans text-body-sm text-on-surface-variant">
-          Là nhân viên?{' '}
-          <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="font-semibold text-primary hover:underline">Đăng nhập nhân viên</a>
         </p>
       </div>
     </section>

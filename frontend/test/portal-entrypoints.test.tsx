@@ -289,10 +289,10 @@ describe('Portal URLs', () => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe('User portal separation', () => {
-  it('links employee sign-in from the storefront to the shared management origin', () => {
+  it('keeps employee sign-in entry points off the storefront', () => {
     render(<App />);
-    expect(screen.getAllByRole('link', { name: 'Đăng nhập nhân viên' }).every((link) => link.getAttribute('href') === 'https://admin.example.test/employee/login')).toBe(true);
-    expect(screen.getByRole('link', { name: 'Cổng quản trị' }).getAttribute('href')).toBe('https://admin.example.test/employee/login');
+    expect(screen.queryByRole('link', { name: 'Đăng nhập nhân viên' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Cổng quản trị' })).toBeNull();
   });
 
   it('does not mount employee login inside User', () => {

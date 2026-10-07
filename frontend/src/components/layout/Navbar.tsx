@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { getPortalUrl } from '../../portals/portal-url';
 
 export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSearch }) => {
   const { totalCount } = useCart();
@@ -195,11 +194,8 @@ export const Navbar: React.FC<{ onSearch?: (query: string) => void }> = ({ onSea
                 HOT
               </span>
             </a>
-            <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="ml-auto font-sans text-label-md text-primary bg-primary-soft px-3 py-1 rounded-full hover:bg-primary hover:text-on-primary transition-all">
-              Đăng nhập nhân viên
-            </a>
-            <a href={`${getPortalUrl('admin', import.meta.env, window.location.origin)}/employee/login`} className="font-sans text-label-md text-primary whitespace-nowrap hover:underline">Cổng quản trị</a>
           </nav>
+
         </div>
       </div>
     </header>
