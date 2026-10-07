@@ -1,7 +1,7 @@
 # Code Review Cleanup Design (Findings 2, 4–12)
 
 **Date:** 2026-10-07  
-**Status:** Design approved in chat; written spec awaiting review
+**Status:** Approved by user (2026-10-07)
 
 ## Goal
 
