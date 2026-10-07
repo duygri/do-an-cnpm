@@ -32,7 +32,7 @@ import {
   UpdateProductVariantRequest,
   Voucher,
 } from '../types';
-import { request } from './http';
+import { request, withAuthSessionLock } from './http';
 
 type EmployeeOptions = { tokenOwner: 'employee' };
 type CustomerOptions = { tokenOwner: 'customer' };
@@ -80,10 +80,18 @@ export interface CreateImportRequest {
 export const api = {
   // Customer authentication
   customerLogin(email: string, password: string): Promise<CustomerAuthResponse> {
-    return request('/auth/customer/login', {
-      method: 'POST',
-      body: { email, password },
-    });
+    return withAuthSessionLock('customer', () =>
+      request('/auth/customer/login', {
+        method: 'POST',
+        body: { email, password },
+      }),
+    );
+  },
+
+  logoutCustomerSession(): Promise<void> {
+    return withAuthSessionLock('customer', () =>
+      request('/auth/customer/logout', { method: 'POST' }),
+    );
   },
 
   customerRegister(data: {
@@ -95,7 +103,25 @@ export const api = {
     address?: string | null;
     gender?: string | null;
   }): Promise<CustomerAuthResponse> {
-    return request('/auth/customer/register', { method: 'POST', body: data });
+    return withAuthSessionLock('customer', () =>
+      request('/auth/customer/register', { method: 'POST', body: data }),
+    );
+  },
+
+  // Employee authentication
+  employeeLogin(email: string, password: string): Promise<EmployeeAuthResponse> {
+    return withAuthSessionLock('employee', () =>
+      request('/auth/employee/login', {
+        method: 'POST',
+        body: { email, password },
+      }),
+    );
+  },
+
+  logoutEmployeeSession(): Promise<void> {
+    return withAuthSessionLock('employee', () =>
+      request('/auth/employee/logout', { method: 'POST' }),
+    );
   },
 
   getCustomerProfile(): Promise<CustomerProfile> {
@@ -113,14 +139,6 @@ export const api = {
       method: 'PATCH',
       tokenOwner: 'customer',
       body: data,
-    });
-  },
-
-  // Employee authentication
-  employeeLogin(email: string, password: string): Promise<EmployeeAuthResponse> {
-    return request('/auth/employee/login', {
-      method: 'POST',
-      body: { email, password },
     });
   },
 

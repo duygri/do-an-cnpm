@@ -8,6 +8,7 @@ export interface EmployeeAuthSession {
   employeeLoading: boolean;
   employeeLogin: (token: string, profile: EmployeeProfile) => void;
   employeeLogout: () => void;
+  employeeClearSession?: () => void;
   refreshEmployeeProfile: () => Promise<EmployeeProfile | null>;
 }
 
@@ -84,7 +85,15 @@ export function createEmployeeAuthProvider(session: EmployeeAuthSession): AuthPr
 
     async checkError(error) {
       if (statusCode(error) === 401) {
-        session.employeeLogout();
+        const authSessionUpdated =
+          typeof error === 'object' &&
+          error !== null &&
+          'authSessionUpdated' in error &&
+          (error as { authSessionUpdated?: unknown }).authSessionUpdated === true;
+        if (!authSessionUpdated) {
+          if (session.employeeClearSession) session.employeeClearSession();
+          else session.employeeLogout();
+        }
         throw error;
       }
     },

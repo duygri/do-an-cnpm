@@ -125,6 +125,7 @@ function EmployeeReactAdmin() {
       get employeeLoading() { return authRef.current.employeeLoading; },
       employeeLogin: (token: string, profile: EmployeeProfile) => authRef.current.employeeLogin(token, profile),
       employeeLogout: () => authRef.current.employeeLogout(),
+      employeeClearSession: () => authRef.current.employeeClearSession(),
       refreshEmployeeProfile: () => authRef.current.refreshEmployeeProfile(),
     };
     return createEmployeeAuthProvider(session);

@@ -3,15 +3,19 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Employee } from '../employees/entities/employee.entity';
+import { Customer } from '../customers/entities/customer.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthRefreshToken } from './entities/auth-refresh-token.entity';
 import { EmployeeJwtGuard } from './employee-jwt.guard';
 import { EmployeeRolesGuard } from './employee-roles.guard';
 import { PasswordService } from './password.service';
+import { RefreshSessionsService } from './refresh-sessions.service';
+import { RefreshTokenCleanupScheduler } from './refresh-token-cleanup.scheduler';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Employee]),
+    TypeOrmModule.forFeature([Employee, Customer, AuthRefreshToken]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
@@ -34,6 +38,8 @@ import { PasswordService } from './password.service';
   controllers: [AuthController],
   providers: [
     AuthService,
+    RefreshSessionsService,
+    RefreshTokenCleanupScheduler,
     EmployeeJwtGuard,
     EmployeeRolesGuard,
     PasswordService,
@@ -43,6 +49,7 @@ import { PasswordService } from './password.service';
     EmployeeRolesGuard,
     JwtModule,
     PasswordService,
+    RefreshSessionsService,
     TypeOrmModule,
   ],
 })

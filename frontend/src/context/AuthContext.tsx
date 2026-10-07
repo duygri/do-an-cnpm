@@ -28,6 +28,7 @@ interface AuthContextType {
   refreshCustomerProfile: () => Promise<CustomerProfile | null>;
   employeeLogin: (token: string, profile: EmployeeProfile) => void;
   employeeLogout: () => void;
+  employeeClearSession: () => void;
   refreshEmployeeProfile: () => Promise<EmployeeProfile | null>;
 }
 
@@ -78,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
   const customerOperation = useRef(0);
   const employeeOperation = useRef(0);
 
-  const customerLogout = useCallback(() => {
+  const clearCustomerSession = useCallback(() => {
     customerOperation.current += 1;
     setActiveActorToken('customer', null);
     window.localStorage.removeItem(CUSTOMER_TOKEN_KEY);
@@ -88,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     setCustomerRestoreError(null);
   }, []);
 
-  const employeeLogout = useCallback(() => {
+  const clearEmployeeSession = useCallback(() => {
     employeeOperation.current += 1;
     setActiveActorToken('employee', null);
     window.localStorage.removeItem(EMPLOYEE_TOKEN_KEY);
@@ -97,6 +98,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     setEmployeeLoading(false);
     setEmployeeRestoreError(null);
   }, []);
+
+  const customerLogout = useCallback(() => {
+    void api.logoutCustomerSession().catch(() => undefined);
+    clearCustomerSession();
+  }, [clearCustomerSession]);
+
+  const employeeLogout = useCallback(() => {
+    void api.logoutEmployeeSession().catch(() => undefined);
+    clearEmployeeSession();
+  }, [clearEmployeeSession]);
 
   const customerLogin = useCallback((token: string, profile: CustomerProfile) => {
     customerOperation.current += 1;
@@ -123,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     if (scope === 'employee') return null;
     const requestToken = window.localStorage.getItem(CUSTOMER_TOKEN_KEY);
     if (!requestToken) {
-      customerLogout();
+      clearCustomerSession();
       return null;
     }
 
@@ -132,8 +143,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     setCustomerRestoreError(null);
     try {
       const profile = normalizeCustomerProfile(await api.getCustomerProfile());
-      if (operation !== customerOperation.current || window.localStorage.getItem(CUSTOMER_TOKEN_KEY) !== requestToken) return null;
-      setActiveActorToken('customer', requestToken);
+      const currentToken = window.localStorage.getItem(CUSTOMER_TOKEN_KEY);
+      if (operation !== customerOperation.current || !currentToken) return null;
+      setActiveActorToken('customer', currentToken);
       window.localStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(profile));
       setCustomer(profile);
       return profile;
@@ -144,13 +156,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     } finally {
       if (operation === customerOperation.current) setCustomerLoading(false);
     }
-  }, [scope, customerLogout]);
+  }, [scope, clearCustomerSession]);
 
   const refreshEmployeeProfile = useCallback(async (): Promise<EmployeeProfile | null> => {
     if (scope === 'customer') return null;
     const requestToken = window.localStorage.getItem(EMPLOYEE_TOKEN_KEY);
     if (!requestToken) {
-      employeeLogout();
+      clearEmployeeSession();
       return null;
     }
 
@@ -159,8 +171,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     setEmployeeRestoreError(null);
     try {
       const profile = await api.getEmployeeProfile();
-      if (operation !== employeeOperation.current || window.localStorage.getItem(EMPLOYEE_TOKEN_KEY) !== requestToken) return null;
-      setActiveActorToken('employee', requestToken);
+      const currentToken = window.localStorage.getItem(EMPLOYEE_TOKEN_KEY);
+      if (operation !== employeeOperation.current || !currentToken) return null;
+      setActiveActorToken('employee', currentToken);
       window.localStorage.setItem(EMPLOYEE_PROFILE_KEY, JSON.stringify(profile));
       setEmployee(profile);
       return profile;
@@ -171,18 +184,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
     } finally {
       if (operation === employeeOperation.current) setEmployeeLoading(false);
     }
-  }, [scope, employeeLogout]);
+  }, [scope, clearEmployeeSession]);
 
   useEffect(() => {
     const handleUnauthorized = (event: Event) => {
       const owner = (event as CustomEvent<{ owner?: 'customer' | 'employee' }>).detail?.owner;
-      if (owner === 'customer' && scope !== 'employee') customerLogout();
-      if (owner === 'employee' && scope !== 'customer') employeeLogout();
+      if (owner === 'customer' && scope !== 'employee') clearCustomerSession();
+      if (owner === 'employee' && scope !== 'customer') clearEmployeeSession();
     };
 
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
-  }, [scope, customerLogout, employeeLogout]);
+  }, [scope, clearCustomerSession, clearEmployeeSession]);
 
   useEffect(() => {
     if (scope !== 'employee') {
@@ -208,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
       if (scope !== 'employee' && changedKeys.includes(CUSTOMER_TOKEN_KEY)) {
         setActiveActorToken('customer', null);
         if (!hasStoredToken(CUSTOMER_TOKEN_KEY)) {
-          customerLogout();
+          clearCustomerSession();
         } else {
           customerOperation.current += 1;
           setCustomer(null);
@@ -221,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
       if (scope !== 'customer' && changedKeys.includes(EMPLOYEE_TOKEN_KEY)) {
         setActiveActorToken('employee', null);
         if (!hasStoredToken(EMPLOYEE_TOKEN_KEY)) {
-          employeeLogout();
+          clearEmployeeSession();
         } else {
           employeeOperation.current += 1;
           setEmployee(null);
@@ -234,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
-  }, [scope, customerLogout, employeeLogout, refreshCustomerProfile, refreshEmployeeProfile]);
+  }, [scope, clearCustomerSession, clearEmployeeSession, refreshCustomerProfile, refreshEmployeeProfile]);
 
   useEffect(() => {
     if (scope !== 'employee') {
@@ -272,6 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; scope?: 'custom
         refreshCustomerProfile,
         employeeLogin,
         employeeLogout,
+        employeeClearSession: clearEmployeeSession,
         refreshEmployeeProfile,
       }}
     >

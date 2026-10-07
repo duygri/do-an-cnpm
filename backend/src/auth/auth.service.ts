@@ -1,13 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { Employee } from '../employees/entities/employee.entity';
 import { EmployeeLoginDto } from './dto/employee-login.dto';
 import { EmployeeProfile } from './auth.types';
 import { PasswordService } from './password.service';
-
-const TOKEN_LIFETIME_SECONDS = 900;
+import { ACCESS_TOKEN_LIFETIME_SECONDS } from './auth-token.constants';
+import { RefreshSessionsService } from './refresh-sessions.service';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +14,7 @@ export class AuthService {
     @InjectRepository(Employee)
     private readonly employees: Repository<Employee>,
     private readonly passwords: PasswordService,
-    private readonly jwt: JwtService,
+    private readonly sessions: RefreshSessionsService,
   ) {}
 
   async signIn(credentials: EmployeeLoginDto): Promise<{
@@ -23,6 +22,7 @@ export class AuthService {
     token_type: 'Bearer';
     expires_in: number;
     employee: EmployeeProfile;
+    refreshToken: string;
   }> {
     const email = credentials.email.trim().toLowerCase();
     const employee = await this.employees.findOneBy({ email });
@@ -43,14 +43,17 @@ export class AuthService {
       role: employee.role,
     };
 
+    const tokens = await this.sessions.createSession(
+      'employee',
+      employee.employeeId,
+    );
+
     return {
-      access_token: await this.jwt.signAsync({
-        sub: String(employee.employeeId),
-        actorType: 'employee',
-      }),
+      access_token: tokens.accessToken,
       token_type: 'Bearer',
-      expires_in: TOKEN_LIFETIME_SECONDS,
+      expires_in: ACCESS_TOKEN_LIFETIME_SECONDS,
       employee: profile,
+      refreshToken: tokens.refreshToken,
     };
   }
 }

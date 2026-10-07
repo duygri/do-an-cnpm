@@ -4,18 +4,16 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
-import { AccessTokenPayload } from '../auth/auth.types';
 import { PasswordService } from '../auth/password.service';
 import { CustomerProfile, toCustomerProfile } from './customer-profile';
 import { Customer } from './entities/customer.entity';
 import { LoginCustomerDto } from './dto/login-customer.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { UpdateCustomerProfileDto } from './dto/update-customer-profile.dto';
-
-const TOKEN_LIFETIME_SECONDS = 900;
+import { ACCESS_TOKEN_LIFETIME_SECONDS } from '../auth/auth-token.constants';
+import { RefreshSessionsService } from '../auth/refresh-sessions.service';
 
 export interface CustomerAuthResponse {
   access_token: string;
@@ -24,16 +22,22 @@ export interface CustomerAuthResponse {
   customer: CustomerProfile;
 }
 
+export interface CustomerAuthSessionResponse extends CustomerAuthResponse {
+  refreshToken: string;
+}
+
 @Injectable()
 export class CustomersService {
   constructor(
     @InjectRepository(Customer)
     private readonly customers: Repository<Customer>,
     private readonly passwords: PasswordService,
-    private readonly jwt: JwtService,
+    private readonly sessions: RefreshSessionsService,
   ) {}
 
-  async register(input: RegisterCustomerDto): Promise<CustomerAuthResponse> {
+  async register(
+    input: RegisterCustomerDto,
+  ): Promise<CustomerAuthSessionResponse> {
     const customer = this.customers.create({
       name: input.name.trim(),
       email: this.normalizeEmail(input.email),
@@ -55,7 +59,7 @@ export class CustomersService {
     }
   }
 
-  async login(input: LoginCustomerDto): Promise<CustomerAuthResponse> {
+  async login(input: LoginCustomerDto): Promise<CustomerAuthSessionResponse> {
     const email = this.normalizeEmail(input.email);
     const customer = await this.customers.findOneBy({ email });
     const passwordMatches = await this.passwords.verify(
@@ -113,17 +117,18 @@ export class CustomersService {
 
   private async createAuthResponse(
     customer: Customer,
-  ): Promise<CustomerAuthResponse> {
-    const payload: AccessTokenPayload = {
-      sub: String(customer.customerId),
-      actorType: 'customer',
-    };
+  ): Promise<CustomerAuthSessionResponse> {
+    const tokens = await this.sessions.createSession(
+      'customer',
+      customer.customerId,
+    );
 
     return {
-      access_token: await this.jwt.signAsync(payload),
+      access_token: tokens.accessToken,
       token_type: 'Bearer',
-      expires_in: TOKEN_LIFETIME_SECONDS,
+      expires_in: ACCESS_TOKEN_LIFETIME_SECONDS,
       customer: toCustomerProfile(customer),
+      refreshToken: tokens.refreshToken,
     };
   }
 

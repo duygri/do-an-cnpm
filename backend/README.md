@@ -21,7 +21,7 @@ Sau khi đã cấu hình database, API chạy tại http://localhost:3000.
 
 1. Tạo database PostgreSQL tên `sales_system`.
 2. Sao chép `.env.example` thành `.env` và cập nhật `DATABASE_URL` bằng thông tin PostgreSQL local của bạn.
-3. Chạy migration để tạo schema danh mục, sản phẩm, ảnh sản phẩm, biến thể, khách hàng, đơn hàng, nhân viên, nhà cung cấp và phiếu nhập:
+3. Chạy migration để tạo schema danh mục, sản phẩm, ảnh sản phẩm, biến thể, khách hàng, đơn hàng, phiên đăng nhập, nhân viên, nhà cung cấp và phiếu nhập:
 
 ```powershell
 npm run db:migrate
@@ -50,6 +50,8 @@ npm run db:create-admin
 ```
 
 3. Đăng nhập bằng `POST /auth/employee/login` với JSON gồm `email` và `password`. API trả JWT Bearer có thời hạn 15 phút cùng hồ sơ `employee` gồm `employeeId`, `name`, `email`, `position`, `role`; `GET /auth/employee/profile` trả cùng hồ sơ an toàn.
+
+Đăng nhập nhân viên và khách hàng đăng nhập/đăng ký cũng đặt refresh cookie HttpOnly riêng cho từng loại tài khoản. Access JWT vẫn có hạn 15 phút; client tự xoay refresh token khi access token hết hạn. Refresh token có thời hạn trượt 7 ngày tính từ lần đăng nhập hoặc refresh gần nhất. Đăng xuất thu hồi phiên trên thiết bị/trình duyệt hiện tại; đăng nhập trên thiết bị khác vẫn giữ nguyên. Khi chạy production, đặt `AUTH_ALLOWED_ORIGINS` thành danh sách origin frontend được phép, phân cách bằng dấu phẩy.
 
 API không có đăng ký admin công khai. Lệnh `db:create-admin` tạo tài khoản bootstrap với `role = admin` và `position = admin`. Nhân viên bị khóa (`status` khác `active`) không đăng nhập hoặc dùng token hiện có được. `position` là chức danh mô tả, không dùng để cấp quyền.
 
