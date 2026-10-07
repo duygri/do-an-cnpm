@@ -90,3 +90,9 @@ Playwright sử dụng API mô phỏng, chạy 1440×1000 và 390×844: tìm/l�
 ![Mobile NOVA](../docs/screenshots/nova-mobile.png)
 
 Main hiện có refresh cookie HttpOnly. NOVA vẫn theo phạm vi đã chốt: access JWT trong sessionStorage, 401 yêu cầu đăng nhập lại, không tự refresh/retry yêu cầu đặt hàng. Đăng xuất gọi `/auth/customer/logout` để thu hồi cookie và luôn xóa phiên local; nếu mất mạng, việc thu hồi server chưa được xác nhận. Reverse proxy cần đổi cookie path như ví dụ trên và backend production cần `AUTH_ALLOWED_ORIGINS` chứa origin HTTPS của cửa hàng. Áp dụng các migration sẵn có của main (bao gồm refresh sessions) trước khi chạy backend; PR này không thêm migration.
+
+
+Kết quả trên nhánh NOVA (2026-10-07): build User/Admin và typecheck thành công; lint NOVA thành công; `npx vitest run --maxWorkers=2`: 106/106; smoke proxy: 7/7; Playwright: 10/10; backend build/lint và unit test: 8/8. Chạy nhiều bộ đồng thời có thể làm các test khởi tạo Vite vượt timeout 5 giây trên máy Windows; lần xác minh cuối giới hạn Vitest 2 worker.
+
+![Checkout desktop](../docs/screenshots/checkout-desktop.png)
+![Checkout mobile](../docs/screenshots/checkout-mobile.png)

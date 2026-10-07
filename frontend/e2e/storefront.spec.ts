@@ -115,6 +115,8 @@ async function fixture(
 }
 async function selectProduct(page: Page) {
   await page.goto("/products/1");
+  await page.getByRole("button", { name: "Bone / L" }).click();
+  await expect(page.getByText("519.000 ₫", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Onyx / M" }).click();
   await page.getByRole("button", { name: "THÊM VÀO GIỎ" }).click();
   await page.goto("/cart");
@@ -160,20 +162,36 @@ test("catalog search, category and pagination use API; layout fits viewport", as
   await expect(page).toHaveURL(/categoryId=1/);
   await page.getByRole("button", { name: "Trang sau" }).click();
   await expect(page).toHaveURL(/page=2/);
-  await page.goto("/?q=empty", { waitUntil: "domcontentloaded" });
+  const inputLabel =
+    testInfo.project.name === "mobile" ? "Tìm trong NOVA" : "Tìm kiếm sản phẩm";
+  if (testInfo.project.name === "mobile")
+    await page.getByRole("button", { name: "Mở menu" }).click();
+  await page.getByLabel(inputLabel).fill("empty");
+  await page.getByLabel(inputLabel).press("Enter");
+  await expect(page).toHaveURL(/q=empty/);
   await expect(
     page.getByText("Chưa có sản phẩm phù hợp.", { exact: false }),
   ).toBeVisible();
 });
 test("cart survives reload, login returns to checkout, voucher error then COD and cancellation", async ({
   page,
-}) => {
+}, testInfo) => {
   const requests = await fixture(page);
   await selectProduct(page);
   await page.getByRole("link", { name: "TIẾN HÀNH ĐẶT HÀNG" }).click();
   await expect(page).toHaveURL(/login/);
   await login(page);
   await expect(page).toHaveURL(/checkout/);
+  await expect(page.getByLabel("HỌ TÊN NGƯỜI NHẬN")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: `test-results/checkout-${testInfo.project.name}.png`,
+    fullPage: true,
+  });
   await page.getByLabel("MÃ GIẢM GIÁ (TÙY CHỌN)").fill("BAD");
   await page.getByRole("button", { name: "ĐẶT HÀNG COD" }).click();
   await expect(page.getByRole("alert")).toContainText("Voucher không hợp lệ");

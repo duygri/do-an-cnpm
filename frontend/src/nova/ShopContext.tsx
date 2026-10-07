@@ -148,7 +148,9 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     updateCustomer: setCustomer,
     logout: () => {
       // Revoke the server refresh cookie; local sign-out must also work offline.
-      void api("/auth/customer/logout", { method: "POST", auth: false }).catch(() => {});
+      void api("/auth/customer/logout", { method: "POST", auth: false }).catch(
+        () => {},
+      );
       epoch.current++;
       session.clear();
       setCustomer(null);

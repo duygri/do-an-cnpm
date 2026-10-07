@@ -59,7 +59,11 @@ export async function api<T>(
       );
     }
     if (token && session.get() !== token)
-      throw new ApiError("Phiên đăng nhập đã thay đổi. Vui lòng tải lại.", 401, options.method === "POST" && path === "/orders");
+      throw new ApiError(
+        "Phiên đăng nhập đã thay đổi. Vui lòng tải lại.",
+        401,
+        options.method === "POST" && path === "/orders",
+      );
     if (res.status === 204) return undefined as T;
     if (data === null)
       throw new ApiError("Phản hồi máy chủ không hợp lệ.", 502, true);
