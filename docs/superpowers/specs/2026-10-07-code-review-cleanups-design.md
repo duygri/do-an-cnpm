@@ -11,9 +11,9 @@ Address the approved code-review findings 2 and 4–12 across backend configurat
 
 - Add explicit CORS configuration in `backend/src/main.ts`.
 - Parse `AUTH_ALLOWED_ORIGINS` as a comma-separated origin allowlist and enable credentialed requests only for those origins.
-- Reuse the same configured allowlist for refresh/logout origin validation so CORS and cookie-session checks cannot drift.
+- Reuse the same configured allowlist for refresh/logout origin validation so CORS and cookie-session checks cannot drift. Accept `Sec-Fetch-Site` values `same-origin` and `same-site` only when the request `Origin` is allowlisted; reject cross-site requests.
 - In local development, keep the existing localhost origins for user/admin Vite ports as defaults. In production, fail startup if the allowlist is absent or empty; do not use wildcard origins with credentials.
-- Preserve the current same-origin Vite-proxy behavior.
+- Preserve the current same-origin Vite-proxy behavior. Same-site, cross-origin deployment (for example, separate frontend/API subdomains) is supported through credentialed CORS and host-only cookies; cross-site deployment remains out of scope.
 
 ## Cart provider decomposition
 
