@@ -1,0 +1,22 @@
+@startuml
+hide footbox
+title Khách hủy đơn COD đang chờ
+actor Customer
+participant WebApp
+participant API
+participant OrderService
+participant PostgreSQL
+
+Customer->WebApp: Chọn hủy đơn
+WebApp->API: POST /orders/:orderId/cancel
+API->OrderService: Verify customer owns order
+OrderService->PostgreSQL: BEGIN and lock sales_order row
+PostgreSQL-->OrderService: Pending COD order
+OrderService->PostgreSQL: Set status cancelled
+OrderService->PostgreSQL: COMMIT transaction
+PostgreSQL-->OrderService: Cancelled order
+OrderService-->API: Updated order
+API-->WebApp: 200 cancelled
+WebApp-->Customer: Cập nhật trạng thái hủy
+
+@enduml

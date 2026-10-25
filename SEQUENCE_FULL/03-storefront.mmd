@@ -1,0 +1,27 @@
+sequenceDiagram
+    title Storefront công khai
+    actor Customer
+    participant WebApp
+    participant API
+    participant StorefrontService
+    participant PostgreSQL
+
+    Customer->>WebApp: Mở trang cửa hàng
+    WebApp->>API: GET /store/categories
+    API->>StorefrontService: Load active categories
+    StorefrontService->>PostgreSQL: SELECT active products by category
+    PostgreSQL-->>StorefrontService: Category list
+    StorefrontService-->>API: Public categories
+    API-->>WebApp: 200 categories
+    WebApp->>API: GET /store/products?page=1&limit=20&q=...
+    API->>StorefrontService: Filter and paginate products
+    StorefrontService->>PostgreSQL: SELECT products and min variant price
+    PostgreSQL-->>StorefrontService: Product page
+    StorefrontService-->>API: Items and total
+    API-->>WebApp: 200 product page
+    Customer->>WebApp: Chọn sản phẩm
+    WebApp->>API: GET /store/products/:productId
+    API->>StorefrontService: Load active product detail
+    StorefrontService->>PostgreSQL: SELECT product and variants
+    PostgreSQL-->>StorefrontService: Product detail
+    API-->>WebApp: 200 detail without stock

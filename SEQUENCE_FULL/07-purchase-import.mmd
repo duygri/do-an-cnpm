@@ -1,0 +1,22 @@
+sequenceDiagram
+    title Tạo phiếu nhập hàng từ nhà cung cấp
+    actor Employee
+    participant AdminPortal
+    participant API
+    participant ImportService
+    participant PostgreSQL
+
+    Employee->>AdminPortal: Nhập nhà cung cấp và các dòng hàng
+    AdminPortal->>API: POST /imports
+    API->>ImportService: Validate supplier and detail rows
+    ImportService->>PostgreSQL: BEGIN transaction
+    ImportService->>PostgreSQL: Lock and load supplier and variants
+    PostgreSQL-->>ImportService: Valid references
+    ImportService->>ImportService: Calculate subtotals and total
+    ImportService->>PostgreSQL: INSERT stock_import
+    ImportService->>PostgreSQL: INSERT import_detail rows
+    ImportService->>PostgreSQL: COMMIT transaction
+    PostgreSQL-->>ImportService: Import saved
+    ImportService-->>API: Import document
+    API-->>AdminPortal: 201 created
+    AdminPortal-->>Employee: Hiển thị phiếu nhập

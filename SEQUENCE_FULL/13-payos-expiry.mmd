@@ -1,0 +1,20 @@
+sequenceDiagram
+    title Scheduler xử lý đơn PayOS hết hạn
+    participant Scheduler
+    participant PaymentService
+    participant PostgreSQL
+    participant PayOSProvider
+    participant PayOS
+
+    Scheduler->>PaymentService: Cron every minute
+    PaymentService->>PostgreSQL: Find creating or pending attempts
+    PostgreSQL-->>PaymentService: Expired payment attempts
+    PaymentService->>PayOSProvider: Reconcile payment link
+    PayOSProvider->>PayOS: Query link status and paid amount
+    PayOS-->>PayOSProvider: Link status and aggregate amount
+    PayOSProvider-->>PaymentService: Provider result
+    PaymentService->>PostgreSQL: Lock order and attempt
+    PaymentService->>PaymentService: Decide paid, expired, or review
+    PaymentService->>PostgreSQL: Mark paid or cancel known unpaid order
+    PaymentService->>PostgreSQL: Release voucher through cancelled state
+    PaymentService-->>Scheduler: Reconciliation result

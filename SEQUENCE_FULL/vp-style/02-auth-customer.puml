@@ -1,0 +1,50 @@
+@startuml
+title Đăng ký, đăng nhập và cập nhật hồ sơ khách hàng
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Customer
+boundary WebApp
+control API
+control CustomerService
+entity PostgreSQL
+
+Customer->WebApp: Nhập thông tin đăng ký
+WebApp->API: POST /auth/customer/register
+API->CustomerService: Validate and normalize input
+CustomerService->PostgreSQL: INSERT customer
+PostgreSQL-->CustomerService: Customer record
+CustomerService-->API: JWT and customer profile
+API-->WebApp: 201 created
+WebApp-->Customer: Đăng nhập thành công
+Customer->WebApp: Đăng nhập
+WebApp->API: POST /auth/customer/login
+API->CustomerService: Check email and password
+CustomerService->PostgreSQL: SELECT customer
+PostgreSQL-->CustomerService: Customer record
+CustomerService-->API: JWT access token
+API-->WebApp: 200 token
+Customer->WebApp: Cập nhật hồ sơ
+WebApp->API: PATCH /auth/customer/profile
+API->CustomerService: Update allowed fields
+CustomerService->PostgreSQL: UPDATE customer
+PostgreSQL-->CustomerService: Updated profile
+CustomerService-->API: Profile response
+API-->WebApp: 200 profile
+@enduml

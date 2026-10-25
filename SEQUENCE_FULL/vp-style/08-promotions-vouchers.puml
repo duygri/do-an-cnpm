@@ -1,0 +1,48 @@
+@startuml
+title Quản lý chương trình khuyến mãi và voucher
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Employee
+boundary AdminPortal
+control API
+control PromotionService
+entity PostgreSQL
+
+Employee->AdminPortal: Tạo chương trình khuyến mãi
+AdminPortal->API: POST /promotions
+API->PromotionService: Validate dates and status
+PromotionService->PostgreSQL: INSERT promotion
+PostgreSQL-->PromotionService: Promotion record
+API-->AdminPortal: 201 promotion
+Employee->AdminPortal: Tạo voucher trong chương trình
+AdminPortal->API: POST /promotions/:promotionId/vouchers
+API->PromotionService: Normalize code and validate rules
+PromotionService->PostgreSQL: Check unique voucher code
+PostgreSQL-->PromotionService: Code available
+PromotionService->PostgreSQL: INSERT promotion_detail
+PostgreSQL-->PromotionService: Voucher record
+API-->AdminPortal: 201 voucher
+Employee->AdminPortal: Cập nhật hoặc vô hiệu hóa voucher
+AdminPortal->API: PATCH /promotions/:promotionId/vouchers/:voucherId
+API->PromotionService: Validate update and usage constraints
+PromotionService->PostgreSQL: UPDATE voucher
+PostgreSQL-->PromotionService: Updated voucher
+API-->AdminPortal: 200 voucher
+@enduml

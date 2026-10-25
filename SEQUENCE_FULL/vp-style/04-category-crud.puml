@@ -1,0 +1,47 @@
+@startuml
+title Quản lý danh mục
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Employee
+boundary AdminPortal
+control API
+control CategoryService
+entity PostgreSQL
+
+Employee->AdminPortal: Chọn quản lý danh mục
+AdminPortal->API: GET /categories
+API->CategoryService: List categories
+CategoryService->PostgreSQL: SELECT categories
+PostgreSQL-->CategoryService: Category list
+CategoryService-->API: Categories
+API-->AdminPortal: 200 list
+Employee->AdminPortal: Tạo hoặc sửa danh mục
+AdminPortal->API: POST or PATCH /categories
+API->CategoryService: Validate category data
+CategoryService->PostgreSQL: INSERT or UPDATE category
+PostgreSQL-->CategoryService: Saved category
+API-->AdminPortal: 200 or 201 category
+Employee->AdminPortal: Xóa danh mục
+AdminPortal->API: DELETE /categories/:categoryId
+API->CategoryService: Check product references
+CategoryService->PostgreSQL: DELETE category
+PostgreSQL-->CategoryService: Delete result or conflict
+API-->AdminPortal: 204 deleted or 409 conflict
+@enduml

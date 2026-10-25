@@ -1,0 +1,47 @@
+@startuml
+title Quản lý sản phẩm và biến thể
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Employee
+boundary AdminPortal
+control API
+control ProductService
+control VariantService
+entity PostgreSQL
+
+Employee->AdminPortal: Tạo sản phẩm
+AdminPortal->API: POST /products
+API->ProductService: Validate category and product
+ProductService->PostgreSQL: INSERT product
+PostgreSQL-->ProductService: Product record
+API-->AdminPortal: 201 product
+Employee->AdminPortal: Thêm biến thể
+AdminPortal->API: POST /products/:productId/variants
+API->VariantService: Validate price size color
+VariantService->PostgreSQL: INSERT product variant
+PostgreSQL-->VariantService: Variant record
+API-->AdminPortal: 201 variant
+Employee->AdminPortal: Cập nhật hoặc xóa
+AdminPortal->API: PATCH or DELETE product or variant
+API->ProductService: Check references and update
+ProductService->PostgreSQL: UPDATE or DELETE records
+PostgreSQL-->ProductService: Result
+API-->AdminPortal: 200 updated or 204 deleted
+@enduml

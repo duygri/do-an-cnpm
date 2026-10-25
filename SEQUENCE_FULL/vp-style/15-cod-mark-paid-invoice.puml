@@ -1,0 +1,42 @@
+@startuml
+title Nhân viên xác nhận COD và phát hành hóa đơn
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Employee
+boundary AdminPortal
+control API
+control AdminOrderService
+control InvoiceService
+entity PostgreSQL
+
+Employee->AdminPortal: Xác nhận đã thu tiền COD
+AdminPortal->API: POST /admin/orders/:orderId/mark-paid
+API->AdminOrderService: Verify active employee JWT
+AdminOrderService->PostgreSQL: BEGIN and lock order
+PostgreSQL-->AdminOrderService: Packed unpaid COD order
+AdminOrderService->PostgreSQL: Set payment status paid and confirmer
+AdminOrderService->InvoiceService: Issue invoice for paid order
+InvoiceService->PostgreSQL: INSERT unique invoice snapshot
+PostgreSQL-->InvoiceService: Invoice issued
+AdminOrderService->PostgreSQL: COMMIT transaction
+PostgreSQL-->AdminOrderService: Paid order and invoice
+API-->AdminPortal: 200 paid order
+AdminPortal-->Employee: Hiển thị trạng thái đã thanh toán
+@enduml

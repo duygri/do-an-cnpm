@@ -1,0 +1,28 @@
+@startuml
+hide footbox
+title Khách đặt đơn PayOS
+actor Customer
+participant WebApp
+participant API
+participant OrderService
+participant PaymentService
+participant PayOS
+participant PostgreSQL
+
+Customer->WebApp: Chọn PayOS và xác nhận đơn
+WebApp->API: POST /orders with Idempotency-Key
+API->OrderService: Validate request and customer JWT
+OrderService->PostgreSQL: Check idempotency key and load prices
+PostgreSQL-->OrderService: No existing order
+OrderService->OrderService: Calculate final whole VND amount
+OrderService->PostgreSQL: Create pending order and payment attempt
+OrderService->PaymentService: Create checkout link
+PaymentService->PayOS: Create payment link
+PayOS-->PaymentService: Checkout URL and link ID
+PaymentService->PostgreSQL: Save link and deadline
+PaymentService-->OrderService: Checkout URL
+OrderService-->API: Order and checkout URL
+API-->WebApp: 201 pending unpaid
+WebApp-->Customer: Chuyển sang trang PayOS
+
+@enduml

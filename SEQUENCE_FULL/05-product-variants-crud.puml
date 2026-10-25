@@ -1,0 +1,30 @@
+@startuml
+hide footbox
+title Quản lý sản phẩm và biến thể
+actor Employee
+participant AdminPortal
+participant API
+participant ProductService
+participant VariantService
+participant PostgreSQL
+
+Employee->AdminPortal: Tạo sản phẩm
+AdminPortal->API: POST /products
+API->ProductService: Validate category and product
+ProductService->PostgreSQL: INSERT product
+PostgreSQL-->ProductService: Product record
+API-->AdminPortal: 201 product
+Employee->AdminPortal: Thêm biến thể
+AdminPortal->API: POST /products/:productId/variants
+API->VariantService: Validate price size color
+VariantService->PostgreSQL: INSERT product variant
+PostgreSQL-->VariantService: Variant record
+API-->AdminPortal: 201 variant
+Employee->AdminPortal: Cập nhật hoặc xóa
+AdminPortal->API: PATCH or DELETE product or variant
+API->ProductService: Check references and update
+ProductService->PostgreSQL: UPDATE or DELETE records
+PostgreSQL-->ProductService: Result
+API-->AdminPortal: 200 updated or 204 deleted
+
+@enduml

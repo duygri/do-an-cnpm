@@ -1,0 +1,22 @@
+sequenceDiagram
+    title Đăng nhập nhân viên và xem hồ sơ
+    actor Employee
+    participant AdminPortal
+    participant API
+    participant AuthService
+    participant PostgreSQL
+
+    Employee->>AdminPortal: Nhập email và mật khẩu
+    AdminPortal->>API: POST /auth/employee/login
+    API->>AuthService: Validate credentials
+    AuthService->>PostgreSQL: SELECT employee by email
+    PostgreSQL-->>AuthService: Employee record
+    AuthService->>AuthService: Compare password hash
+    AuthService-->>API: JWT access token
+    API-->>AdminPortal: 200 token and employee
+    AdminPortal-->>Employee: Hiển thị trang quản trị
+    Employee->>AdminPortal: Mở hồ sơ
+    AdminPortal->>API: GET /auth/employee/profile
+    API->>AuthService: Verify employee JWT
+    AuthService-->>API: Active employee
+    API-->>AdminPortal: 200 profile

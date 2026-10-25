@@ -1,0 +1,42 @@
+@startuml
+title Tạo phiếu nhập hàng từ nhà cung cấp
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Employee
+boundary AdminPortal
+control API
+control ImportService
+entity PostgreSQL
+
+Employee->AdminPortal: Nhập nhà cung cấp và các dòng hàng
+AdminPortal->API: POST /imports
+API->ImportService: Validate supplier and detail rows
+ImportService->PostgreSQL: BEGIN transaction
+ImportService->PostgreSQL: Lock and load supplier and variants
+PostgreSQL-->ImportService: Valid references
+ImportService->ImportService: Calculate subtotals and total
+ImportService->PostgreSQL: INSERT stock_import
+ImportService->PostgreSQL: INSERT import_detail rows
+ImportService->PostgreSQL: COMMIT transaction
+PostgreSQL-->ImportService: Import saved
+ImportService-->API: Import document
+API-->AdminPortal: 201 created
+AdminPortal-->Employee: Hiển thị phiếu nhập
+@enduml

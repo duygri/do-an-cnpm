@@ -1,0 +1,47 @@
+@startuml
+title Storefront công khai
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Customer
+boundary WebApp
+control API
+control StorefrontService
+entity PostgreSQL
+
+Customer->WebApp: Mở trang cửa hàng
+WebApp->API: GET /store/categories
+API->StorefrontService: Load active categories
+StorefrontService->PostgreSQL: SELECT active products by category
+PostgreSQL-->StorefrontService: Category list
+StorefrontService-->API: Public categories
+API-->WebApp: 200 categories
+WebApp->API: GET /store/products?page=1&limit=20&q=...
+API->StorefrontService: Filter and paginate products
+StorefrontService->PostgreSQL: SELECT products and min variant price
+PostgreSQL-->StorefrontService: Product page
+StorefrontService-->API: Items and total
+API-->WebApp: 200 product page
+Customer->WebApp: Chọn sản phẩm
+WebApp->API: GET /store/products/:productId
+API->StorefrontService: Load active product detail
+StorefrontService->PostgreSQL: SELECT product and variants
+PostgreSQL-->StorefrontService: Product detail
+API-->WebApp: 200 detail without stock
+@enduml

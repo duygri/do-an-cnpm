@@ -1,0 +1,28 @@
+sequenceDiagram
+    title Quản lý chương trình khuyến mãi và voucher
+    actor Employee
+    participant AdminPortal
+    participant API
+    participant PromotionService
+    participant PostgreSQL
+
+    Employee->>AdminPortal: Tạo chương trình khuyến mãi
+    AdminPortal->>API: POST /promotions
+    API->>PromotionService: Validate dates and status
+    PromotionService->>PostgreSQL: INSERT promotion
+    PostgreSQL-->>PromotionService: Promotion record
+    API-->>AdminPortal: 201 promotion
+    Employee->>AdminPortal: Tạo voucher trong chương trình
+    AdminPortal->>API: POST /promotions/:promotionId/vouchers
+    API->>PromotionService: Normalize code and validate rules
+    PromotionService->>PostgreSQL: Check unique voucher code
+    PostgreSQL-->>PromotionService: Code available
+    PromotionService->>PostgreSQL: INSERT promotion_detail
+    PostgreSQL-->>PromotionService: Voucher record
+    API-->>AdminPortal: 201 voucher
+    Employee->>AdminPortal: Cập nhật hoặc vô hiệu hóa voucher
+    AdminPortal->>API: PATCH /promotions/:promotionId/vouchers/:voucherId
+    API->>PromotionService: Validate update and usage constraints
+    PromotionService->>PostgreSQL: UPDATE voucher
+    PostgreSQL-->>PromotionService: Updated voucher
+    API-->>AdminPortal: 200 voucher

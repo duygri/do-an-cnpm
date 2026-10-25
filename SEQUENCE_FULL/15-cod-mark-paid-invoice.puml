@@ -1,0 +1,25 @@
+@startuml
+hide footbox
+title Nhân viên xác nhận COD và phát hành hóa đơn
+actor Employee
+participant AdminPortal
+participant API
+participant AdminOrderService
+participant InvoiceService
+participant PostgreSQL
+
+Employee->AdminPortal: Xác nhận đã thu tiền COD
+AdminPortal->API: POST /admin/orders/:orderId/mark-paid
+API->AdminOrderService: Verify active employee JWT
+AdminOrderService->PostgreSQL: BEGIN and lock order
+PostgreSQL-->AdminOrderService: Packed unpaid COD order
+AdminOrderService->PostgreSQL: Set payment status paid and confirmer
+AdminOrderService->InvoiceService: Issue invoice for paid order
+InvoiceService->PostgreSQL: INSERT unique invoice snapshot
+PostgreSQL-->InvoiceService: Invoice issued
+AdminOrderService->PostgreSQL: COMMIT transaction
+PostgreSQL-->AdminOrderService: Paid order and invoice
+API-->AdminPortal: 200 paid order
+AdminPortal-->Employee: Hiển thị trạng thái đã thanh toán
+
+@enduml

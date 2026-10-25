@@ -1,0 +1,28 @@
+@startuml
+hide footbox
+title Nhân viên xem và đóng gói đơn hàng
+actor Employee
+participant AdminPortal
+participant API
+participant AdminOrderService
+participant PostgreSQL
+
+Employee->AdminPortal: Mở danh sách đơn chờ xử lý
+AdminPortal->API: GET /admin/orders?status=pending
+API->AdminOrderService: Verify active employee JWT
+AdminOrderService->PostgreSQL: SELECT paginated orders
+PostgreSQL-->AdminOrderService: Order summaries
+API-->AdminPortal: 200 order list
+Employee->AdminPortal: Mở chi tiết và bấm đóng gói
+AdminPortal->API: POST /admin/orders/:orderId/pack
+API->AdminOrderService: Validate packing input
+AdminOrderService->PostgreSQL: BEGIN and lock sales_order
+PostgreSQL-->AdminOrderService: Pending order
+AdminOrderService->PostgreSQL: INSERT packing record
+AdminOrderService->PostgreSQL: UPDATE order status to packed
+AdminOrderService->PostgreSQL: COMMIT transaction
+PostgreSQL-->AdminOrderService: Packed order
+API-->AdminPortal: 200 packed order
+AdminPortal-->Employee: Hiển thị thông tin đóng gói
+
+@enduml

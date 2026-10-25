@@ -1,0 +1,39 @@
+@startuml
+title Khách hủy đơn COD đang chờ
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Customer
+boundary WebApp
+control API
+control OrderService
+entity PostgreSQL
+
+Customer->WebApp: Chọn hủy đơn
+WebApp->API: POST /orders/:orderId/cancel
+API->OrderService: Verify customer owns order
+OrderService->PostgreSQL: BEGIN and lock sales_order row
+PostgreSQL-->OrderService: Pending COD order
+OrderService->PostgreSQL: Set status cancelled
+OrderService->PostgreSQL: COMMIT transaction
+PostgreSQL-->OrderService: Cancelled order
+OrderService-->API: Updated order
+API-->WebApp: 200 cancelled
+WebApp-->Customer: Cập nhật trạng thái hủy
+@enduml

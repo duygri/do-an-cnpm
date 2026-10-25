@@ -1,0 +1,45 @@
+@startuml
+title Khách đặt đơn PayOS
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Customer
+boundary WebApp
+control API
+control OrderService
+control PaymentService
+entity PayOS
+entity PostgreSQL
+
+Customer->WebApp: Chọn PayOS và xác nhận đơn
+WebApp->API: POST /orders with Idempotency-Key
+API->OrderService: Validate request and customer JWT
+OrderService->PostgreSQL: Check idempotency key and load prices
+PostgreSQL-->OrderService: No existing order
+OrderService->OrderService: Calculate final whole VND amount
+OrderService->PostgreSQL: Create pending order and payment attempt
+OrderService->PaymentService: Create checkout link
+PaymentService->PayOS: Create payment link
+PayOS-->PaymentService: Checkout URL and link ID
+PaymentService->PostgreSQL: Save link and deadline
+PaymentService-->OrderService: Checkout URL
+OrderService-->API: Order and checkout URL
+API-->WebApp: 201 pending unpaid
+WebApp-->Customer: Chuyển sang trang PayOS
+@enduml

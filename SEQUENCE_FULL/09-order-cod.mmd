@@ -1,0 +1,22 @@
+sequenceDiagram
+    title Khách đặt đơn COD
+    actor Customer
+    participant WebApp
+    participant API
+    participant OrderService
+    participant PostgreSQL
+
+    Customer->>WebApp: Chọn biến thể và nhập giao hàng
+    WebApp->>API: POST /orders paymentMethod=cod
+    API->>OrderService: Verify customer JWT
+    OrderService->>PostgreSQL: BEGIN transaction
+    OrderService->>PostgreSQL: Load active variants and voucher
+    PostgreSQL-->>OrderService: Prices and voucher rules
+    OrderService->>OrderService: Calculate subtotal discount total
+    OrderService->>PostgreSQL: Reserve voucher through order state
+    OrderService->>PostgreSQL: INSERT sales_order and order_details
+    OrderService->>PostgreSQL: COMMIT transaction
+    PostgreSQL-->>OrderService: Order pending unpaid
+    OrderService-->>API: Order response
+    API-->>WebApp: 201 order
+    WebApp-->>Customer: Hiển thị đơn chờ xử lý

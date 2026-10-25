@@ -1,0 +1,28 @@
+@startuml
+hide footbox
+title Webhook PayOS xác nhận thanh toán
+participant PayOS
+participant API
+participant PaymentService
+participant PayOSProvider
+participant PostgreSQL
+participant InvoiceService
+
+PayOS->API: POST /payments/payos/webhook
+API->PaymentService: Receive webhook payload
+PaymentService->PayOSProvider: Verify signature and payload
+PayOSProvider-->PaymentService: Valid webhook
+PaymentService->PostgreSQL: Find attempt by order code and link ID
+PostgreSQL-->PaymentService: Local attempt
+PaymentService->PayOSProvider: Query payment link status
+PayOSProvider->PayOS: GET payment link
+PayOS-->PayOSProvider: PAID and aggregate amount
+PayOSProvider-->PaymentService: Verified full payment
+PaymentService->PostgreSQL: Lock order and payment attempt
+PaymentService->PostgreSQL: Mark paid and save transaction reference
+PaymentService->InvoiceService: Issue invoice in same transaction
+InvoiceService->PostgreSQL: INSERT invoice if absent
+PaymentService->PostgreSQL: COMMIT transaction
+API-->PayOS: 200 accepted
+
+@enduml

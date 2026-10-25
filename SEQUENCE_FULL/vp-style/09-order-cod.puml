@@ -1,0 +1,42 @@
+@startuml
+title Khách đặt đơn COD
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Customer
+boundary WebApp
+control API
+control OrderService
+entity PostgreSQL
+
+Customer->WebApp: Chọn biến thể và nhập giao hàng
+WebApp->API: POST /orders paymentMethod=cod
+API->OrderService: Verify customer JWT
+OrderService->PostgreSQL: BEGIN transaction
+OrderService->PostgreSQL: Load active variants and voucher
+PostgreSQL-->OrderService: Prices and voucher rules
+OrderService->OrderService: Calculate subtotal discount total
+OrderService->PostgreSQL: Reserve voucher through order state
+OrderService->PostgreSQL: INSERT sales_order and order_details
+OrderService->PostgreSQL: COMMIT transaction
+PostgreSQL-->OrderService: Order pending unpaid
+OrderService-->API: Order response
+API-->WebApp: 201 order
+WebApp-->Customer: Hiển thị đơn chờ xử lý
+@enduml

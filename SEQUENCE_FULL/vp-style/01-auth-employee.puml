@@ -1,0 +1,42 @@
+@startuml
+title Đăng nhập nhân viên và xem hồ sơ
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Employee
+boundary AdminPortal
+control API
+control AuthService
+entity PostgreSQL
+
+Employee->AdminPortal: Nhập email và mật khẩu
+AdminPortal->API: POST /auth/employee/login
+API->AuthService: Validate credentials
+AuthService->PostgreSQL: SELECT employee by email
+PostgreSQL-->AuthService: Employee record
+AuthService->AuthService: Compare password hash
+AuthService-->API: JWT access token
+API-->AdminPortal: 200 token and employee
+AdminPortal-->Employee: Hiển thị trang quản trị
+Employee->AdminPortal: Mở hồ sơ
+AdminPortal->API: GET /auth/employee/profile
+API->AuthService: Verify employee JWT
+AuthService-->API: Active employee
+API-->AdminPortal: 200 profile
+@enduml

@@ -1,0 +1,44 @@
+@startuml
+title Tra cứu hóa đơn
+hide footbox
+autonumber
+skinparam backgroundColor white
+skinparam sequence {
+  ParticipantBackgroundColor #8DD3F7
+  ParticipantBorderColor #222222
+  ActorBackgroundColor #8DD3F7
+  ActorBorderColor #222222
+  BoundaryBackgroundColor #8DD3F7
+  BoundaryBorderColor #222222
+  ControlBackgroundColor #8DD3F7
+  ControlBorderColor #222222
+  EntityBackgroundColor #8DD3F7
+  EntityBorderColor #222222
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor white
+  MessageAlign center
+}
+
+actor Customer
+actor Employee
+boundary CustomerApp
+boundary AdminPortal
+control API
+control InvoiceService
+entity PostgreSQL
+
+Customer->CustomerApp: Xem hóa đơn của đơn hàng
+CustomerApp->API: GET /orders/:orderId/invoice
+API->InvoiceService: Verify customer owns order
+InvoiceService->PostgreSQL: Query invoice by order and customer
+PostgreSQL-->InvoiceService: Invoice summary or none
+InvoiceService-->API: Invoice summary
+API-->CustomerApp: 200 invoice or 404
+Employee->AdminPortal: Xem hóa đơn quản trị
+AdminPortal->API: GET /admin/orders/:orderId/invoice
+API->InvoiceService: Verify active employee JWT
+InvoiceService->PostgreSQL: Query invoice by order
+PostgreSQL-->InvoiceService: Invoice summary or none
+InvoiceService-->API: Invoice summary
+API-->AdminPortal: 200 invoice or 404
+@enduml

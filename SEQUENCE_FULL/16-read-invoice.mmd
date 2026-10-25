@@ -1,0 +1,24 @@
+sequenceDiagram
+    title Tra cứu hóa đơn
+    actor Customer
+    actor Employee
+    participant CustomerApp
+    participant AdminPortal
+    participant API
+    participant InvoiceService
+    participant PostgreSQL
+
+    Customer->>CustomerApp: Xem hóa đơn của đơn hàng
+    CustomerApp->>API: GET /orders/:orderId/invoice
+    API->>InvoiceService: Verify customer owns order
+    InvoiceService->>PostgreSQL: Query invoice by order and customer
+    PostgreSQL-->>InvoiceService: Invoice summary or none
+    InvoiceService-->>API: Invoice summary
+    API-->>CustomerApp: 200 invoice or 404
+    Employee->>AdminPortal: Xem hóa đơn quản trị
+    AdminPortal->>API: GET /admin/orders/:orderId/invoice
+    API->>InvoiceService: Verify active employee JWT
+    InvoiceService->>PostgreSQL: Query invoice by order
+    PostgreSQL-->>InvoiceService: Invoice summary or none
+    InvoiceService-->>API: Invoice summary
+    API-->>AdminPortal: 200 invoice or 404
